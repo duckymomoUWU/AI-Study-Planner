@@ -1,0 +1,64 @@
+ID,Title,Epic,Target Sprint,Priority,Status,Dependencies,Acceptance Criteria
+US01,Đăng ký và đăng nhập,E1,Sprint 1,Must,Backlog,,"Given email hợp lệ chưa tồn tại, When đăng ký đúng quy tắc mật khẩu, Then tạo tài khoản và đăng nhập được.
+Given mật khẩu sai, When đăng nhập, Then trả thông báo chung và không tạo phiên; giới hạn lần thử.
+When đăng xuất, Then phiên bị vô hiệu; mật khẩu được hash bằng thư viện đã được kiểm chứng, cookie HttpOnly/Secure khi triển khai."
+US02,Cách ly dữ liệu theo người dùng,E1,Sprint 1,Must,Backlog,US01,"Given A và B có mục tiêu riêng, When B đọc/sửa/xóa ID của A qua API, Then bị từ chối và dữ liệu không đổi.
+Given chưa đăng nhập, When gọi API dữ liệu cá nhân, Then trả 401.
+Mọi truy vấn mục tiêu, công việc, đề xuất và tiến độ đều kiểm tra chủ sở hữu phía server; có integration tests hai tài khoản."
+US03,Tạo mục tiêu ôn tập,E2,Sprint 1,Must,Backlog,"US01, US02","Given môn 1–100 ký tự và 1–30 chủ đề hợp lệ, When lưu, Then mục tiêu thuộc tài khoản hiện tại.
+Ngày bắt đầu mặc định hôm nay theo múi giờ người dùng; ngày thi phải sau ngày bắt đầu, thời gian 15–480 phút/ngày, khoảng ôn tối đa 90 ngày.
+Given dữ liệu sai hoặc thiếu, When lưu, Then báo đúng trường, không mất phần đã nhập và server từ chối lưu."
+US04,Sửa và xóa mục tiêu,E2,Sprint 1,Must,Backlog,US03,"When xóa mục tiêu và xác nhận, Then xóa mục tiêu cùng kế hoạch/con việc liên quan trong transaction; hủy xác nhận không thay đổi gì.
+When thay ngày thi hoặc quỹ giờ làm lịch hiện có không hợp lệ, Then hiển thị xung đột và yêu cầu chỉnh lịch, không âm thầm bỏ công việc.
+Given phiên bản mục tiêu đã thay đổi ở tab khác, When lưu bản cũ, Then báo xung đột và cho tải lại thay vì ghi đè."
+US05,Tạo và sửa công việc thủ công,E2,Sprint 1,Must,Backlog,US03,"When nhập tiêu đề, ngày và số phút nguyên dương trong giới hạn, Then tạo công việc ở trạng thái chưa hoàn thành.
+When ngày nằm ngoài khoảng ôn hoặc tổng phút trong ngày vượt ngân sách của mục tiêu, Then từ chối kèm số phút vượt.
+When sửa/xóa việc, Then cập nhật danh sách và tiến độ; đường thủ công không gọi dịch vụ AI."
+US06,Xem công việc theo ngày,E2,Sprint 1,Must,Backlog,US05,"When mở trang hôm nay, Then hiển thị ngày theo timezone đã chọn, việc của tất cả mục tiêu và tổng thời lượng.
+Ngày không có việc hiển thị trạng thái trống và hành động thêm việc.
+When chọn ngày khác, Then chỉ thấy việc thuộc ngày đó; việc trễ hiện riêng, không tự đổi ngày."
+US07,Hoàn thành và mở lại công việc,E4,Sprint 1,Must,Backlog,US06,"When đánh dấu xong hoặc mở lại, Then trạng thái lưu bền và còn đúng sau refresh.
+Given gửi lặp cùng một yêu cầu, Then kết quả không tăng đếm hai lần.
+Tiến độ = số công việc hoàn thành / tổng công việc hiện có; 0 việc hiển thị 0/0 và Chưa có công việc, không báo đã học xong."
+US08,Yêu cầu AI chia nhỏ nội dung,E3,Sprint 2,Must,Backlog,"US03, US05","When bấm đề xuất, Then gửi môn, chủ đề và ràng buộc cần thiết; không gửi email hoặc mật khẩu.
+Kết quả phải có title, topic, estimatedMinutes theo JSON schema; server từ chối phần tử sai kiểu/ngoài giới hạn, tối đa 100 việc.
+Nội dung người dùng chỉ là dữ liệu; chỉ dẫn chèn trong chủ đề không được quyền thay đổi schema, thực thi mã hay gọi công cụ."
+US09,Phân bổ lịch và báo thiếu thời gian,E3,Sprint 2,Must,Backlog,US08,"Given 180 phút công việc, 3 ngày trước thi, 60 phút/ngày, Then mỗi ngày tối đa 60 phút và không có việc ngày thi hoặc sau đó.
+Given 180 phút công việc nhưng chỉ có 135 phút, Then báo thiếu 45 phút và yêu cầu giảm phạm vi/tăng thời gian; không tự giảm ước lượng cho vừa.
+Công việc dài được chia thành phiên giữ tổng số phút; bộ kiểm tra xác định xử lý lịch, không tin ngày AI tự đề xuất."
+US10,Xem và chỉnh bản đề xuất,E3,Sprint 2,Must,Backlog,US09,"When nhận đề xuất, Then hiển thị nhãn Bản nháp và Thời lượng tham khảo; kế hoạch hiện hành chưa thay đổi.
+When sửa tiêu đề, thời lượng, ngày hoặc bỏ việc, Then kiểm tra lại lịch và báo mọi vi phạm ngân sách.
+When hủy nháp, Then không thay đổi việc đã lưu hoặc đã hoàn thành."
+US11,Xác nhận lưu kế hoạch,E3,Sprint 2,Must,Backlog,US10,"When xác nhận nháp hợp lệ, Then lưu nguyên tử mọi công việc; lỗi giữa chừng không tạo kế hoạch dở dang.
+Given bấm lưu hai lần hoặc retry mạng, Then cùng idempotency key chỉ sinh một kế hoạch.
+Given mục tiêu đã đổi từ lúc tạo nháp, Then từ chối nháp cũ bằng version check; khi thay lịch giữ nguyên việc đã hoàn thành, preview rõ phần thay thế."
+US12,Tiếp tục khi AI lỗi,E3,Sprint 2,Must,Backlog,"US05, US08","Given AI timeout 20 giây, 429, 5xx hoặc JSON sai, Then báo lỗi dễ hiểu, giữ đầu vào và cung cấp nút tự tạo việc.
+Không tự retry vô hạn: tối đa một retry cho lỗi tạm thời, không retry sai schema hoặc hết quota.
+Không ghi key hoặc nội dung học vào log; thông báo có mã yêu cầu để tra lỗi."
+US13,Xử lý việc quá hạn,E4,Sprint 3,Should,Backlog,"US07, US09","Việc chưa xong trước hôm nay được ghi Trễ, không đánh dấu xong và không tự chuyển ngày.
+When chọn dời việc, Then hiện preview ngân sách ngày đích và chỉ lưu sau xác nhận.
+Given không còn ngày trước thi, Then báo không thể xếp và cho giảm phạm vi; không đẩy việc sau kỳ thi."
+US14,Xem tiến độ mục tiêu,E4,Sprint 3,Must,Backlog,US07,"When hoàn thành 2/5 việc, Then hiển thị 40%, số hoàn thành và số còn lại.
+When xóa/thêm/chia công việc, Then tính lại mẫu số; giao diện giải thích tiến độ đo công việc, không đo kiến thức.
+Thống kê chỉ lấy việc đã lưu; bản nháp AI không được tính."
+US15,Khởi tạo công nghệ và CI,E5,Sprint 1,Must,Backlog,,"Từ Node 24 và checkout có lockfile, npm ci cài được, npm run check kiểm tra type/test/build thành công.
+Server khởi động; health xác nhận SQLite đọc/ghi được; request lập lịch hợp lệ và không khả thi đều có kết quả đúng.
+Có README, .env.example không secret và CI trên pull request; chưa có xác thực thì chỉ dùng dữ liệu mẫu."
+US16,Kiểm thử tích hợp và E2E luồng chính,E5,Sprint 2,Must,Backlog,"US02, US11, US12","Playwright chạy đăng nhập → mục tiêu → nháp → sửa → xác nhận → hoàn thành → refresh và kiểm tra kết quả.
+Test API kiểm tra IDOR, phiên hết hạn, lưu trùng và lỗi transaction; scheduler kiểm tra leap day, deadline và vượt ngân sách.
+CI chặn merge khi check lỗi; fake provider dùng cho CI, live AI smoke test là kiểm tra riêng có quota."
+US17,Giới hạn chi phí và vận hành AI,E5,Sprint 3,Must,Backlog,US08,"Server áp quota theo tài khoản và rate limit, không chỉ disable nút; hết quota vẫn dùng thủ công.
+Ghi model/version, latency, tokens, status, request ID; không ghi nội dung học; có giới hạn đầu vào và output tokens.
+PO đặt ngân sách pilot và ngưỡng dừng; kiểm tra khóa AI khẩn cấp vẫn giữ luồng thủ công."
+US18,Triển khai thử và phục hồi dữ liệu,E5,Sprint 3,Must,Backlog,US16,"Triển khai một Node server có TLS và volume SQLite bền; restart không mất kế hoạch.
+Có backup và diễn tập restore trên database thử, xác nhận số bản ghi/mục tiêu; không chỉ kiểm tra file tồn tại.
+Có health check, hướng dẫn rollback và lỗi mạng được hiển thị; dữ liệu thử tách dữ liệu thật."
+US19,Kiểm chứng vấn đề với sinh viên,E6,Sprint 1,Must,Backlog,,"Phỏng vấn ít nhất 5 sinh viên có kỳ thi trong 2–4 tuần, hỏi lần ôn gần nhất và cách chia lịch thực tế.
+Ghi nhận đồng ý tham gia và dữ liệu ẩn danh: khó khăn, cách hiện tại, thời gian lập lịch; không biến giả định thành kết quả.
+PO tổng hợp các vấn đề lặp lại, chọn một giả thuyết giá trị và cập nhật thứ tự backlog."
+US20,Thử khả dụng bản đề xuất,E6,Sprint 2,Should,Backlog,US11,"Ít nhất 5 người thử cùng kịch bản, ghi thời gian đến kế hoạch xác nhận và số lần cần trợ giúp.
+Ghi tỷ lệ sửa/hủy nháp và lý do, không coi mọi sửa đổi là thất bại AI.
+Chọn một thay đổi UX dựa trên quan sát, tạo issue có tiêu chí và đo lại ở Sprint sau."
+US21,Đánh giá pilot và quyết định tiếp tục,E6,Sprint 3,Should,Backlog,"US14, US20","Mời 10–15 sinh viên thử 7 ngày, đo activation và quay lại ngày 7 theo định nghĩa trong business.md.
+Báo cáo n/N, mẫu nhỏ và trường hợp bỏ cuộc, không tuyên bố cải thiện điểm thi khi chưa có bằng chứng.
+Kết thúc bằng quyết định tiếp tục/đổi hướng/dừng và một thử nghiệm tiếp theo; chưa mở thu phí chỉ vì có ý tưởng giá."
