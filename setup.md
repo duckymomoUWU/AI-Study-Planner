@@ -45,3 +45,20 @@ docker compose exec db psql -U study_planner -d study_planner -c '\dt'
 Ctrl+C dừng backend. `docker compose stop` dừng DB và giữ dữ liệu. Dữ liệu nằm trong named volume; không dùng `down -v` nếu cần giữ dữ liệu. Đổi DB_PASSWORD không tự đổi mật khẩu của DB đã tạo: dùng mật khẩu ban đầu hoặc đổi bằng PostgreSQL.
 
 Nếu cổng 5432/8080 đang bận, kiểm tra dịch vụ đang dùng rồi cấu hình cổng khác và cập nhật DB_URL/PORT tương ứng. Nếu Flyway lỗi, đọc lỗi và sửa cấu hình hoặc thêm migration; không xóa DB để che lỗi.
+
+
+## Frontend React + Vite
+
+Cài Node.js 22.12+ (khuyến nghị Node 24 LTS) và npm. Trong terminal mới tại root repository:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Mở http://localhost:5173. Frontend gọi `/actuator/health` qua Vite proxy đến backend cổng 8080; `/api` cũng được proxy để tích hợp tính năng sau này. Frontend mở được khi backend tắt và hiển thị trạng thái chưa kết nối. Không cần thêm CORS rộng vào backend.
+
+Nếu backend dùng cổng khác, sao chép `frontend/.env.example` thành `frontend/.env.local`, đổi BACKEND_URL và khởi động lại Vite. Không chuyển mật khẩu DB hoặc AI API key sang frontend.
+
+Chạy `npm run lint`, `npm test`, `npm run build` trong `frontend/`. `npm run preview` mở bản build ở cổng 4173 nhưng không có dev proxy; production cần reverse proxy riêng cho `/api` và `/actuator/health`. Chi tiết ở [frontend/README.md](frontend/README.md).

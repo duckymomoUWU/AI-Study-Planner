@@ -11,3 +11,9 @@
 /.data/
 next-env.d.ts
 *.tsbuildinfo
+
+# React frontend
+/frontend/node_modules/
+/frontend/dist/
+/frontend/.env.local
+*.log
