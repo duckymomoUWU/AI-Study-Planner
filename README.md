@@ -1,18 +1,32 @@
 # AI Study Planner
 
-Repo khởi tạo tối giản: requirements, môi trường chạy backend và database.
+Bộ khởi tạo dự án: requirements, backend Spring Boot, database và frontend React.
 
 - **Java 21 + Spring Boot 3.5.16 + Maven 3.9+**.
 - **PostgreSQL 17**, chạy bằng Docker Compose.
 - **Flyway** tự tạo/cập nhật schema khi ứng dụng khởi động.
+- **React + Vite + JavaScript + CSS**, frontend trong `frontend/`.
 - Kiến trúc ban đầu: một backend; chia controller/service/repository khi phát triển tính năng.
 
 ## Nội dung
 
 - [requirements.md](requirements.md): chức năng, quy tắc nghiệp vụ và phạm vi.
 - [setup.md](setup.md): cài đặt, chạy, kiểm tra và dừng môi trường.
+- [frontend/README.md](frontend/README.md): chạy frontend và kết nối backend.
 - [Migration DB](src/main/resources/db/migration/V1__initial_schema.sql): users, goals, tasks, drafts.
 
-Hiện chỉ có ứng dụng Spring Boot khởi động, kết nối DB, migration và health endpoint. Chưa có đăng nhập, API nghiệp vụ, frontend hoặc tích hợp AI. Không dùng cho dữ liệu thật trước khi triển khai auth và kiểm tra ownership.
+Hiện có bộ khung Spring Boot, cấu hình kết nối DB, migration, health endpoint và giao diện React khởi đầu có kiểm tra kết nối backend. Chưa có đăng nhập, API nghiệp vụ hoặc tích hợp AI. Không dùng cho dữ liệu thật trước khi triển khai auth và kiểm tra ownership.
 
 Tài liệu/Epic/User Stories và demo Next.js trước đó đã được đóng gói riêng trong file ZIP bàn giao; vẫn có thể xem lịch sử Git ở commit `ef2afef`.
+
+## Chạy frontend
+
+Cài Node.js 22.12+ (khuyến nghị Node 24 LTS), mở terminal tại root repository:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Mở http://localhost:5173. Chạy backend/DB theo `setup.md` để thẻ kết nối kiểm tra được trạng thái thật.

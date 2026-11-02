@@ -1,0 +1,45 @@
+import BackendStatus from './components/BackendStatus.jsx'
+import './App.css'
+
+const repository = 'https://github.com/duckymomoUWU/AI-Study-Planner'
+const stages = [
+  { number: '01', title: 'Đặt mục tiêu', text: 'Xác định môn học, chủ đề, ngày thi và thời gian bạn có.', sprint: 'Sprint 1' },
+  { number: '02', title: 'Lên kế hoạch', text: 'AI đề xuất. Bạn chỉnh sửa và quyết định lịch học phù hợp.', sprint: 'Sprint 2' },
+  { number: '03', title: 'Học từng ngày', text: 'Xem việc cần làm và theo dõi những bước đã hoàn thành.', sprint: 'Sprint 3' },
+]
+
+export default function App() {
+  return (
+    <>
+      <a className="skip-link" href="#main">Đến nội dung chính</a>
+      <div className="app-shell">
+        <aside className="sidebar" aria-label="Thông tin dự án">
+          <a className="brand" href="/" aria-label="AI Study Planner — trang chủ">
+            <span className="brand-mark" aria-hidden="true">s<span>✦</span></span>
+            <span>study<span className="brand-light">planner</span><small>HỌC CÓ KẾ HOẠCH</small></span>
+          </a>
+          <nav aria-label="Điều hướng">
+            <a className="nav-link nav-link--active" href="#main" aria-current="page"><span aria-hidden="true">◫</span> Tổng quan</a>
+            <a className="nav-link" href={`${repository}/wiki`}><span aria-hidden="true">▤</span> Tài liệu dự án <span className="nav-arrow" aria-hidden="true">↗</span></a>
+            <a className="nav-link" href={`${repository}/issues`}><span aria-hidden="true">☷</span> Backlog <span className="nav-arrow" aria-hidden="true">↗</span></a>
+          </nav>
+          <div className="sidebar-note"><span aria-hidden="true">✦</span><p>Một kế hoạch rõ ràng.<br />Một khởi đầu nhẹ nhàng.</p><small>AI hỗ trợ, bạn quyết định.</small></div>
+        </aside>
+        <div className="workspace">
+          <header className="topbar"><span>Không gian học tập</span><span className="version">Bản khởi tạo · MVP</span></header>
+          <main id="main" tabIndex={-1}>
+            <div className="page-heading"><p className="eyebrow">AI STUDY PLANNER</p><h1>Mỗi buổi học,<br />một bước tiến.</h1><p>Biến nội dung cần ôn thành những việc cụ thể mỗi ngày.<br className="desktop-break" /> Lên kế hoạch vừa sức, chủ động với kỳ thi của bạn.</p></div>
+            <section className="hero-card" aria-labelledby="hero-title">
+              <div><span className="hero-label">TỪ MỤC TIÊU ĐẾN HÀNH ĐỘNG</span><h2 id="hero-title">Bắt đầu từ một<br />kế hoạch rõ ràng.</h2><p>Nhập nội dung, thời hạn và quỹ thời gian.<br />Cùng xây dựng một hành trình ôn tập phù hợp.</p><a className="button button--primary" href={`${repository}/wiki/MVP-Features-%26-Priority`}>Khám phá kế hoạch MVP <span aria-hidden="true">→</span></a></div>
+              <div className="plan-illustration" aria-hidden="true"><div className="orb orb--one" /><div className="orb orb--two" /><div className="paper"><div className="paper-top"><span>KẾ HOẠCH ÔN TẬP</span><b>✦</b></div><div className="paper-line wide" /><div className="paper-task"><span>✓</span><i /></div><div className="paper-task"><span>✓</span><i /></div><div className="paper-task muted"><span>○</span><i /></div><div className="paper-progress"><i /></div><small>Từng bước một, mỗi ngày.</small></div></div>
+            </section>
+            <div className="section-heading roadmap-heading"><h2>Hành trình của sản phẩm</h2><span>3 bước để học chủ động</span></div>
+            <div className="stages">{stages.map(stage => <article className="stage" key={stage.number}><div className="stage-top"><span className="stage-number">{stage.number}</span><span className="sprint">{stage.sprint}</span></div><h3>{stage.title}</h3><p>{stage.text}</p><span className="planned">Dự kiến phát triển</span></article>)}</div>
+            <div className="bottom-grid"><BackendStatus /><section className="scope-card" aria-labelledby="scope-title"><span className="eyebrow">BƯỚC KHỞI ĐẦU</span><h2 id="scope-title">Nền tảng đã sẵn sàng để phát triển.</h2><p>Đây là giao diện khởi tạo. Đăng nhập, mục tiêu, công việc và đề xuất AI sẽ được triển khai theo backlog; chưa có dữ liệu học tập được lưu ở giao diện này.</p><a className="text-link" href={`${repository}/wiki/Project-Overview`}>Xem phạm vi và kiến trúc <span aria-hidden="true">→</span></a></section></div>
+            <footer>Đều đặn mỗi ngày, tiến gần mục tiêu. <span>AI hỗ trợ lập kế hoạch · Bạn làm chủ việc học</span></footer>
+          </main>
+        </div>
+      </div>
+    </>
+  )
+}
