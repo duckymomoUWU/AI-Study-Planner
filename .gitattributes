@@ -1,0 +1,2 @@
+# Preserve the exact upstream bytes authenticated by .harness-core/manifest.json.
+/.harness-core/base/** -text
