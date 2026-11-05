@@ -19,3 +19,7 @@ next-env.d.ts
 /frontend/dist/
 /frontend/.env.local
 *.log
+
+# Harness core maintenance binary
+scripts/bin/harness
+scripts/bin/harness.exe
