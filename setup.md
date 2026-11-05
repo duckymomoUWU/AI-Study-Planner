@@ -13,8 +13,8 @@ read -rsp 'DB password: ' DB_PASSWORD; echo
 export DB_PASSWORD
 # Docker và Java dùng cùng biến môi trường này.
 docker compose up -d --wait
-mvn verify
-mvn spring-boot:run
+mvn -f backend/pom.xml verify
+mvn -f backend/pom.xml spring-boot:run
 ```
 
 Mở terminal khác và kiểm tra:
@@ -40,7 +40,7 @@ docker compose exec db psql -U study_planner -d study_planner -c '\dt'
 
 ## Build và dừng
 
-`mvn verify` tạo JAR trong `target/`. Chạy `java -jar target/ai-study-planner-0.0.1-SNAPSHOT.jar` với cùng biến DB_PASSWORD. Repo chưa có bộ test nghiệp vụ; build thành công không chứng minh chức năng tương lai.
+`mvn -f backend/pom.xml verify` tạo JAR trong `backend/target/`. Chạy `java -jar backend/target/ai-study-planner-0.0.1-SNAPSHOT.jar` với cùng biến DB_PASSWORD. Repo chưa có bộ test nghiệp vụ; build thành công không chứng minh chức năng tương lai.
 
 Ctrl+C dừng backend. `docker compose stop` dừng DB và giữ dữ liệu. Dữ liệu nằm trong named volume; không dùng `down -v` nếu cần giữ dữ liệu. Đổi DB_PASSWORD không tự đổi mật khẩu của DB đã tạo: dùng mật khẩu ban đầu hoặc đổi bằng PostgreSQL.
 
@@ -62,3 +62,33 @@ Mở http://localhost:5173. Frontend gọi `/actuator/health` qua Vite proxy đ�
 Nếu backend dùng cổng khác, sao chép `frontend/.env.example` thành `frontend/.env.local`, đổi BACKEND_URL và khởi động lại Vite. Không chuyển mật khẩu DB hoặc AI API key sang frontend.
 
 Chạy `npm run lint`, `npm test`, `npm run build` trong `frontend/`. `npm run preview` mở bản build ở cổng 4173 nhưng không có dev proxy; production cần reverse proxy riêng cho `/api` và `/actuator/health`. Chi tiết ở [frontend/README.md](frontend/README.md).
+
+## Windows / PowerShell
+
+Chạy từ root repository, với JDK 21 và Maven 3.9+ trên PATH (chưa có Maven Wrapper):
+
+```powershell
+# Đọc mật khẩu local vào môi trường phiên hiện tại, không in giá trị.
+$env:DB_PASSWORD = [System.Net.NetworkCredential]::new('', (Read-Host 'DB password' -AsSecureString)).Password
+docker compose up -d --wait
+mvn -f backend/pom.xml verify
+mvn -f backend/pom.xml spring-boot:run
+```
+
+Terminal khác dùng `Invoke-RestMethod http://localhost:8080/actuator/health`.
+Để chạy frontend trong terminal riêng:
+
+```powershell
+Set-Location frontend
+npm ci
+npm run lint
+npm test
+npm run build
+npm run dev
+```
+
+Compose và `.env.example` vẫn ở root. `.env` của Compose không được Spring Boot
+đọc tự động; truyền các biến DB vào tiến trình Java, kể cả khi chạy bằng VS Code.
+Nếu cấu hình VS Code riêng, chọn Maven project `backend/pom.xml` và thư mục làm việc
+`backend/`; không dùng đường dẫn `src/` hay `target/` ở root cho backend.
+Hướng dẫn kiểm chứng và các phần còn thiếu: [.agents/harness/README.md](.agents/harness/README.md).
