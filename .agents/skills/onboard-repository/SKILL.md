@@ -54,6 +54,10 @@ An explicit later approval may authorize documentation changes. It never
 authorizes application-code changes, invented product policy, hooks, databases,
 or background automation unless the user separately requests them.
 
+## Windows / PowerShell
+
+Use the installed Python 3 interpreter as `python -B`; `-B` prevents imported helpers from creating `__pycache__` during read-only inspection. Examples below are command schemas: replace angle-bracket placeholders with quoted actual values, and use single-line arguments rather than Bash `\` continuation. For authenticated UTF-8 bytes, prefer Python stdin/stdout byte streams over PowerShell text pipelines, which can change encoding or line endings.
+
 ## First Pass: Inspect And Propose
 
 ### 1. Establish the boundary
@@ -257,11 +261,7 @@ complete bytes to the bundled renderer:
 
 ```text
 <non-materializing command that prints the complete after image> |
-  python3 .agents/skills/onboard-repository/scripts/render_patch.py \
-    --repository <tested-root> \
-    --revision <full-tested-revision> \
-    --destination <repository-relative-path> \
-    --hunk-id H1
+  python -B .agents/skills/onboard-repository/scripts/render_patch.py --repository <tested-root> --revision <full-tested-revision> --destination <repository-relative-path> --hunk-id H1
 ```
 
 Use the standalone renderer only as a preflight when needed. Do not copy its
@@ -352,10 +352,7 @@ without creating a draft file.
 
 ```text
 <non-materializing command that prints the JSON spec> |
-  python3 .agents/skills/onboard-repository/scripts/emit_evidence_bundle.py \
-    --repository <tested-root> \
-    --revision <full-tested-revision> \
-    --branch <tested-branch>
+  python -B .agents/skills/onboard-repository/scripts/emit_evidence_bundle.py --repository <tested-root> --revision <full-tested-revision> --branch <tested-branch>
 ```
 
 Run the emitter as the final tool call with an output budget large enough to
@@ -409,7 +406,7 @@ the prose gate rather than silently upgrading them.
 When the sibling audit skill is installed, its read-only validator is:
 
 ```text
-python3 .agents/skills/audit-onboarding-proposal/scripts/validate_evidence_capsule.py --transcript <raw-session.jsonl> --expected-transcript-sha256 <sha256> --repository <tested-worktree>
+python -B .agents/skills/audit-onboarding-proposal/scripts/validate_evidence_capsule.py --transcript <raw-session.jsonl> --expected-transcript-sha256 <sha256> --repository <tested-worktree>
 ```
 
 The validator can run only after the transcript exists. For new runs it
