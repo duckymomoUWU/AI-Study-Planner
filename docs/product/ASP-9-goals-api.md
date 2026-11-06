@@ -2,6 +2,8 @@
 
 **Status:** Draft API contract for implementing Jira [ASP-9](https://ai-study-planner-nhom.atlassian.net/browse/ASP-9). **These endpoints do not yet exist in the current Spring Boot backend.** This is the design baseline for ASP-23/24/25/26/27, not proof of a running feature.
 
+**ASP-23 implementation progress (stacked PR):** `GoalJdbcRepository` now contains owner-scoped JDBC primitives for list/find/lock/insert/versioned update/delete and task reads. These methods are **not wired to a business service, current-user provider or controller**. Their SQL shape is unit-tested with mocks, not yet validated against a live PostgreSQL instance.
+
 ## Current architecture and ownership
 
 - `backend/`: Spring Boot 3.5, Java 21, JDBC, PostgreSQL 17, Flyway.

@@ -31,10 +31,11 @@ mvn -f backend/pom.xml verify
 
 Output is `backend/target/`. The **ASP-22/ASP-24 development branch** adds
 `backend/src/test/java/com/studyplanner/goals/GoalPolicyTest.java`,
+`backend/src/test/java/com/studyplanner/goals/GoalJdbcRepositoryTest.java`,
 `spring-boot-starter-test` and
 [backend workflow](../../.github/workflows/backend.yml).
 `mvn -f backend/pom.xml verify` should execute these JUnit tests and build the JAR.
-These tests verify **pure goal policy only**; Maven success does not demonstrate
+These tests verify pure goal policy and **mocked JDBC statement construction only**; Maven success does not demonstrate
 authentication, business API endpoints, persistence, database connectivity or browser interactions.
 Do not mark ASP-9 Done on unit-test results alone.
 To start with the shared PostgreSQL service, from root:
