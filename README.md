@@ -35,7 +35,7 @@ Mở http://localhost:5173. Chạy backend/DB theo `setup.md` để thẻ kết 
 
 ```text
 frontend/                 React + Vite
-backend/                  Spring Boot: pom.xml, src/main/ (chưa có src/test/)
+backend/                  Spring Boot: pom.xml, src/main/ và unit tests trong src/test/
 AGENTS.md                 Quy ước chung cho coding agent
 .agents/skills/           Skill dự án: <ten-skill>/SKILL.md
 .agents/harness/README.md Hướng dẫn chạy và kiểm chứng
@@ -49,3 +49,10 @@ Backend dùng Maven cài trên máy (chưa có Maven Wrapper). Từ root, chạy
 để khởi động với môi trường DB theo [setup.md](setup.md).
 JAR được tạo trong `backend/target/`.
 Quy ước agent: [AGENTS.md](AGENTS.md); kiểm chứng: [harness](.agents/harness/README.md).
+
+## ASP-9 API foundation (đang phát triển)
+
+- [Hợp đồng API Goal](docs/product/ASP-9-goals-api.md): đề xuất endpoint, request/response và quyền truy cập; **chưa có CRUD HTTP chạy thực tế**.
+- `backend/src/main/java/com/studyplanner/goals/GoalPolicy.java`: kiểm tra thuần Java cho ngày thi, ngân sách và công việc khi sửa mục tiêu; chưa kết nối tới database/controller.
+- `backend/src/test/`: unit tests GoalPolicy. [Backend CI](.github/workflows/backend.yml) chạy Maven verify khi có thay đổi backend.
+- Chức năng đăng nhập/ownership phụ thuộc ASP-12, nên không mở API CRUD không xác thực. Bản foundation không phải sản phẩm hoàn thành.
