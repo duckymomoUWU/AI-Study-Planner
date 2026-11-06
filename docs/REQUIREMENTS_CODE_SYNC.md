@@ -32,7 +32,7 @@ Các story dưới đây được đọc từ Jira ASP. Tại thời điểm ki�
 
 | Jira Story | Nội dung | Epic | Priority | Trạng thái |
 | --- | --- | --- | --- | --- |
-| [ASP-9](https://ai-study-planner-nhom.atlassian.net/browse/ASP-9) | US-01: Tạo mục tiêu ôn tập | ASP-5 | High | To Do |
+| [ASP-9](https://ai-study-planner-nhom.atlassian.net/browse/ASP-9) | US-01: Tạo, xem, sửa và xóa mục tiêu ôn tập | ASP-5 | High | To Do |
 | [ASP-10](https://ai-study-planner-nhom.atlassian.net/browse/ASP-10) | US-02: Tự thêm, sửa, xóa công việc trong mục tiêu | ASP-5 | Medium | To Do |
 | [ASP-11](https://ai-study-planner-nhom.atlassian.net/browse/ASP-11) | US-03: Xem công việc theo ngày | ASP-5 | Medium | To Do |
 | [ASP-12](https://ai-study-planner-nhom.atlassian.net/browse/ASP-12) | US-04: Đăng ký, đăng nhập | ASP-6 | Medium | To Do |
@@ -45,7 +45,7 @@ Các story dưới đây được đọc từ Jira ASP. Tại thời điểm ki�
 | [ASP-19](https://ai-study-planner-nhom.atlassian.net/browse/ASP-19) | US-11: Việc bị trễ và dời ngày | ASP-8 | Medium | To Do |
 | [ASP-20](https://ai-study-planner-nhom.atlassian.net/browse/ASP-20) | US-12: AI xếp lại lịch khi bị trễ (mở rộng) | ASP-7 | Medium | To Do |
 
-**Điểm cần PO xử lý trước khi chia sub-task cho ASP-9:** Jira hiện ghi AC gồm môn, ngày thi, thời gian mỗi ngày; ngày thi không ở quá khứ; mục tiêu lưu và hiển thị lại. `requirements.md` trong repo mô tả chi tiết hơn (chủ đề, ngày bắt đầu, khoảng ngày tối đa, giới hạn phút mỗi ngày và quy tắc sửa mục tiêu). PO cần quyết định phần nào là AC bắt buộc của US-01, phần nào thuộc story khác hoặc ngoài phạm vi. Không tự thêm các rule còn thiếu vào Jira.
+**Quyết định PO cho ASP-9:** PO đã chọn đưa đầy đủ quy tắc quản lý mục tiêu vào ASP-9. Jira hiện bao gồm môn học, chủ đề, ngày bắt đầu, ngày thi, ngân sách mỗi ngày, giới hạn 90 ngày, validation, xem/sửa/xóa mục tiêu, kiểm tra các công việc đã có khi sửa, xóa công việc/bản nháp liên quan sau xác nhận và các giới hạn lịch theo mục tiêu. Bản `requirements.md` trong nhánh PR này được cập nhật để phản ánh quyết định đó. ASP-9 hiện vẫn ở To Do và chưa có sub-task; Developers cần refinement trước khi chốt cách chia việc.
 
 ## D. Tự động hóa: thực tế và mức độ an toàn
 
