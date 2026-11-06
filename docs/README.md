@@ -8,6 +8,7 @@
 - [Verification harness](../.agents/harness/README.md): maintained build/test commands, live checks and known verification gaps.
 - [Frontend guide](../frontend/README.md): frontend operation and proxy behavior.
 - [Initial schema](../backend/src/main/resources/db/migration/V1__initial_schema.sql): current database structure; not an implemented business API.
+- [ASP-9 Goal API contract](product/ASP-9-goals-api.md): proposed secure CRUD contract and mapping of user-facing rules to planned implementation. Not a deployed endpoint.
 
 ## Repository Harness
 
