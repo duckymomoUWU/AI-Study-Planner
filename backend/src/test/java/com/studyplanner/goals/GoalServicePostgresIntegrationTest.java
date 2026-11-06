@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.junit.jupiter.EnabledIfSystemProperty;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 /**
  * Runs against the PostgreSQL service configured in GitHub Actions.
