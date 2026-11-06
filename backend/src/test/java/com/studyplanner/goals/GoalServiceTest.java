@@ -58,7 +58,20 @@ class GoalServiceTest {
         verify(repository).insertOwned(eq(OWNER), captor.capture(), eq("Asia/Ho_Chi_Minh"));
         assertEquals("Toán", captor.getValue().subject());
         assertEquals("Giải tích", captor.getValue().topics());
-        assertEquals(LocalDate.of(2026, 11, 7), captor.getValue().examDate());
+        assertEquals(LocalDate.of(2026, 11, 7), captor.getValue().startDate());
+    }
+
+    @Test
+    void createUsesVietnamLocalDateRatherThanUtcDateForPastExamValidation() {
+        // 2026-11-06 17:30 UTC is already 2026-11-07 in Ho Chi Minh City.
+        var examThatWasYesterdayLocally = new GoalPolicy.GoalInput("Toán", "Giải tích",
+                LocalDate.of(2026, 11, 5), LocalDate.of(2026, 11, 6), 60);
+
+        var exception = assertThrows(GoalService.GoalValidationException.class,
+                () -> service.createGoal(OWNER, examThatWasYesterdayLocally));
+
+        assertTrue(exception.violations().stream().anyMatch(v -> v.code().equals("past_date")));
+        verify(repository, never()).insertOwned(any(), any(), any());
     }
 
     @Test
