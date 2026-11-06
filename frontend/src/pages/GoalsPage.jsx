@@ -56,24 +56,33 @@ export default function GoalsPage({ onBack }) {
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(emptyForm)
 
-  const refresh = useCallback(async (signal) => {
+  const refresh = useCallback(async () => {
     setLoading(true)
     setPageError('')
     try {
-      const items = await listGoals({ signal })
+      const items = await listGoals()
       setGoals(items)
     } catch (error) {
-      if (error.name !== 'AbortError') setPageError(apiMessage(error))
+      setPageError(apiMessage(error))
     } finally {
-      if (!signal?.aborted) setLoading(false)
+      setLoading(false)
     }
   }, [])
 
   useEffect(() => {
     const controller = new AbortController()
-    refresh(controller.signal)
+    listGoals({ signal: controller.signal })
+      .then(items => {
+        if (!controller.signal.aborted) setGoals(items)
+      })
+      .catch(error => {
+        if (!controller.signal.aborted && error.name !== 'AbortError') setPageError(apiMessage(error))
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
     return () => controller.abort()
-  }, [refresh])
+  }, [])
 
   function changeField(event) {
     const { name, value } = event.target
