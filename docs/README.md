@@ -18,3 +18,10 @@
 - [Product document guidance](product/README.md): generic guidance; requirements remain authoritative at the existing root document. Do not duplicate requirements or verification commands here.
 
 Harness status and doctor validate the Harness installation, not application behavior.
+
+## PO collaboration proposals (pending Scrum Team review)
+
+- [Working Agreement](WORKING_AGREEMENT.md): team collaboration, reviews, PO/SM/Developer responsibilities and decisions to confirm.
+- [Generate Sub-tasks](GENERATE_SUBTASKS.md): reviewable Jira sub-task drafting and AC coverage.
+- [Requirements ↔ Code Sync](REQUIREMENTS_CODE_SYNC.md): proposed change-control, impact analysis and bidirectional traceability; **automation is not yet configured**.
+- Agent skills: `.agents/skills/study-planner-generate-subtasks/` and `.agents/skills/study-planner-sync-requirements/`; these produce proposals, not automatic Jira writes.
