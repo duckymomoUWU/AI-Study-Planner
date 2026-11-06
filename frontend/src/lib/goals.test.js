@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createGoal, deleteGoal, GoalApiError, listGoals, updateGoal } from './goals.js'
 
-test('listGoals requests the current user's list and validates response shape', async t => {
+test("listGoals requests the current user list and validates response shape", async t => {
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     assert.equal(url, '/api/goals')
     assert.equal(options.method, 'GET')
