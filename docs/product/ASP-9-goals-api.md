@@ -4,6 +4,8 @@
 
 **ASP-23 implementation progress (stacked PR):** `GoalJdbcRepository` now contains owner-scoped JDBC primitives for list/find/lock/insert/versioned update/delete and task reads. These methods are **not wired to a business service, current-user provider or controller**. Their SQL shape is unit-tested with mocks, not yet validated against a live PostgreSQL instance.
 
+**ASP-23/24 application-service progress (stacked PR #12):** `GoalService` now composes the policy and repository in Spring transactions for list/get/create/update/delete. It trims subject/topics, uses `Asia/Ho_Chi_Minh` by default for date validation, locks the owned goal before validating existing tasks, checks optimistic version, and refuses invalid writes. The trusted owner UUID is an explicit server-side method argument. No controller or authentication integration is included; ASP-12 must supply this value from a verified principal. Service tests use mocked repository behavior; live PostgreSQL transaction tests remain outstanding.
+
 ## Current architecture and ownership
 
 - `backend/`: Spring Boot 3.5, Java 21, JDBC, PostgreSQL 17, Flyway.
