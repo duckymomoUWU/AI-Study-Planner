@@ -26,3 +26,12 @@
   margin: 0;
   overflow-wrap: anywhere;
 }
+
+/* Same reason as in DailyTasksPage.css: keep the header buttons on one baseline. */
+.goals-page .goals-heading .button,
+.goals-page .goals-heading .button--primary {
+  margin-top: 0;
+  height: 2.5rem;
+  padding-top: 0;
+  padding-bottom: 0;
+}

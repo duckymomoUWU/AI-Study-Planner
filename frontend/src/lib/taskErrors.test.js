@@ -20,3 +20,9 @@ test('CSRF failure asks for a page reload; other errors keep the server message'
   assert.equal(describeTaskError(new TaskApiError('Lỗi máy chủ', { status: 500 })).message, 'Lỗi máy chủ')
   assert.equal(describeTaskError(new Error('boom')).message, 'boom')
 })
+
+test('405 says the feature is not available on the server yet', () => {
+  const r = describeTaskError(new TaskApiError('x', { status: 405, code: 'METHOD_NOT_ALLOWED' }))
+  assert.match(r.message, /chưa khả dụng/)
+  assert.equal(r.reload, false)
+})

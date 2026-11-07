@@ -153,8 +153,8 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
       setTaskFeedback('Đã xóa công việc.')
       setTimeout(() => setTaskFeedback(''), 3000)
       refreshData(selectedDate)
-    } catch {
-      setError('Không thể xóa công việc.')
+    } catch (err) {
+      setError(describeTaskError(err).message || 'Không thể xóa công việc.')
     }
   }
 
@@ -174,8 +174,8 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
       setTaskFeedback('Đã thêm công việc mới vào lịch học!')
       setTimeout(() => setTaskFeedback(''), 3000)
       refreshData(selectedDate)
-    } catch {
-      setError('Không thể tạo công việc mới.')
+    } catch (err) {
+      setError(describeTaskError(err).message || 'Không thể tạo công việc mới.')
     } finally {
       setIsSubmitting(false)
     }
@@ -192,8 +192,8 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
       setTaskFeedback(`Đã chuyển công việc "${task.title}" sang hôm nay!`)
       setTimeout(() => setTaskFeedback(''), 3000)
       setSelectedDate(getLocalDateString())
-    } catch {
-      setError('Không thể dời công việc.')
+    } catch (err) {
+      setError(describeTaskError(err).message || 'Không thể dời công việc.')
     }
   }
 

@@ -569,3 +569,27 @@
   gap: 0.75rem;
   margin-top: 1.5rem;
 }
+
+/* The global .button--primary (App.css) adds margin-top: 22px for the hero card, which pushes primary buttons
+   below their neighbours in rows of buttons. Inside these pages buttons sit on one baseline. */
+.daily-page .button,
+.daily-page .button--primary,
+.daily-page .button--secondary {
+  margin-top: 0;
+}
+
+.daily-page .button--sm {
+  padding: 0.5rem 0.875rem;
+  font-size: 0.8125rem;
+}
+
+.daily-header-actions .button,
+.date-nav-buttons .button {
+  height: 2.5rem;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.date-nav-buttons {
+  align-items: center;
+}

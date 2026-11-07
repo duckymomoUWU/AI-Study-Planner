@@ -11,6 +11,13 @@ export function describeTaskError(error) {
   if (error.status === 403 && error.code === 'CSRF_INVALID') {
     return { message: 'Phiên làm việc đã hết hạn. Hãy tải lại trang rồi thử lại.', reload: false, unauthenticated: false }
   }
+  if (error.status === 405) {
+    return {
+      message: 'Chức năng này chưa khả dụng trên máy chủ (đang phát triển).',
+      reload: false,
+      unauthenticated: false,
+    }
+  }
   if (error.status === 404) {
     return {
       message: 'Không tìm thấy công việc. Công việc có thể đã bị xóa; danh sách đã được tải lại.',
