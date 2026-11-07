@@ -64,6 +64,8 @@ test('parseHour safely parses decimal numbers, formatted string hours, and fallb
   assert.equal(parseHour('09:30'), 9.5)
   assert.equal(parseHour('9h30'), 9.5)
   assert.equal(parseHour('14:15'), 14.25)
+  assert.equal(parseHour('2026-05-18T09:30:00'), 9.5)
+  assert.equal(parseHour('2026-05-18 14:00'), 14)
   assert.equal(parseHour(null, 10), 10)
   assert.equal(parseHour(undefined, 8), 8)
   assert.equal(parseHour('invalid', 9), 9)

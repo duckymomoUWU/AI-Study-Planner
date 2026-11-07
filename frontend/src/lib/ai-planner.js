@@ -52,7 +52,14 @@ export function parseHour(val, defaultHour = 9.0) {
   if (typeof val === 'number') {
     return Number.isNaN(val) ? defaultHour : val
   }
-  const str = String(val).trim()
+  let str = String(val).trim()
+  if (str.includes('T')) {
+    str = str.split('T')[1]
+  } else if (str.includes(' ') && str.includes(':')) {
+    const parts = str.split(' ')
+    str = parts.find(p => p.includes(':')) || str
+  }
+
   if (str.includes(':')) {
     const [hStr, mStr] = str.split(':')
     const h = parseFloat(hStr)

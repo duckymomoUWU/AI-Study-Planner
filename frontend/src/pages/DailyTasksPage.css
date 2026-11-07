@@ -266,6 +266,7 @@
 .cal-day-column {
   position: relative;
   border-right: 1px solid #e2e8f0;
+  overflow: hidden;
 }
 
 .cal-day-column:last-child {
@@ -287,18 +288,20 @@
 /* 4. Task Blocks (Positioned absolutely inside Day Column) */
 .cal-task-block {
   position: absolute;
-  left: 6px;
-  right: 6px;
   border-radius: 8px;
   padding: 8px 10px;
   box-sizing: border-box;
   overflow: hidden;
-  cursor: pointer;
+  cursor: grab;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   z-index: 5;
+}
+
+.cal-task-block:active {
+  cursor: grabbing;
 }
 
 .cal-task-block:hover {

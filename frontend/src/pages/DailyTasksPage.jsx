@@ -17,13 +17,13 @@ function addDays(baseDate, days) {
   return result
 }
 
-const STORAGE_KEY_MOCKUP = 'ai_study_planner_calendar_tasks_mockup_v4'
+const STORAGE_KEY_MOCKUP = 'ai_study_planner_calendar_tasks_mockup_v5'
 
-// Exact reference mockup calendar tasks matching May 17-19, 2026 screenshot
+// Exact reference mockup calendar tasks matching May 18-20, 2026 (Mon - Wed)
 function getMockupCalendarTasks() {
   return [
     // ==========================================
-    // MON 17 MAY 2026
+    // MON 18 MAY 2026
     // ==========================================
     {
       id: 'mock-mon-1',
@@ -31,7 +31,7 @@ function getMockupCalendarTasks() {
       overviewLabel: '', // Clean gray block in overview
       subject: 'Khoa học máy tính',
       type: 'other', // Gray block
-      date: '2026-05-17',
+      date: '2026-05-18',
       startHour: 9.0,
       durationHours: 1.85, // 9:00 - 10:51
       completed: false,
@@ -46,13 +46,13 @@ function getMockupCalendarTasks() {
       overviewLabel: 'Sinh hoạt cá nhân',
       subject: 'Sinh hoạt cá nhân',
       type: 'routine', // Warm yellow block (Personal routine)
-      date: '2026-05-17',
+      date: '2026-05-18',
       startHour: 11.0,
       durationHours: 1.0, // 11:00 - 12:00
       completed: true,
       topics: 'Ăn trưa, vệ sinh cá nhân và nghỉ ngơi nạp lại năng lượng',
-      recurrence: 'daily',
-      recurringDays: [0, 1, 2, 3, 4, 5, 6], // Lặp lại mỗi ngày
+      recurrence: 'none',
+      recurringDays: [],
     },
     {
       id: 'mock-mon-3',
@@ -60,7 +60,7 @@ function getMockupCalendarTasks() {
       overviewLabel: '', // Clean gray block
       subject: 'Ngoại ngữ & Kỹ năng',
       type: 'other',
-      date: '2026-05-17',
+      date: '2026-05-18',
       startHour: 12.15,
       durationHours: 0.75, // 12:09 - 12:54
       completed: false,
@@ -72,7 +72,7 @@ function getMockupCalendarTasks() {
       overviewLabel: 'Focus Time',
       subject: 'Giải tích 2',
       type: 'focus', // Vibrant green block (Web app generated)
-      date: '2026-05-17',
+      date: '2026-05-18',
       startHour: 13.0,
       durationHours: 2.6, // 13:00 - 15:36
       completed: false,
@@ -92,7 +92,7 @@ function getMockupCalendarTasks() {
       overviewLabel: '', // Clean gray block
       subject: 'Thể thao & Sức khỏe',
       type: 'other',
-      date: '2026-05-17',
+      date: '2026-05-18',
       startHour: 16.05,
       durationHours: 0.85, // 16:03 - 16:54
       completed: false,
@@ -100,7 +100,7 @@ function getMockupCalendarTasks() {
     },
 
     // ==========================================
-    // TUE 18 MAY 2026
+    // TUE 19 MAY 2026
     // ==========================================
     {
       id: 'mock-tue-1',
@@ -108,7 +108,7 @@ function getMockupCalendarTasks() {
       overviewLabel: '', // Clean gray block
       subject: 'Kỹ năng làm việc nhóm',
       type: 'other',
-      date: '2026-05-18',
+      date: '2026-05-19',
       startHour: 9.0,
       durationHours: 0.85, // 9:00 - 9:51
       completed: true,
@@ -120,9 +120,9 @@ function getMockupCalendarTasks() {
       overviewLabel: 'Focus Time',
       subject: 'Cơ sở dữ liệu',
       type: 'focus', // Vibrant green block (Web app generated)
-      date: '2026-05-18',
+      date: '2026-05-19',
       startHour: 10.0,
-      durationHours: 3.25, // 10:00 - 13:15
+      durationHours: 3.0, // 10:00 - 13:00
       completed: false,
       topics: 'Thực hành chuẩn hóa 1NF - BCNF, giải trọn vẹn đề thi giữa kỳ năm 2025',
       targetGrade: 'Điểm 9.0+ (Điểm A+) - Đạt điểm tối đa phần chuẩn hóa quan hệ và SQL nâng cao',
@@ -140,9 +140,9 @@ function getMockupCalendarTasks() {
       overviewLabel: '', // Clean gray block
       subject: 'Sinh hoạt cá nhân',
       type: 'other',
-      date: '2026-05-18',
-      startHour: 13.25,
-      durationHours: 0.65, // 13:15 - 13:54
+      date: '2026-05-19',
+      startHour: 13.15,
+      durationHours: 0.75, // 13:09 - 13:54
       completed: false,
       topics: 'Giải lao nạp năng lượng',
     },
@@ -152,13 +152,13 @@ function getMockupCalendarTasks() {
       overviewLabel: 'Sinh hoạt cá nhân',
       subject: 'Sinh hoạt cá nhân',
       type: 'routine',
-      date: '2026-05-18',
+      date: '2026-05-19',
       startHour: 14.0,
       durationHours: 1.0, // 14:00 - 15:00
       completed: true,
       topics: 'Bữa trưa, vệ sinh cá nhân và thư giãn giải lao',
-      recurrence: 'daily',
-      recurringDays: [0, 1, 2, 3, 4, 5, 6],
+      recurrence: 'none',
+      recurringDays: [],
     },
     {
       id: 'mock-tue-5',
@@ -166,7 +166,7 @@ function getMockupCalendarTasks() {
       overviewLabel: '', // Clean gray block
       subject: 'Đồ án CNPM',
       type: 'other',
-      date: '2026-05-18',
+      date: '2026-05-19',
       startHour: 15.6,
       durationHours: 0.35, // 15:36 - 15:57
       completed: false,
@@ -178,7 +178,7 @@ function getMockupCalendarTasks() {
       overviewLabel: '', // Clean gray block
       subject: 'Công việc khoa viện',
       type: 'other',
-      date: '2026-05-18',
+      date: '2026-05-19',
       startHour: 16.05,
       durationHours: 0.85, // 16:03 - 16:54
       completed: false,
@@ -186,7 +186,7 @@ function getMockupCalendarTasks() {
     },
 
     // ==========================================
-    // WED 19 MAY 2026
+    // WED 20 MAY 2026
     // ==========================================
     {
       id: 'mock-wed-1',
@@ -194,7 +194,7 @@ function getMockupCalendarTasks() {
       overviewLabel: '', // Clean gray block
       subject: 'Kế hoạch cá nhân',
       type: 'other',
-      date: '2026-05-19',
+      date: '2026-05-20',
       startHour: 9.0,
       durationHours: 0.5, // 9:00 - 9:30
       completed: true,
@@ -206,7 +206,7 @@ function getMockupCalendarTasks() {
       overviewLabel: '', // Clean gray block
       subject: 'Hệ điều hành',
       type: 'other',
-      date: '2026-05-19',
+      date: '2026-05-20',
       startHour: 9.55,
       durationHours: 2.7, // 9:33 - 12:15
       completed: false,
@@ -219,13 +219,13 @@ function getMockupCalendarTasks() {
       overviewLabel: 'Sinh hoạt cá nhân',
       subject: 'Sinh hoạt cá nhân',
       type: 'routine',
-      date: '2026-05-19',
+      date: '2026-05-20',
       startHour: 12.35,
       durationHours: 0.55, // 12:21 - 12:54
       completed: true,
       topics: 'Ăn trưa nhẹ, rửa mặt, vệ sinh cá nhân chuẩn bị cho buổi học chiều',
-      recurrence: 'daily',
-      recurringDays: [0, 1, 2, 3, 4, 5, 6],
+      recurrence: 'none',
+      recurringDays: [],
     },
     {
       id: 'mock-wed-4',
@@ -233,7 +233,7 @@ function getMockupCalendarTasks() {
       overviewLabel: 'Focus Time',
       subject: 'Cơ sở dữ liệu',
       type: 'focus', // Vibrant green block (Web app generated)
-      date: '2026-05-19',
+      date: '2026-05-20',
       startHour: 13.05,
       durationHours: 2.0, // 13:03 - 15:03
       completed: false,
@@ -253,7 +253,7 @@ function getMockupCalendarTasks() {
       overviewLabel: '', // Clean gray block
       subject: 'Công nghệ Web',
       type: 'other',
-      date: '2026-05-19',
+      date: '2026-05-20',
       startHour: 15.2,
       durationHours: 0.65, // 15:12 - 15:51
       completed: false,
@@ -265,7 +265,7 @@ function getMockupCalendarTasks() {
       overviewLabel: 'Weekly Team Meeting',
       subject: 'Đồ án CNPM / Sprint Review',
       type: 'meeting', // Indigo/Blue block with green checkmark
-      date: '2026-05-19',
+      date: '2026-05-20',
       startHour: 16.0,
       durationHours: 0.9, // 16:00 - 16:54
       completed: true,
@@ -312,6 +312,35 @@ function loadUserTasks(key) {
 }
 
 // Recurrence Helpers:
+function computeTaskLayout(dayTasks) {
+  if (!dayTasks || dayTasks.length === 0) return []
+  const sorted = [...dayTasks].sort((a, b) => parseHour(a.startHour, 9) - parseHour(b.startHour, 9))
+  return sorted.map((task, idx) => {
+    const start = parseHour(task.startHour, 9)
+    const end = start + parseDuration(task.durationHours, 1.5)
+    const overlapping = sorted.filter((other, oIdx) => {
+      if (oIdx === idx) return false
+      const oStart = parseHour(other.startHour, 9)
+      const oEnd = oStart + parseDuration(other.durationHours, 1.5)
+      return Math.max(start, oStart) < Math.min(end, oEnd)
+    })
+    if (overlapping.length === 0) {
+      return { ...task, widthStyle: 'calc(100% - 12px)', leftStyle: '6px' }
+    }
+    const cluster = [task, ...overlapping].sort((a, b) => {
+      const diff = parseHour(a.startHour, 9) - parseHour(b.startHour, 9)
+      if (diff !== 0) return diff
+      return String(a.id).localeCompare(String(b.id))
+    })
+    const colIndex = cluster.findIndex(t => t.id === task.id) % 2
+    return {
+      ...task,
+      widthStyle: 'calc(50% - 9px)',
+      leftStyle: colIndex === 0 ? '6px' : 'calc(50% + 3px)',
+    }
+  })
+}
+
 function isTaskOnDate(task, dateObj) {
   const dateStr = toDateKey(dateObj)
   const dow = dateObj.getDay()
@@ -437,7 +466,7 @@ export default function DailyTasksPage({
   const isViewingMockup = !isReviewMode && (!currentUser || userMockupOverride)
 
   // Separate date state for mockup vs real schedule
-  const [mockupBaseDate, setMockupBaseDate] = useState(() => new Date(2026, 4, 17, 12, 0, 0))
+  const [mockupBaseDate, setMockupBaseDate] = useState(() => new Date(2026, 4, 18, 12, 0, 0))
   const [userBaseDate, setUserBaseDate] = useState(() => {
     if (reviewDraft?.tasks?.[0]?.scheduledDate) {
       const [y, m, d] = reviewDraft.tasks[0].scheduledDate.split('-').map(Number)
@@ -678,7 +707,7 @@ export default function DailyTasksPage({
   const [goals, setGoals] = useState([])
   const [showAddModal, setShowAddModal] = useState(false)
   const [addSlotData, setAddSlotData] = useState(() => ({
-    date: !currentUser ? '2026-05-17' : toDateKey(new Date()),
+    date: !currentUser ? '2026-05-18' : toDateKey(new Date()),
     startHour: 10,
   }))
 
@@ -703,21 +732,31 @@ export default function DailyTasksPage({
     const taskId = e?.dataTransfer?.getData('text/plain') || draggingTaskId
     if (!taskId) return
 
-    setDraftTasks(prev => prev.map(t => {
+    const dow = new Date(`${targetDateStr}T12:00:00`).getDay()
+    const taskUpdater = prev => prev.map(t => {
       if (t.id === taskId) {
-        const dow = new Date(`${targetDateStr}T12:00:00`).getDay()
         setReviewFeedback(`Đã chuyển "${t.title}" sang ${targetDateStr} lúc ${formatHour(targetHour)}`)
         setTimeout(() => setReviewFeedback(''), 3000)
         return {
           ...t,
           scheduledDate: targetDateStr,
           date: targetDateStr,
+          startDate: targetDateStr,
           startHour: targetHour,
           recurringDays: (t.recurrence && t.recurrence !== 'none') ? [dow] : t.recurringDays,
         }
       }
       return t
-    }))
+    })
+
+    if (isReviewMode) {
+      setDraftTasks(taskUpdater)
+    } else if (isViewingMockup) {
+      setMockupTasks(taskUpdater)
+    } else {
+      setUserTasks(taskUpdater)
+    }
+
     setDragOverSlot(null)
     setDraggingTaskId(null)
   }
@@ -808,7 +847,7 @@ export default function DailyTasksPage({
   function resetMockupData() {
     const fresh = getMockupCalendarTasks()
     setMockupTasks(fresh)
-    setMockupBaseDate(new Date(2026, 4, 17, 12, 0, 0))
+    setMockupBaseDate(new Date(2026, 4, 18, 12, 0, 0))
     setSelectedTask(null)
   }
 
@@ -1094,7 +1133,7 @@ export default function DailyTasksPage({
             className="button button--primary button--sm"
             onClick={() => {
               setAddSlotData({
-                date: isViewingMockup ? '2026-05-17' : toDateKey(new Date()),
+                date: isViewingMockup ? '2026-05-18' : toDateKey(new Date()),
                 startHour: 10,
               })
               setShowAddModal(true)
@@ -1151,10 +1190,10 @@ export default function DailyTasksPage({
             <button
               type="button"
               className="button button--secondary button--sm"
-              onClick={() => setBaseDate(new Date(2026, 4, 17, 12, 0, 0))}
-              title="Về ngày mẫu 17-19 tháng 5/2026"
+              onClick={() => setBaseDate(new Date(2026, 4, 18, 12, 0, 0))}
+              title="Về ngày mẫu 18-20 tháng 5/2026 (Thứ 2 - Thứ 4)"
             >
-              Về mốc 17/05/2026
+              Về mốc 18/05/2026 (T2-T4)
             </button>
           ) : (
             <button
@@ -1225,31 +1264,29 @@ export default function DailyTasksPage({
                       className={`cal-hour-slot ${dragOverSlot?.date === dateStr && dragOverSlot?.hour === hour ? 'cal-time-cell--drag-over' : ''}`}
                       onClick={() => handleSlotClick(dateStr, hour)}
                       onDragOver={(e) => {
-                        if (isReviewMode) {
-                          e.preventDefault()
-                          e.dataTransfer.dropEffect = 'move'
-                          setDragOverSlot({ date: dateStr, hour })
-                        }
+                        e.preventDefault()
+                        e.dataTransfer.dropEffect = 'move'
+                        setDragOverSlot({ date: dateStr, hour })
                       }}
                       onDragLeave={() => {
-                        if (isReviewMode) setDragOverSlot(null)
+                        setDragOverSlot(null)
                       }}
                       onDrop={(e) => {
-                        if (isReviewMode) {
-                          e.preventDefault()
-                          handleDropTask(e, dateStr, hour)
-                        }
+                        e.preventDefault()
+                        handleDropTask(e, dateStr, hour)
                       }}
                       title={`Bấm để thêm task vào lúc ${formatHour(hour)}`}
                     />
                   ))}
 
                   {/* Render Task Blocks inside day column */}
-                  {dayTasks.map(task => {
+                  {computeTaskLayout(dayTasks).map(task => {
                     const startH = parseHour(task.startHour, 9.0)
                     const durH = parseDuration(task.durationHours, 1.5)
-                    const topOffset = Math.max(0, (startH - START_HOUR) * 64)
-                    const blockHeight = Math.max(28, durH * 64 - 4)
+                    const clampedStart = Math.min(22.5, Math.max(START_HOUR, startH))
+                    const topOffset = Math.max(0, (clampedStart - START_HOUR) * 64)
+                    const maxAllowedHeight = Math.max(28, (HOURS.length * 64) - topOffset - 4)
+                    const blockHeight = Math.min(maxAllowedHeight, Math.max(28, durH * 64 - 4))
                     const isSelected = selectedTask?.id === task.id
                     const isCompleted = isTaskCompletedOnDate(task, dateStr)
 
@@ -1271,13 +1308,11 @@ export default function DailyTasksPage({
                     return (
                       <div
                         key={`${task.id}-${dateStr}`}
-                        draggable={isReviewMode && task.isDraft}
+                        draggable={true}
                         onDragStart={(e) => {
-                          if (isReviewMode && task.isDraft) {
-                            e.dataTransfer.setData('text/plain', task.id)
-                            e.dataTransfer.effectAllowed = 'move'
-                            setDraggingTaskId(task.id)
-                          }
+                          e.dataTransfer.setData('text/plain', task.id)
+                          e.dataTransfer.effectAllowed = 'move'
+                          setDraggingTaskId(task.id)
                         }}
                         onDragEnd={() => {
                           setDraggingTaskId(null)
@@ -1287,6 +1322,8 @@ export default function DailyTasksPage({
                         style={{
                           top: `${topOffset}px`,
                           height: `${blockHeight}px`,
+                          left: task.leftStyle || '6px',
+                          width: task.widthStyle || 'calc(100% - 12px)',
                         }}
                         onClick={(e) => {
                           e.stopPropagation()
