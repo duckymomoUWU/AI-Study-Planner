@@ -83,3 +83,56 @@ AC 1–4 are met for the Goal CRUD and ownership scope, with real PostgreSQL evi
 - `mvn clean verify -Dgoal.integration=true -Dauth.integration=true` (disposable `postgres:17`): 111 tests, 0 failures, 0 skipped. `npm test` 32 tests, `npm run lint` and `npm run build` clean.
 - Live HTTP against the running app (curl, throwaway account, deleted afterwards): `/api/v1/auth/csrf`, register (201), duplicate register (409 `EMAIL_ALREADY_EXISTS`), wrong password (401 `INVALID_CREDENTIALS`), login, `/api/v1/me`, `POST` (201, trimmed subject), `POST` with `userId` and 481 minutes (400, `unknown_field` and `out_of_range`), paged list with `meta`, `PATCH` (200, version 1), stale `PATCH` (409 `GOAL_VERSION_CONFLICT`), `DELETE` (204), logout (204), `/api/v1/me` afterwards (401 `UNAUTHORIZED`); the old path `/api/goals` no longer serves data.
 - Browser (new frontend, new throwaway account): register with automatic login, server error under minutes (481), create (subject trimmed, listed), edit rejected by existing tasks with the task/day message, valid edit to version 1, detail panel, delete with the confirmation stubbed to accept (goal and tasks gone from the database). Limits L1–L7 above still apply.
+
+## 8. Kiểm chứng ASP-63 → ASP-66 (đánh dấu hoàn thành) và đối chiếu Definition of Done (ASP-120)
+
+Ngày chạy 2026-11-07, nhánh `dev2-sprint3`. Mô tả tính năng: [task-completion.md](task-completion.md).
+
+### 8.1 Lệnh và kết quả
+
+| Kiểm tra | Lệnh | Kết quả |
+| --- | --- | --- |
+| Backend, gồm test PostgreSQL | `mvn -f backend/pom.xml -Dgoal.integration=true -Dauth.integration=true clean verify` (container `postgres:17` dùng một lần, cổng 55433) | **Đạt**: 143 test, 0 lỗi, 0 bỏ qua (có `TaskApiPostgresIntegrationTest` 8 ca, `TaskControllerTest` 11, `TaskServiceTest` 7, `TaskJdbcRepositoryTest` 5) |
+| Frontend test | `npm test` | **Đạt**: 37 test |
+| Frontend lint, build | `npm run lint`, `npm run build` | **Đạt** |
+| Trình duyệt trên stack thật (React + Spring Boot + PostgreSQL) | Vite dev, `spring-boot:run`, tài khoản thử mới | **Đạt**, các bước ở 8.3 |
+| CI trên GitHub | Actions | **Chưa chạy** |
+
+### 8.2 Đối chiếu Definition of Done
+
+| Mục | Trạng thái | Ghi chú |
+| --- | --- | --- |
+| Đánh dấu hoàn thành và mở lại qua giao diện và API, dữ liệu lưu và đọc lại đúng | Đạt | Test API+DB; demo: tải lại trang vẫn giữ trạng thái |
+| Kiểm tra quyền sở hữu ở server | Đạt | Tài khoản B bị 404, công việc không thuộc goal trên URL bị 404, không ghi gì |
+| Validate ở server, không chỉ ở frontend | Đạt | Body sai kiểu, thiếu, trường lạ đều 400 |
+| Gửi lặp không đảo trạng thái, đồng thời không ghi đôi | Đạt | Test gửi lặp; hai yêu cầu song song chỉ tăng version một lần |
+| Lỗi rõ ràng, không báo thành công giả | Đạt | 401, 403, 404 có thông báo; không còn dữ liệu demo giả cho danh sách và đổi trạng thái |
+| Hiển thị số hoàn thành và còn lại, 0/0 khi chưa có việc | Đạt cho ngày đang xem | Tiến độ theo mục tiêu thuộc ASP-16/17 |
+| Không ghi mật khẩu, API key, nội dung học vào log | Chưa kiểm | Chỉ rà mã: bộ xử lý lỗi chỉ ghi tên lớp lỗi; chưa kiểm log của server đang chạy |
+| Review bởi Developer khác | **Chưa làm** | Mới có tự rà soát ở 8.4 |
+| Merge vào `main`, CI | **Chưa làm** | Chưa tạo PR; CI chưa chạy |
+| Có thể demo | Đạt | 8.3 |
+
+Không khai báo story là Done: thiếu review độc lập, merge và CI.
+
+### 8.3 Demo trình duyệt (đã chạy)
+
+1. Đăng ký tài khoản thử; tạo mục tiêu; chèn 3 công việc hôm nay bằng SQL (chưa có API tạo công việc).
+2. Trang lịch học hiện đúng 3 công việc từ DB (0 / 3, "0 hoàn thành · 3 còn lại").
+3. Bấm checkbox một công việc: DB `completed = true`, version mục tiêu 0 → 1; giao diện 1 / 3, checkbox thành "Mở lại: …".
+4. Tải lại trang: vẫn 1 / 3.
+5. Bấm lại để mở: DB `completed = false`, version 2; giao diện 0 / 3.
+6. Xóa một công việc bằng SQL rồi bấm checkbox của nó: giao diện báo "Không tìm thấy công việc… danh sách đã được tải lại" và danh sách còn 2 việc.
+
+### 8.4 Tự rà soát mã (chưa thay cho review của người khác)
+
+- Tìm thấy và sửa 1 lỗi: sau lỗi 404, danh sách được tải lại nhưng `refreshData` xóa luôn thông báo lỗi; nay tải lại trước rồi mới hiện thông báo (đã xác nhận lại trên trình duyệt).
+- Đã kiểm: mọi truy vấn công việc nối `study_goals` và lọc `user_id`; thao tác ghi khóa dòng mục tiêu rồi mới đọc và ghi; không chuỗi nào do người dùng nhập được ghép vào SQL (phần ghép chỉ gồm đoạn lọc cố định).
+- Đã biết, chưa xử lý: đổi trạng thái hoàn thành làm tăng version mục tiêu theo đặc tả, nên sửa mục tiêu bằng `expectedVersion` cũ trả 409 cho tới khi tải lại; cần PO chấp nhận ([task-completion.md](task-completion.md), mục 4).
+
+### 8.5 Giới hạn chưa kiểm chứng
+
+- Công việc trong DB đều tạo bằng SQL; chưa kiểm luồng tạo công việc qua giao diện (ASP-10).
+- Chưa chạy theo trình duyệt thứ hai cho tài khoản khác; truy cập chéo chỉ kiểm bằng test API+DB.
+- Không có test component React (chỉ test logic thuần và demo thủ công).
+- Hộp xác nhận xóa mục tiêu vẫn là hộp thoại của trình duyệt, chưa bấm trực tiếp trong các lần demo này.

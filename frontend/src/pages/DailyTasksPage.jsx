@@ -132,10 +132,11 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
       setTimeout(() => setTaskFeedback(''), 2500)
     } catch (err) {
       const described = describeTaskError(err)
-      setError(described.unauthenticated ? 'unauthenticated' : described.message)
       if (described.reload) {
-        refreshData(selectedDate)
+        // Reload first: refreshData clears the error, and the message must stay visible after the list syncs.
+        await refreshData(selectedDate)
       }
+      setError(described.unauthenticated ? 'unauthenticated' : described.message)
     } finally {
       setPendingIds(prev => {
         const next = new Set(prev)
