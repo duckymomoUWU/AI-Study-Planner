@@ -68,7 +68,24 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
   const [form, setForm] = useState(emptyForm)
   const [successMessage, setSuccessMessage] = useState('')
   const [isUnauthenticated, setIsUnauthenticated] = useState(false)
-  const [draftStatuses, setDraftStatuses] = useState({})
+  const [draftStatuses, setDraftStatuses] = useState(() => {
+    if (typeof window !== 'undefined' && currentUser?.email === 'bao.tonvangia@hcmut.edu.vn') {
+      const cleanMarker = 'ai_study_planner_cleaned_goals_v2_bao.tonvangia'
+      if (!localStorage.getItem(cleanMarker)) {
+        try {
+          Object.keys(localStorage).forEach(k => {
+            if (k.startsWith('ai_study_planner_draft_status_') || k.includes('bao.tonvangia') || (currentUser?.id && k.includes(currentUser.id))) {
+              localStorage.removeItem(k)
+            }
+          })
+          localStorage.setItem(cleanMarker, 'true')
+        } catch {
+          // ignore
+        }
+      }
+    }
+    return {}
+  })
 
   // Syllabus Parsing State (Gemini 3.8 Flash)
   const [showSyllabusBox, setShowSyllabusBox] = useState(false)

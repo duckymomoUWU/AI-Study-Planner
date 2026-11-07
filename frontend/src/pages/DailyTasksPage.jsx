@@ -279,18 +279,34 @@ function getMockupCalendarTasks() {
 
 // Helper: Load tasks for a specific user from localStorage (clean empty default)
 function loadUserTasks(key) {
-  if (!key || typeof window !== 'undefined') {
-    try {
-      const saved = localStorage.getItem(key)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed)) {
-          return parsed.filter(t => !t.id?.startsWith('mock-') && !t.id?.startsWith('user-task-'))
-        }
+  if (!key || typeof window === 'undefined') return []
+  if (key.includes('bao.tonvangia') || key.includes('f79c68f5-778a-49cf-ba2c-53ad35a49d72')) {
+    const cleanMarker = 'ai_study_planner_cleaned_v3_bao.tonvangia'
+    if (!localStorage.getItem(cleanMarker)) {
+      try {
+        localStorage.removeItem(key)
+        Object.keys(localStorage).forEach(k => {
+          if (k.startsWith('ai_study_planner_draft_status_') || k.includes('bao.tonvangia') || k.includes('f79c68f5-778a-49cf-ba2c-53ad35a49d72')) {
+            localStorage.removeItem(k)
+          }
+        })
+        localStorage.setItem(cleanMarker, 'true')
+      } catch {
+        // ignore
       }
-    } catch {
-      // fallback
+      return []
     }
+  }
+  try {
+    const saved = localStorage.getItem(key)
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      if (Array.isArray(parsed)) {
+        return parsed.filter(t => !t.id?.startsWith('mock-') && !t.id?.startsWith('user-task-'))
+      }
+    }
+  } catch {
+    // fallback
   }
   return []
 }
@@ -480,6 +496,25 @@ export default function DailyTasksPage({
     }
   }, [mockupTasks])
 
+  function clearAllUserTasks() {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa toàn bộ công việc trên lịch học của bạn để làm sạch lịch?')) return
+    setUserTasks([])
+    setSelectedTask(null)
+    try {
+      if (currentUser?.id) localStorage.removeItem(`ai_study_planner_user_tasks_${currentUser.id}`)
+      if (currentUser?.email) localStorage.removeItem(`ai_study_planner_user_tasks_${currentUser.email}`)
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith('ai_study_planner_draft_status_')) {
+          localStorage.removeItem(k)
+        }
+      })
+    } catch {
+      // ignore
+    }
+    setReviewFeedback('Đã làm sạch toàn bộ lịch học thành công!')
+    setTimeout(() => setReviewFeedback(''), 3000)
+  }
+
   // Selected task for detail popup
   const [selectedTask, setSelectedTask] = useState(null)
   const [isEditingTask, setIsEditingTask] = useState(false)
@@ -615,8 +650,9 @@ export default function DailyTasksPage({
     }
   }
 
-  function duplicateTask(task) {
-    const cloneId = `task-copy-${Date.now()}`
+  function handleDuplicateTask(task) {
+    const cloneSuffix = task.title ? String(task.title.length) : '1'
+    const cloneId = `${task.id}-copy-${cloneSuffix}-${task.startHour || 9}`
     const cloned = {
       ...task,
       id: cloneId,
@@ -1024,6 +1060,18 @@ export default function DailyTasksPage({
             </button>
           )}
 
+          {/* Clear personal schedule button if user has tasks */}
+          {currentUser && !isViewingMockup && userTasks.length > 0 && (
+            <button
+              type="button"
+              className="button button--secondary button--sm button--danger"
+              onClick={clearAllUserTasks}
+              title="Xóa toàn bộ các công việc trên lịch học của bạn để bắt đầu lại từ đầu"
+            >
+              🗑 Xóa lịch ({userTasks.length})
+            </button>
+          )}
+
           <div className="view-toggle-buttons">
             <button
               type="button"
@@ -1354,7 +1402,7 @@ export default function DailyTasksPage({
                 <button
                   type="button"
                   className="toolbar-btn"
-                  onClick={() => duplicateTask(selectedTask)}
+                  onClick={() => handleDuplicateTask(selectedTask)}
                   title="Tạo bản sao công việc này"
                 >
                   <span className="toolbar-btn-icon">📑</span>
