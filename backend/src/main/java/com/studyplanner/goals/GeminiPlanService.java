@@ -85,39 +85,65 @@ public class GeminiPlanService {
         String url = "https://generativelanguage.googleapis.com/v1beta/models/" + modelName + ":generateContent?key=" + apiKey;
 
         String prompt = """
-                You are an expert AI study planner. Create a repetitive weekly study plan for this student:
-                - Subject: %s
-                - Topics to cover: %s
-                - Start date: %s
-                - Exam date: %s
-                - Study budget per day: %d minutes
-                - Timezone: %s
+                Bạn là một cố vấn học thuật và chuyên gia lập kế hoạch học tập AI.
+                Hãy xây dựng kế hoạch học tập định kỳ hàng tuần có chiều sâu và chi tiết cho sinh viên sau:
+                - Môn học: %s
+                - Các chủ đề cần ôn tập: %s
+                - Ngày bắt đầu: %s
+                - Ngày thi mục tiêu: %s
+                - Ngân sách tự học mỗi ngày: %d phút
+                - Múi giờ: %s
 
-                Format requirements:
-                Return strictly a valid JSON object matching this schema, without markdown formatting or code blocks:
+                Yêu cầu bắt buộc cho mỗi buổi học (task):
+                1. "title": Tiêu đề súc tích, bắt đầu bằng "Focus Time: [Tên chủ đề]" hoặc "Luyện đề: [Tên chủ đề]".
+                2. "startHour": Giờ học thực tế (số thập phân từ 7.0 đến 21.0, ví dụ 9.0 cho 9h sáng, 14.0 cho 14h chiều, 19.5 cho 19h30 tối).
+                3. "durationHours": Số giờ học phù hợp với ngân sách thời gian (ví dụ 1.5 hoặc 2.0).
+                4. "estimatedMinutes": Số phút học (ví dụ %d).
+                5. "scheduledDate": Ngày đầu tiên diễn ra buổi học (YYYY-MM-DD) trong khoảng [%s đến %s).
+                6. "recurrence": "weekly".
+                7. "recurringDays": Mảng các thứ lặp lại hàng tuần (0=Chủ nhật, 1=Thứ 2, 2=Thứ 3, 3=Thứ 4, 4=Thứ 5, 5=Thứ 6, 6=Thứ 7).
+                8. "targetGrade": Mục tiêu điểm số cụ thể. Ví dụ: "Điểm 8.5+ (Điểm A) - Hiểu sâu bản chất, làm chủ các câu hỏi lý thuyết và bài tập nâng cao."
+                9. "effort": Mức độ nỗ lực và thời gian đầu tư. Ví dụ: "Mức độ nỗ lực: Cao (khoảng 5 - 7 giờ/tuần ôn tập chủ động, tập trung cao độ)."
+                10. "courseWeight": Đánh giá độ nặng môn học. Ví dụ: "Độ nặng môn: Nặng (3 - 4 tín chỉ chuyên ngành), khối lượng bài tập lớn và tính toán phức tạp."
+                11. "practicalValue": Giá trị ứng dụng thực tế. Ví dụ: "Giá trị thực tế: Ứng dụng trực tiếp khi xây dựng hệ thống phần mềm thực tế, tối ưu cơ sở dữ liệu và câu hỏi phỏng vấn kỹ sư."
+                12. "specificLearning": Nội dung học tập cụ thể theo từng bước thực hiện. Ví dụ: "1) Đọc lại lý thuyết định nghĩa và tính chất cơ bản; 2) Phân tích 3 bài tập mẫu; 3) Tự tay giải 2 bài tập đề thi các năm trước; 4) Tóm tắt lỗi sai thường gặp."
+                13. "references": Giáo trình, slide hoặc tài liệu tham khảo. Ví dụ: "Giáo trình chính (Chương 3 & 4), Slide bài giảng của khoa, Bộ đề thi mẫu 2024-2025."
+                14. "topics": Tóm tắt chủ đề buổi học.
+                15. "description": Đoạn văn bản định dạng markdown chuẩn hóa tổng hợp đầy đủ các mục trên:
+                🎯 **Mục tiêu điểm số:** ...
+                ⚡ **Mức độ nỗ lực (Effort):** ...
+                ⚖️ **Độ nặng môn học:** ...
+                💼 **Giá trị thực tế:** ...
+                📖 **Nội dung học cụ thể:** ...
+                📚 **Tài liệu tham khảo:** ...
+
+                Định dạng trả về:
+                Trả về DUY NHẤT một JSON hợp lệ, không bọc markdown hay giải thích thêm:
                 {
                   "tasks": [
                     {
-                      "title": "Clear concise study task title",
+                      "title": "Focus Time: ...",
                       "scheduledDate": "%s",
-                      "startHour": 14.0,
+                      "startHour": 9.0,
                       "durationHours": 1.5,
                       "estimatedMinutes": %d,
                       "recurrence": "weekly",
                       "recurringDays": [1, 3, 5],
-                      "topics": "Specific topic subpart"
+                      "targetGrade": "...",
+                      "effort": "...",
+                      "courseWeight": "...",
+                      "practicalValue": "...",
+                      "specificLearning": "...",
+                      "references": "...",
+                      "topics": "...",
+                      "description": "..."
                     }
                   ]
                 }
-                Constraints:
-                - The schedule must repeat weekly across the study period.
-                - recurringDays are day-of-week integers (0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday).
-                - scheduledDate must be between startDate (%s) and examDate (%s).
-                - durationHours must match estimatedMinutes / 60.
                 """.formatted(
                 req.subject(), req.topics(), req.startDate(), req.examDate(),
-                req.minutesPerDay(), req.timezone(), req.startDate(),
-                Math.min(req.minutesPerDay(), 90), req.startDate(), req.examDate()
+                req.minutesPerDay(), req.timezone(), Math.min(req.minutesPerDay(), 90),
+                req.startDate(), req.examDate(), req.startDate(), Math.min(req.minutesPerDay(), 90)
         );
 
         Map<String, Object> body = Map.of(
@@ -339,7 +365,7 @@ public class GeminiPlanService {
     }
 
     /**
-     * Deterministic, high-quality fallback planner when API key is missing or offline.
+     * Deterministic, high-quality fallback planner with structured fields when API key is missing or offline.
      */
     public String generateFallbackProposal(GeneratePlanRequest req) {
         ObjectNode root = objectMapper.createObjectNode();
@@ -358,7 +384,7 @@ public class GeminiPlanService {
         // Minutes & hours per session
         int minutes = Math.min(req.minutesPerDay(), 120);
         double durationHours = Math.round((minutes / 60.0) * 100.0) / 100.0;
-        if (durationHours <= 0) durationHours = 1.0;
+        if (durationHours <= 0) durationHours = 1.5;
 
         // Choose weekly recurring days (e.g. Mon, Wed, Fri if >= 3, or Tue, Thu)
         int[][] daySchedules = new int[][]{
@@ -368,7 +394,7 @@ public class GeminiPlanService {
                 {0, 6}     // T7, CN
         };
         int[] chosenDays = daySchedules[Math.abs(req.subject().hashCode()) % daySchedules.length];
-        double[] preferredHours = new double[]{14.0, 19.5, 9.0};
+        double[] preferredHours = new double[]{9.0, 14.0, 19.5, 10.0};
 
         LocalDate startDate = req.startDate() != null ? req.startDate() : LocalDate.now();
 
@@ -387,7 +413,32 @@ public class GeminiPlanService {
             for (int d : chosenDays) {
                 recDays.add(d);
             }
-            task.put("topics", "Nội dung trọng tâm: " + topic + " - Ôn tập lý thuyết và bài tập thực hành.");
+
+            String targetGrade = "Điểm 8.5+ (Điểm A) - Hiểu sâu bản chất các dạng lý thuyết và giải trọn vẹn bài tập đề thi";
+            String effort = "Mức độ nỗ lực: " + (minutes >= 90 ? "Cao (5 - 7 giờ/tuần)" : "Trung bình (3 - 5 giờ/tuần)") + " ôn tập chủ động";
+            String courseWeight = "Độ nặng môn học: 3 - 4 tín chỉ - Khối lượng bài tập và kiến thức trọng tâm";
+            String practicalValue = "Giá trị thực tế: Nền tảng cốt lõi cho kiến trúc phần mềm, hệ thống ứng dụng và phỏng vấn tuyển dụng kỹ sư";
+            String specificLearning = "1) Ôn tập định nghĩa và công thức cốt lõi của " + topic + ";\n2) Phân tích 2-3 bài tập mẫu điển hình;\n3) Tự tay giải bài tập trích từ đề thi các năm trước;\n4) Ghi chú các bẫy thường gặp.";
+            String references = "Giáo trình chính môn " + req.subject() + " (Chương trọng tâm), Slide bài giảng của khoa, Bộ đề ôn thi mẫu 2024-2025";
+
+            String description = String.format(
+                    "🎯 **Mục tiêu điểm số:** %s\n" +
+                    "⚡ **Mức độ nỗ lực (Effort):** %s\n" +
+                    "⚖️ **Độ nặng môn học:** %s\n" +
+                    "💼 **Giá trị thực tế:** %s\n" +
+                    "📖 **Nội dung học cụ thể:**\n%s\n" +
+                    "📚 **Tài liệu tham khảo:** %s",
+                    targetGrade, effort, courseWeight, practicalValue, specificLearning, references
+            );
+
+            task.put("targetGrade", targetGrade);
+            task.put("effort", effort);
+            task.put("courseWeight", courseWeight);
+            task.put("practicalValue", practicalValue);
+            task.put("specificLearning", specificLearning);
+            task.put("references", references);
+            task.put("topics", "Nội dung trọng tâm: " + topic);
+            task.put("description", description);
             task.put("source", "ai");
         }
 

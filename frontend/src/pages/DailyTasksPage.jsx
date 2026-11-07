@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { listGoals } from '../lib/goals.js'
-import { confirmPlanDraft } from '../lib/ai-planner.js'
+import { confirmPlanDraft, parseHour, parseDuration } from '../lib/ai-planner.js'
 import './DailyTasksPage.css'
 
 // Helper: Format date YYYY-MM-DD
@@ -77,6 +77,13 @@ function getMockupCalendarTasks() {
       durationHours: 2.6, // 13:00 - 15:36
       completed: false,
       topics: 'Định lý Green, công thức Stokes, giải 5 bài tập mẫu đề thi cuối kỳ',
+      targetGrade: 'Điểm 8.5+ (Điểm A) - Thành thạo kỹ năng tính tích phân đường và định lý Green',
+      effort: 'Cao (5 - 6 giờ/tuần ôn tập chủ động)',
+      courseWeight: '4 tín chỉ đại cương trọng tâm - Lượng bài tập lớn',
+      practicalValue: 'Nền tảng cho mô hình hóa vật lý, tính công cơ học và trường vector',
+      specificLearning: '1) Ôn tập định nghĩa và tính chất tích phân đường loại 1, loại 2;\n2) Ứng dụng công thức Green chuyển tích phân đường về tích phân kép;\n3) Giải 5 bài toán mẫu trích từ đề thi cuối kỳ năm 2024-2025;\n4) Rà soát các lỗi sai dấu và xác định hướng đường cong kín.',
+      references: 'Giáo trình Giải tích 2 (Chương 4), Bài giảng điện tử Bộ môn Toán, Bộ đề thi mẫu cuối kỳ',
+      description: '🎯 **Mục tiêu điểm số:** Điểm 8.5+ (Điểm A)\n⚡ **Mức độ nỗ lực:** Cao (5-6h/tuần)\n⚖️ **Độ nặng môn học:** 4 tín chỉ đại cương trọng tâm\n💼 **Giá trị thực tế:** Nền tảng mô hình hóa vật lý\n📖 **Nội dung học cụ thể:** Định lý Green, công thức Stokes, giải 5 bài tập mẫu\n📚 **Tài liệu tham khảo:** Giáo trình Giải tích 2 Chương 4',
       source: 'ai',
     },
     {
@@ -118,6 +125,13 @@ function getMockupCalendarTasks() {
       durationHours: 3.25, // 10:00 - 13:15
       completed: false,
       topics: 'Thực hành chuẩn hóa 1NF - BCNF, giải trọn vẹn đề thi giữa kỳ năm 2025',
+      targetGrade: 'Điểm 9.0+ (Điểm A+) - Đạt điểm tối đa phần chuẩn hóa quan hệ và SQL nâng cao',
+      effort: 'Cao (4 - 6 giờ/tuần thực hành code SQL)',
+      courseWeight: '3 tín chỉ chuyên ngành cốt lõi',
+      practicalValue: 'Thiết kế schema chuẩn cho mọi ứng dụng backend thực tế và phỏng vấn database',
+      specificLearning: '1) Nhắc lại định nghĩa phụ thuộc hàm và bao đóng thuộc tính;\n2) Thực hành thuật toán tìm khóa và chuẩn hóa dạng chuẩn 1NF, 2NF, 3NF, BCNF;\n3) Giải trọn vẹn đề thi giữa kỳ năm 2025;\n4) Viết câu lệnh DDL/DML kiểm thử trên PostgreSQL.',
+      references: 'Giáo trình Hệ quản trị CSDL, Slide bài giảng chuẩn hóa quan hệ, Bài tập SQL thực hành trên máy',
+      description: '🎯 **Mục tiêu điểm số:** Điểm 9.0+ (Điểm A+)\n⚡ **Mức độ nỗ lực:** Cao (4-6h/tuần)\n⚖️ **Độ nặng môn học:** 3 tín chỉ chuyên ngành\n💼 **Giá trị thực tế:** Thiết kế schema CSDL backend\n📖 **Nội dung học cụ thể:** Chuẩn hóa BCNF, giải đề thi 2025\n📚 **Tài liệu tham khảo:** Slide Hệ CSDL và đề thi giữa kỳ',
       source: 'ai',
     },
     {
@@ -224,6 +238,13 @@ function getMockupCalendarTasks() {
       durationHours: 2.0, // 13:03 - 15:03
       completed: false,
       topics: 'Khóa 2 pha 2PL, kiểm tra mức cô lập Read Committed / Serializable',
+      targetGrade: 'Điểm 8.5+ (Điểm A) - Nắm chắc tính chất ACID và các mức cô lập giao dịch',
+      effort: 'Trung bình - Cao (3 - 4 giờ/tuần)',
+      courseWeight: '3 tín chỉ chuyên ngành',
+      practicalValue: 'Xử lý tranh chấp dữ liệu khi thiết kế API ngân hàng, đặt vé, thương mại điện tử',
+      specificLearning: '1) Phân tích 4 tính chất ACID (Atomicity, Consistency, Isolation, Durability);\n2) Cơ chế kiểm soát đồng thời: Khóa 2 pha 2PL, Timestamp ordering;\n3) So sánh Read Committed, Repeatable Read, Serializable;\n4) Giải bài tập xung đột Read-Write, Write-Write.',
+      references: 'Giáo trình Cơ sở dữ liệu nâng cao (Chương Giao dịch & Đồng thời), Slide bài giảng Tuần 8',
+      description: '🎯 **Mục tiêu điểm số:** Điểm 8.5+ (Điểm A)\n⚡ **Mức độ nỗ lực:** 3-4 giờ/tuần\n⚖️ **Độ nặng môn học:** 3 tín chỉ chuyên ngành\n💼 **Giá trị thực tế:** Tránh race condition trong hệ thống phân tán\n📖 **Nội dung học cụ thể:** ACID, khóa 2PL, bài tập xung đột\n📚 **Tài liệu tham khảo:** Slide Tuần 8 CSDL',
       source: 'ai',
     },
     {
@@ -278,14 +299,15 @@ function loadUserTasks(key) {
 function isTaskOnDate(task, dateObj) {
   const dateStr = toDateKey(dateObj)
   const dow = dateObj.getDay()
+  const taskDate = task.scheduledDate || task.date || task.startDate
 
   // 1. If not recurring, match exact date
   if (!task.recurrence || task.recurrence === 'none') {
-    return task.date === dateStr
+    return taskDate === dateStr
   }
 
   // 2. Date must be on or after task start date
-  const taskStartDate = task.startDate || task.date
+  const taskStartDate = task.startDate || task.scheduledDate || task.date
   if (taskStartDate && dateStr < taskStartDate) {
     return false
   }
@@ -306,14 +328,17 @@ function isTaskOnDate(task, dateObj) {
     if (Array.isArray(task.recurringDays) && task.recurringDays.length > 0) {
       return task.recurringDays.includes(dow)
     }
-    const originDow = new Date(`${taskStartDate}T12:00:00`).getDay()
-    return dow === originDow
+    if (taskStartDate) {
+      const originDow = new Date(`${taskStartDate}T12:00:00`).getDay()
+      return dow === originDow
+    }
+    return true
   }
   if (task.recurrence === 'custom') {
     return Array.isArray(task.recurringDays) && task.recurringDays.includes(dow)
   }
 
-  return task.date === dateStr
+  return taskDate === dateStr
 }
 
 function isTaskCompletedOnDate(task, dateStr) {
@@ -342,15 +367,19 @@ function getRecurrenceLabel(task) {
   return 'Lặp lại định kỳ'
 }
 
-const HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17]
+const START_HOUR = 7
+const HOURS = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
 
 function formatHour(h) {
+  if (h === 0 || h === 24) return '12am'
   if (h === 12) return '12pm'
   if (h > 12) return `${h - 12}pm`
   return `${h}am`
 }
 
-function formatTimeRange(startHour, durationHours) {
+function formatTimeRange(startVal, durationVal) {
+  const startHour = parseHour(startVal, 9.0)
+  const durationHours = parseDuration(durationVal, 1.5)
   const startH = Math.floor(startHour)
   const startM = Math.round((startHour - startH) * 60)
   const endTotal = startHour + durationHours
@@ -358,7 +387,7 @@ function formatTimeRange(startHour, durationHours) {
   const endM = Math.round((endTotal - endH) * 60)
 
   const fmt = (h, m) => {
-    const period = h >= 12 ? 'pm' : 'am'
+    const period = h >= 12 && h < 24 ? 'pm' : 'am'
     const displayH = h > 12 ? h - 12 : h === 0 ? 12 : h
     const displayM = m > 0 ? `:${String(m).padStart(2, '0')}` : ''
     return `${displayH}${displayM}${period}`
@@ -453,6 +482,163 @@ export default function DailyTasksPage({
 
   // Selected task for detail popup
   const [selectedTask, setSelectedTask] = useState(null)
+  const [isEditingTask, setIsEditingTask] = useState(false)
+  const [editTaskForm, setEditTaskForm] = useState(null)
+  const [copyFeedback, setCopyFeedback] = useState('')
+
+  function handleSelectTask(task, dateStr, isCompleted) {
+    setSelectedTask({
+      ...task,
+      activeDate: dateStr,
+      isCompletedOnDate: isCompleted,
+    })
+    setIsEditingTask(false)
+    setEditTaskForm(null)
+    setCopyFeedback('')
+  }
+
+  function startEditTask(task) {
+    setEditTaskForm({
+      id: task.id,
+      title: task.title || '',
+      subject: task.subject || '',
+      type: task.type || 'focus',
+      date: task.activeDate || task.scheduledDate || task.date || toDateKey(new Date()),
+      startHour: parseHour(task.startHour, 9.0),
+      durationHours: parseDuration(task.durationHours, 1.5),
+      recurrence: task.recurrence || 'none',
+      recurringDays: Array.isArray(task.recurringDays) && task.recurringDays.length > 0 ? [...task.recurringDays] : [1],
+      targetGrade: task.targetGrade || '',
+      effort: task.effort || '',
+      courseWeight: task.courseWeight || '',
+      practicalValue: task.practicalValue || '',
+      specificLearning: task.specificLearning || task.topics || '',
+      references: task.references || '',
+      description: task.description || '',
+      location: task.location || '',
+    })
+    setIsEditingTask(true)
+    setCopyFeedback('')
+  }
+
+  function saveEditTask(e) {
+    e?.preventDefault()
+    if (!editTaskForm || !editTaskForm.title.trim()) return
+
+    const parsedStartHour = parseHour(editTaskForm.startHour, 9.0)
+    const parsedDuration = parseDuration(editTaskForm.durationHours, 1.5)
+
+    const updatedFields = {
+      ...editTaskForm,
+      title: editTaskForm.title.trim(),
+      startHour: parsedStartHour,
+      durationHours: parsedDuration,
+      estimatedMinutes: Math.round(parsedDuration * 60),
+      date: editTaskForm.date,
+      scheduledDate: editTaskForm.date,
+      overviewLabel: editTaskForm.title.trim(),
+    }
+
+    if (editTaskForm.targetGrade || editTaskForm.effort || editTaskForm.courseWeight || editTaskForm.practicalValue || editTaskForm.specificLearning || editTaskForm.references) {
+      updatedFields.description = `🎯 **Mục tiêu điểm số:** ${editTaskForm.targetGrade}\n⚡ **Mức độ nỗ lực (Effort):** ${editTaskForm.effort}\n⚖️ **Độ nặng môn học:** ${editTaskForm.courseWeight}\n💼 **Giá trị thực tế:** ${editTaskForm.practicalValue}\n📖 **Nội dung học cụ thể:**\n${editTaskForm.specificLearning}\n📚 **Tài liệu tham khảo:** ${editTaskForm.references}`
+    }
+
+    const updater = prev => prev.map(t => (t.id === editTaskForm.id ? { ...t, ...updatedFields } : t))
+
+    if (isReviewMode) {
+      setDraftTasks(updater)
+    } else if (isViewingMockup) {
+      setMockupTasks(updater)
+    } else {
+      setUserTasks(updater)
+    }
+
+    setSelectedTask(prev => ({
+      ...prev,
+      ...updatedFields,
+      activeDate: editTaskForm.date,
+    }))
+    setIsEditingTask(false)
+    setCopyFeedback('✓ Đã lưu thay đổi thành công!')
+    setTimeout(() => setCopyFeedback(''), 3000)
+  }
+
+  function copyTaskToClipboard(task) {
+    const timeText = formatTimeRange(task.startHour, task.durationHours)
+    const dateText = task.activeDate || task.scheduledDate || task.date
+    const repText = getRecurrenceLabel(task)
+
+    const lines = [
+      `📌 [KẾ HOẠCH HỌC TẬP]: ${task.title}`,
+      `📚 Môn học: ${task.subject || 'Chung'}`,
+      `📅 Thời gian: ${dateText} · ${timeText}`,
+      repText ? `🔁 Chu kỳ lặp lại: ${repText}` : null,
+      task.targetGrade ? `🎯 Mục tiêu điểm số: ${task.targetGrade}` : null,
+      task.effort ? `⚡ Mức độ nỗ lực: ${task.effort}` : null,
+      task.courseWeight ? `⚖️ Độ nặng môn học: ${task.courseWeight}` : null,
+      task.practicalValue ? `💼 Giá trị thực tế: ${task.practicalValue}` : null,
+      (task.specificLearning || task.topics) ? `📖 Nội dung học cụ thể:\n${task.specificLearning || task.topics}` : null,
+      task.references ? `📚 Tài liệu tham khảo:\n${task.references}` : null,
+      task.description ? `📝 Mô tả & Hướng dẫn:\n${task.description}` : null,
+    ].filter(Boolean)
+
+    const fullText = lines.join('\n\n')
+
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(fullText).then(() => {
+        setCopyFeedback('✓ Đã sao chép nội dung vào bộ nhớ tạm!')
+        setTimeout(() => setCopyFeedback(''), 3000)
+      }).catch(() => {
+        fallbackCopy(fullText)
+      })
+    } else {
+      fallbackCopy(fullText)
+    }
+  }
+
+  function fallbackCopy(text) {
+    try {
+      const el = document.createElement('textarea')
+      el.value = text
+      el.style.position = 'fixed'
+      el.style.left = '-999999px'
+      document.body.appendChild(el)
+      el.focus()
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+      setCopyFeedback('✓ Đã sao chép nội dung vào bộ nhớ tạm!')
+      setTimeout(() => setCopyFeedback(''), 3000)
+    } catch {
+      setCopyFeedback('Không thể tự động sao chép.')
+      setTimeout(() => setCopyFeedback(''), 3000)
+    }
+  }
+
+  function duplicateTask(task) {
+    const cloneId = `task-copy-${Date.now()}`
+    const cloned = {
+      ...task,
+      id: cloneId,
+      title: `${task.title} (Bản sao)`,
+      overviewLabel: `${task.overviewLabel || task.title} (Bản sao)`,
+      completed: false,
+      completedDates: [],
+    }
+
+    if (isReviewMode) {
+      setDraftTasks(prev => [...prev, cloned])
+    } else if (isViewingMockup) {
+      setMockupTasks(prev => [...prev, cloned])
+    } else {
+      setUserTasks(prev => [...prev, cloned])
+    }
+
+    setSelectedTask(cloned)
+    setIsEditingTask(false)
+    setCopyFeedback('✓ Đã nhân bản công việc thành công!')
+    setTimeout(() => setCopyFeedback(''), 3000)
+  }
   const [goals, setGoals] = useState([])
   const [showAddModal, setShowAddModal] = useState(false)
   const [addSlotData, setAddSlotData] = useState(() => ({
@@ -1012,8 +1198,10 @@ export default function DailyTasksPage({
 
                   {/* Render Task Blocks inside day column */}
                   {dayTasks.map(task => {
-                    const topOffset = (task.startHour - 9) * 64 // 64px per hour starting at 9am
-                    const blockHeight = Math.max(28, task.durationHours * 64 - 4)
+                    const startH = parseHour(task.startHour, 9.0)
+                    const durH = parseDuration(task.durationHours, 1.5)
+                    const topOffset = Math.max(0, (startH - START_HOUR) * 64)
+                    const blockHeight = Math.max(28, durH * 64 - 4)
                     const isSelected = selectedTask?.id === task.id
                     const isCompleted = isTaskCompletedOnDate(task, dateStr)
 
@@ -1054,11 +1242,7 @@ export default function DailyTasksPage({
                         }}
                         onClick={(e) => {
                           e.stopPropagation()
-                          setSelectedTask({
-                            ...task,
-                            activeDate: dateStr,
-                            isCompletedOnDate: isCompleted,
-                          })
+                          handleSelectTask(task, dateStr, isCompleted)
                         }}
                         role="button"
                         tabIndex={0}
@@ -1103,17 +1287,17 @@ export default function DailyTasksPage({
 
       {/* Task Detail Modal / Popover (Khi bấm vào một ô) */}
       {selectedTask && (
-        <div className="detail-modal-overlay" onClick={() => setSelectedTask(null)}>
+        <div className="detail-modal-overlay" onClick={() => { setSelectedTask(null); setIsEditingTask(false); }}>
           <div className="detail-modal-card" onClick={e => e.stopPropagation()}>
             <div className="detail-modal-header">
               <div className="detail-badge-group">
                 <span className={`detail-type-badge badge--${selectedTask.type}`}>
                   {selectedTask.type === 'focus' || selectedTask.type === 'app'
-                    ? '✦ Task AI Study Planner (Focus Time)'
+                    ? '✦ Focus Time (AI Study Planner)'
                     : selectedTask.type === 'routine' || selectedTask.type === 'lunch'
-                    ? '☕ Sinh hoạt cá nhân (Ăn uống, vệ sinh)'
+                    ? '☕ Sinh hoạt cá nhân'
                     : selectedTask.type === 'meeting'
-                    ? '👥 Cuộc họp / Nhóm (Meeting)'
+                    ? '👥 Cuộc họp / Nhóm'
                     : '📌 Lịch trình khác'}
                 </span>
                 {selectedTask.isDraft && (
@@ -1133,84 +1317,477 @@ export default function DailyTasksPage({
               <button
                 type="button"
                 className="detail-close-btn"
-                onClick={() => setSelectedTask(null)}
+                onClick={() => { setSelectedTask(null); setIsEditingTask(false); }}
                 aria-label="Đóng popup chi tiết"
               >
                 ✕
               </button>
             </div>
 
-            <div className="detail-body">
-              <h3 className="detail-title">{selectedTask.title}</h3>
+            {/* Quick Action Toolbar */}
+            <div className="detail-toolbar">
+              <div className="detail-toolbar-left">
+                <button
+                  type="button"
+                  className="toolbar-btn"
+                  onClick={() => copyTaskToClipboard(selectedTask)}
+                  title="Sao chép toàn bộ nội dung công việc và phân tích học tập vào clipboard"
+                >
+                  <span className="toolbar-btn-icon">📋</span>
+                  <span>Sao chép nội dung</span>
+                </button>
+                <button
+                  type="button"
+                  className={`toolbar-btn ${isEditingTask ? 'toolbar-btn--active' : ''}`}
+                  onClick={() => {
+                    if (isEditingTask) {
+                      setIsEditingTask(false)
+                    } else {
+                      startEditTask(selectedTask)
+                    }
+                  }}
+                  title="Chỉnh sửa thủ công tiêu đề, thời gian, môn học và các tiêu chí học tập"
+                >
+                  <span className="toolbar-btn-icon">✏️</span>
+                  <span>{isEditingTask ? 'Hủy chỉnh sửa' : 'Chỉnh sửa thủ công'}</span>
+                </button>
+                <button
+                  type="button"
+                  className="toolbar-btn"
+                  onClick={() => duplicateTask(selectedTask)}
+                  title="Tạo bản sao công việc này"
+                >
+                  <span className="toolbar-btn-icon">📑</span>
+                  <span>Nhân bản</span>
+                </button>
+              </div>
+              {copyFeedback && (
+                <div className="detail-toast-feedback">
+                  {copyFeedback}
+                </div>
+              )}
+            </div>
 
-              <div className="detail-info-grid">
-                <div className="detail-info-item">
-                  <span className="detail-label">Môn học / Phân loại</span>
-                  <span className="detail-value">{selectedTask.subject || 'Mục tiêu ôn tập'}</span>
+            {/* If Edit Mode is Active, show the Full Edit Form */}
+            {isEditingTask && editTaskForm ? (
+              <form onSubmit={saveEditTask} className="detail-edit-form">
+                <div className="form-group">
+                  <label className="form-label" htmlFor="edit-task-title">
+                    Tên công việc <span className="required-star">*</span>
+                  </label>
+                  <input
+                    id="edit-task-title"
+                    className="form-input"
+                    required
+                    value={editTaskForm.title}
+                    onChange={e => setEditTaskForm(f => ({ ...f, title: e.target.value }))}
+                  />
                 </div>
-                <div className="detail-info-item">
-                  <span className="detail-label">Thời gian</span>
-                  <span className="detail-value">
-                    📅 {selectedTask.activeDate || selectedTask.date} · {formatTimeRange(selectedTask.startHour, selectedTask.durationHours)}
-                  </span>
+
+                <div className="form-row-grid">
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="edit-task-subject">
+                      Môn học / Phân loại
+                    </label>
+                    <input
+                      id="edit-task-subject"
+                      className="form-input"
+                      value={editTaskForm.subject}
+                      onChange={e => setEditTaskForm(f => ({ ...f, subject: e.target.value }))}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="edit-task-type">
+                      Loại công việc
+                    </label>
+                    <select
+                      id="edit-task-type"
+                      className="form-select"
+                      value={editTaskForm.type}
+                      onChange={e => setEditTaskForm(f => ({ ...f, type: e.target.value }))}
+                    >
+                      <option value="focus">Focus Time (AI Study Planner)</option>
+                      <option value="other">Lịch trình khác (Xám)</option>
+                      <option value="routine">Sinh hoạt cá nhân (Vàng)</option>
+                      <option value="meeting">Họp nhóm (Meeting)</option>
+                    </select>
+                  </div>
                 </div>
-                {selectedTask.isDraft && (
-                  <span className="badge badge--focus" style={{ background: '#f5f3ff', color: '#6d28d9', borderColor: '#c4b5fd' }}>
-                    ✨ Bản nháp AI
-                  </span>
-                )}
-                {selectedTask.recurrence && selectedTask.recurrence !== 'none' && (
-                  <div className="detail-info-item" style={{ gridColumn: 'span 2' }}>
-                    <span className="detail-label">Chu kỳ lặp lại</span>
-                    <span className="detail-value detail-value--repeat">
-                      🔁 {getRecurrenceLabel(selectedTask)}
+
+                <div className="form-row-grid">
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="edit-task-date">
+                      Ngày
+                    </label>
+                    <input
+                      id="edit-task-date"
+                      type="date"
+                      className="form-input"
+                      value={editTaskForm.date}
+                      onChange={e => setEditTaskForm(f => ({ ...f, date: e.target.value }))}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="edit-task-starthour">
+                      Giờ bắt đầu
+                    </label>
+                    <select
+                      id="edit-task-starthour"
+                      className="form-select"
+                      value={editTaskForm.startHour}
+                      onChange={e => setEditTaskForm(f => ({ ...f, startHour: Number(e.target.value) }))}
+                    >
+                      {HOURS.map(h => (
+                        <option key={h} value={h}>{formatHour(h)} ({h}:00)</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="edit-task-duration">
+                      Thời lượng
+                    </label>
+                    <select
+                      id="edit-task-duration"
+                      className="form-select"
+                      value={editTaskForm.durationHours}
+                      onChange={e => setEditTaskForm(f => ({ ...f, durationHours: Number(e.target.value) }))}
+                    >
+                      <option value={0.5}>30 phút (0.5h)</option>
+                      <option value={1}>1 giờ (60 phút)</option>
+                      <option value={1.5}>1.5 giờ (90 phút)</option>
+                      <option value={2}>2 giờ (120 phút)</option>
+                      <option value={2.5}>2.5 giờ (150 phút)</option>
+                      <option value={3}>3 giờ (180 phút)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Recurrence in edit form */}
+                <div className="form-group recurrence-group">
+                  <div className="form-label-row">
+                    <label className="form-label">
+                      <span className="recurrence-label-icon">🔁</span> Lặp lại định kỳ
+                    </label>
+                  </div>
+                  <div className="recurrence-options-grid">
+                    {[
+                      { key: 'none', label: 'Không lặp lại' },
+                      { key: 'weekly', label: 'Hàng tuần' },
+                      { key: 'weekdays', label: 'T2 – T6' },
+                      { key: 'daily', label: 'Mỗi ngày' },
+                      { key: 'custom', label: 'Tùy chọn…' },
+                    ].map(opt => (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        className={`recurrence-chip ${editTaskForm.recurrence === opt.key ? 'recurrence-chip--active' : ''}`}
+                        onClick={() => {
+                          const dow = new Date(`${editTaskForm.date}T12:00:00`).getDay()
+                          setEditTaskForm(f => ({
+                            ...f,
+                            recurrence: opt.key,
+                            recurringDays: opt.key === 'weekly' ? [dow] : opt.key === 'weekdays' ? [1,2,3,4,5] : opt.key === 'daily' ? [0,1,2,3,4,5,6] : f.recurringDays,
+                          }))
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {editTaskForm.recurrence === 'custom' && (
+                    <div className="recurrence-days-pills">
+                      {[
+                        { dow: 1, label: 'T2' },
+                        { dow: 2, label: 'T3' },
+                        { dow: 3, label: 'T4' },
+                        { dow: 4, label: 'T5' },
+                        { dow: 5, label: 'T6' },
+                        { dow: 6, label: 'T7' },
+                        { dow: 0, label: 'CN' },
+                      ].map(({ dow, label }) => {
+                        const isSelected = editTaskForm.recurringDays.includes(dow)
+                        return (
+                          <button
+                            key={dow}
+                            type="button"
+                            className={`day-pill ${isSelected ? 'day-pill--active' : ''}`}
+                            onClick={() => {
+                              setEditTaskForm(f => {
+                                const days = isSelected
+                                  ? f.recurringDays.filter(d => d !== dow)
+                                  : [...f.recurringDays, dow]
+                                return { ...f, recurringDays: days.length > 0 ? days : [dow] }
+                              })
+                            }}
+                          >
+                            {label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Academic Criteria Fields */}
+                <div className="detail-edit-academic-box">
+                  <div className="detail-edit-box-title">
+                    <span>🎓 TIÊU CHÍ HỌC TẬP & PHÂN TÍCH CHUYÊN SÂU</span>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="edit-task-targetGrade">
+                      🎯 Mục tiêu điểm số (Target Grade)
+                    </label>
+                    <input
+                      id="edit-task-targetGrade"
+                      className="form-input"
+                      placeholder="Ví dụ: Điểm 8.5+ (Điểm A) - Nắm vững bản chất..."
+                      value={editTaskForm.targetGrade}
+                      onChange={e => setEditTaskForm(f => ({ ...f, targetGrade: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="form-row-grid">
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="edit-task-effort">
+                        ⚡ Mức độ nỗ lực (Effort)
+                      </label>
+                      <input
+                        id="edit-task-effort"
+                        className="form-input"
+                        placeholder="Ví dụ: Cao (4-6h/tuần)"
+                        value={editTaskForm.effort}
+                        onChange={e => setEditTaskForm(f => ({ ...f, effort: e.target.value }))}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="edit-task-courseWeight">
+                        ⚖️ Độ nặng môn học (Course Workload)
+                      </label>
+                      <input
+                        id="edit-task-courseWeight"
+                        className="form-input"
+                        placeholder="Ví dụ: 3-4 tín chỉ chuyên ngành - Nặng"
+                        value={editTaskForm.courseWeight}
+                        onChange={e => setEditTaskForm(f => ({ ...f, courseWeight: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="edit-task-practicalValue">
+                      💼 Giá trị thực tế (Practical Value)
+                    </label>
+                    <input
+                      id="edit-task-practicalValue"
+                      className="form-input"
+                      placeholder="Ví dụ: Nền tảng thiết kế backend, phỏng vấn tuyển dụng..."
+                      value={editTaskForm.practicalValue}
+                      onChange={e => setEditTaskForm(f => ({ ...f, practicalValue: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="edit-task-specificLearning">
+                      📖 Học cái gì cụ thể (Specific Learning / Roadmap)
+                    </label>
+                    <textarea
+                      id="edit-task-specificLearning"
+                      className="form-textarea"
+                      rows={3}
+                      placeholder="1) Lý thuyết; 2) Ví dụ mẫu; 3) Bài tập đề thi..."
+                      value={editTaskForm.specificLearning}
+                      onChange={e => setEditTaskForm(f => ({ ...f, specificLearning: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="edit-task-references">
+                      📚 Tài liệu tham khảo (References)
+                    </label>
+                    <input
+                      id="edit-task-references"
+                      className="form-input"
+                      placeholder="Ví dụ: Giáo trình chương 3, Slide bài giảng, Bộ đề thi mẫu..."
+                      value={editTaskForm.references}
+                      onChange={e => setEditTaskForm(f => ({ ...f, references: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="detail-actions">
+                  <button
+                    type="button"
+                    className="button button--secondary button--sm"
+                    onClick={() => setIsEditingTask(false)}
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    className="button button--primary button--sm"
+                  >
+                    ✓ Lưu thay đổi
+                  </button>
+                </div>
+              </form>
+            ) : (
+              /* View Mode */
+              <div className="detail-body">
+                <h3 className="detail-title">{selectedTask.title}</h3>
+
+                <div className="detail-info-grid">
+                  <div className="detail-info-item">
+                    <span className="detail-label">Môn học / Phân loại</span>
+                    <span className="detail-value">{selectedTask.subject || 'Mục tiêu ôn tập'}</span>
+                  </div>
+                  <div className="detail-info-item">
+                    <span className="detail-label">Thời gian</span>
+                    <span className="detail-value">
+                      📅 {selectedTask.activeDate || selectedTask.scheduledDate || selectedTask.date} · {formatTimeRange(selectedTask.startHour, selectedTask.durationHours)}
                     </span>
                   </div>
-                )}
-                {selectedTask.topics && (
-                  <div className="detail-info-item" style={{ gridColumn: 'span 2' }}>
-                    <span className="detail-label">Nội dung ôn tập / Chi tiết</span>
-                    <span className="detail-value">{selectedTask.topics}</span>
+                  {selectedTask.recurrence && selectedTask.recurrence !== 'none' && (
+                    <div className="detail-info-item" style={{ gridColumn: 'span 2' }}>
+                      <span className="detail-label">Chu kỳ lặp lại</span>
+                      <span className="detail-value detail-value--repeat">
+                        🔁 {getRecurrenceLabel(selectedTask)}
+                      </span>
+                    </div>
+                  )}
+                  {selectedTask.location && (
+                    <div className="detail-info-item">
+                      <span className="detail-label">Địa điểm / Nền tảng</span>
+                      <span className="detail-value">{selectedTask.location}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Structured Academic Detail Analysis Cards */}
+                <div className="detail-academic-section">
+                  <div className="detail-academic-header">
+                    <span className="detail-academic-icon">🎓</span>
+                    <span className="detail-academic-title">PHÂN TÍCH CHUYÊN SÂU & MỤC TIÊU HỌC TẬP</span>
                   </div>
-                )}
-                {selectedTask.location && (
-                  <div className="detail-info-item">
-                    <span className="detail-label">Địa điểm / Nền tảng</span>
-                    <span className="detail-value">{selectedTask.location}</span>
+
+                  <div className="detail-metric-grid">
+                    <div className="detail-metric-card detail-metric-card--grade">
+                      <div className="metric-card-header">
+                        <span className="metric-card-icon">🎯</span>
+                        <span className="metric-card-label">Mục tiêu điểm số</span>
+                      </div>
+                      <div className="metric-card-value">
+                        {selectedTask.targetGrade || 'Điểm 8.5+ (Điểm A) - Nắm vững kiến thức trọng tâm'}
+                      </div>
+                    </div>
+
+                    <div className="detail-metric-card detail-metric-card--effort">
+                      <div className="metric-card-header">
+                        <span className="metric-card-icon">⚡</span>
+                        <span className="metric-card-label">Mức độ nỗ lực</span>
+                      </div>
+                      <div className="metric-card-value">
+                        {selectedTask.effort || '4 - 6 giờ/tuần ôn tập chủ động'}
+                      </div>
+                    </div>
+
+                    <div className="detail-metric-card detail-metric-card--weight">
+                      <div className="metric-card-header">
+                        <span className="metric-card-icon">⚖️</span>
+                        <span className="metric-card-label">Độ nặng môn học</span>
+                      </div>
+                      <div className="metric-card-value">
+                        {selectedTask.courseWeight || '3 - 4 tín chỉ trọng tâm'}
+                      </div>
+                    </div>
+
+                    <div className="detail-metric-card detail-metric-card--practical">
+                      <div className="metric-card-header">
+                        <span className="metric-card-icon">💼</span>
+                        <span className="metric-card-label">Giá trị thực tế</span>
+                      </div>
+                      <div className="metric-card-value">
+                        {selectedTask.practicalValue || 'Nền tảng quan trọng cho đồ án và phỏng vấn kỹ thuật'}
+                      </div>
+                    </div>
                   </div>
-                )}
+
+                  {/* Specific Learning Checklist / Roadmap */}
+                  {(selectedTask.specificLearning || selectedTask.topics) && (
+                    <div className="detail-roadmap-box">
+                      <div className="roadmap-box-header">
+                        <span className="roadmap-box-icon">📖</span>
+                        <span className="roadmap-box-title">Học cái gì cụ thể (Roadmap buổi học)</span>
+                      </div>
+                      <div className="roadmap-box-content">
+                        {(selectedTask.specificLearning || selectedTask.topics).split(/\n|;/).map((line, idx) => {
+                          const trimmed = line.trim()
+                          if (!trimmed) return null
+                          return (
+                            <div key={idx} className="roadmap-step-item">
+                              <span className="roadmap-step-bullet">•</span>
+                              <span className="roadmap-step-text">{trimmed}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* References Box */}
+                  {selectedTask.references && (
+                    <div className="detail-references-box">
+                      <div className="references-box-header">
+                        <span className="references-box-icon">📚</span>
+                        <span className="references-box-title">Tài liệu tham khảo</span>
+                      </div>
+                      <div className="references-box-content">
+                        {selectedTask.references}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Additional Description if distinct */}
+                  {selectedTask.description && !selectedTask.description.startsWith('🎯') && (
+                    <div className="detail-desc-box">
+                      <span className="detail-label">Ghi chú bổ sung</span>
+                      <p className="detail-desc-text">{selectedTask.description}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="detail-actions">
+                  <button
+                    type="button"
+                    className={`button button--sm ${(selectedTask.isCompletedOnDate ?? selectedTask.completed) ? 'button--secondary' : 'button--primary'}`}
+                    onClick={() => toggleTaskComplete(selectedTask.id, selectedTask.activeDate)}
+                  >
+                    {(selectedTask.isCompletedOnDate ?? selectedTask.completed)
+                      ? 'Mở lại công việc'
+                      : selectedTask.recurrence && selectedTask.recurrence !== 'none'
+                      ? '✓ Đánh dấu đã xong hôm nay'
+                      : '✓ Đánh dấu đã học xong'}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="button button--secondary button--sm button--danger"
+                    onClick={() => deleteTask(selectedTask.id)}
+                  >
+                    {selectedTask.isDraft ? 'Xóa khỏi bản nháp' : 'Xóa task'}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="button button--secondary button--sm"
+                    onClick={() => { setSelectedTask(null); setIsEditingTask(false); }}
+                  >
+                    Đóng
+                  </button>
+                </div>
               </div>
-
-              <div className="detail-actions">
-                <button
-                  type="button"
-                  className={`button button--sm ${(selectedTask.isCompletedOnDate ?? selectedTask.completed) ? 'button--secondary' : 'button--primary'}`}
-                  onClick={() => toggleTaskComplete(selectedTask.id, selectedTask.activeDate)}
-                >
-                  {(selectedTask.isCompletedOnDate ?? selectedTask.completed)
-                    ? 'Mở lại công việc'
-                    : selectedTask.recurrence && selectedTask.recurrence !== 'none'
-                    ? '✓ Đánh dấu đã xong hôm nay'
-                    : '✓ Đánh dấu đã học xong'}
-                </button>
-
-                <button
-                  type="button"
-                  className="button button--secondary button--sm button--danger"
-                  onClick={() => deleteTask(selectedTask.id)}
-                >
-                  {selectedTask.isDraft ? 'Xóa khỏi bản nháp' : 'Xóa task'}
-                </button>
-
-                <button
-                  type="button"
-                  className="button button--secondary button--sm"
-                  onClick={() => setSelectedTask(null)}
-                >
-                  Đóng
-                </button>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       )}
