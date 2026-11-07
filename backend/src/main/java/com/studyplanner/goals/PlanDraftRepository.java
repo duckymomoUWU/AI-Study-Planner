@@ -97,6 +97,25 @@ public class PlanDraftRepository {
         ).stream().findFirst();
     }
 
+    public Optional<StoredDraft> findDraftById(UUID trustedOwnerId, UUID draftId) {
+        Objects.requireNonNull(trustedOwnerId, "trustedOwnerId");
+        Objects.requireNonNull(draftId, "draftId");
+
+        var params = new MapSqlParameterSource()
+                .addValue("ownerId", trustedOwnerId)
+                .addValue("draftId", draftId);
+
+        return jdbc.query(
+                """
+                SELECT d.id, d.goal_id, d.goal_version, d.proposal::text AS proposal, d.created_at, d.expires_at
+                  FROM plan_drafts d
+                  JOIN study_goals g ON g.id = d.goal_id
+                 WHERE g.user_id = :ownerId AND d.id = :draftId
+                """,
+                params, DRAFT_MAPPER
+        ).stream().findFirst();
+    }
+
     public Optional<StoredDraft> findLatestDraft(UUID trustedOwnerId, UUID goalId) {
         Objects.requireNonNull(trustedOwnerId, "trustedOwnerId");
         Objects.requireNonNull(goalId, "goalId");
@@ -140,39 +159,33 @@ public class PlanDraftRepository {
                         .addValue("ownerId", trustedOwnerId)
                         .addValue("goalId", goalId)
         );
-        if (updated != 1) {
+        if (updated == 0) {
             throw new GoalService.GoalNotFoundException();
         }
 
-        // 3. Insert tasks into study_tasks
+        // 3. Insert confirmed tasks into study_tasks
         List<UUID> createdIds = new ArrayList<>();
-        for (TaskToCreate task : tasks) {
+        for (TaskToCreate t : tasks) {
             var params = new MapSqlParameterSource()
                     .addValue("goalId", goalId)
-                    .addValue("title", task.title())
-                    .addValue("scheduledDate", task.scheduledDate())
-                    .addValue("estimatedMinutes", task.estimatedMinutes())
-                    .addValue("source", task.source() != null ? task.source() : "ai");
+                    .addValue("title", t.title())
+                    .addValue("scheduledDate", java.sql.Date.valueOf(t.scheduledDate()))
+                    .addValue("estimatedMinutes", t.estimatedMinutes())
+                    .addValue("source", t.source() != null ? t.source() : "ai");
 
-            var taskRows = jdbc.query(
+            var inserted = jdbc.query(
                     """
-                    INSERT INTO study_tasks (goal_id, title, scheduled_date, estimated_minutes, source)
-                    VALUES (:goalId, :title, :scheduledDate, :estimatedMinutes, :source)
+                    INSERT INTO study_tasks (goal_id, title, scheduled_date, estimated_minutes, completed, source)
+                    VALUES (:goalId, :title, :scheduledDate, :estimatedMinutes, false, :source)
                     RETURNING id
                     """,
                     params,
                     (rs, rowNum) -> rs.getObject("id", UUID.class)
             );
-            if (!taskRows.isEmpty()) {
-                createdIds.add(taskRows.getFirst());
+            if (!inserted.isEmpty()) {
+                createdIds.add(inserted.getFirst());
             }
         }
-
-        // 4. Clean up draft once confirmed
-        jdbc.update(
-                "DELETE FROM plan_drafts WHERE id = :draftId",
-                new MapSqlParameterSource("draftId", draftId)
-        );
 
         return createdIds;
     }

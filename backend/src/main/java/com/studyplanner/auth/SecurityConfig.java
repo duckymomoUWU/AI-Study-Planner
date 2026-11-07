@@ -24,6 +24,8 @@ import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.csrf.CsrfTokenRequestHandler;
 import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -68,6 +70,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(csrfRepository)
                         .csrfTokenRequestHandler(csrfRequestHandler)
+                        .ignoringRequestMatchers("/api/goals/parse-syllabus", "/api/v1/goals/parse-syllabus")
                 )
                 .securityContext(context -> context
                         .securityContextRepository(securityContextRepository)
@@ -77,9 +80,11 @@ public class SecurityConfig {
                         .sessionFixation(fixation -> fixation.changeSessionId())
                 )
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(HttpMethod.GET, "/api/auth/csrf", "/actuator/health").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
-                        .requestMatchers("/api/auth/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/auth/csrf", "/api/auth/csrf", "/actuator/health").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/register", "/api/auth/register",
+                                                          "/api/v1/auth/login", "/api/auth/login",
+                                                          "/api/goals/parse-syllabus", "/api/v1/goals/parse-syllabus").permitAll()
+                        .requestMatchers("/api/v1/auth/**", "/api/auth/**", "/api/v1/me", "/api/auth/me").authenticated()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()
                 )
@@ -87,7 +92,10 @@ public class SecurityConfig {
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
                 .logout(logout -> logout
-                        .logoutUrl("/api/auth/logout")
+                        .logoutRequestMatcher(new OrRequestMatcher(
+                                new AntPathRequestMatcher("/api/v1/auth/logout", "POST"),
+                                new AntPathRequestMatcher("/api/auth/logout", "POST")
+                        ))
                         .invalidateHttpSession(true)
                         .clearAuthentication(true)
                         .deleteCookies("JSESSIONID")
@@ -101,7 +109,7 @@ public class SecurityConfig {
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             response.setCharacterEncoding("UTF-8");
                             response.getWriter().write(
-                                    "{\"code\":\"unauthenticated\",\"message\":\"Bạn cần đăng nhập.\"}"
+                                    "{\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Bạn cần đăng nhập.\",\"details\":[]}}"
                             );
                         })
                         .accessDeniedHandler((request, response, exception) -> {
@@ -109,7 +117,7 @@ public class SecurityConfig {
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             response.setCharacterEncoding("UTF-8");
                             response.getWriter().write(
-                                    "{\"code\":\"forbidden_or_csrf\",\"message\":\"Yêu cầu không hợp lệ hoặc phiên đã hết hạn.\"}"
+                                    "{\"error\":{\"code\":\"CSRF_INVALID\",\"message\":\"Yêu cầu không hợp lệ hoặc phiên đã hết hạn.\",\"details\":[]}}"
                             );
                         })
                 );

@@ -6,17 +6,19 @@ beforeEach(() => {
   clearCsrfTokenCache()
 })
 
-test('getCsrfToken requests /api/auth/csrf and caches token', async t => {
+test('getCsrfToken requests /api/v1/auth/csrf and caches token', async t => {
   let callCount = 0
   t.mock.method(globalThis, 'fetch', async (url, options) => {
-    assert.equal(url, '/api/auth/csrf')
+    assert.equal(url, '/api/v1/auth/csrf')
     assert.equal(options.method, 'GET')
     assert.equal(options.credentials, 'same-origin')
     callCount++
     return Response.json({
-      headerName: 'X-CSRF-TOKEN',
-      parameterName: '_csrf',
-      token: 'mock-csrf-token-123',
+      data: {
+        headerName: 'X-CSRF-TOKEN',
+        parameterName: '_csrf',
+        token: 'mock-csrf-token-123',
+      },
     })
   })
 
@@ -30,17 +32,17 @@ test('getCsrfToken requests /api/auth/csrf and caches token', async t => {
 
 test('register fetches CSRF and sends POST with X-CSRF-TOKEN and credentials', async t => {
   t.mock.method(globalThis, 'fetch', async (url, options) => {
-    if (url === '/api/auth/csrf') {
-      return Response.json({ token: 'csrf-abc' })
+    if (url === '/api/v1/auth/csrf') {
+      return Response.json({ data: { token: 'csrf-abc' } })
     }
-    if (url === '/api/auth/register') {
+    if (url === '/api/v1/auth/register') {
       assert.equal(options.method, 'POST')
       assert.equal(options.credentials, 'same-origin')
       assert.equal(options.headers['X-CSRF-TOKEN'], 'csrf-abc')
       const body = JSON.parse(options.body)
       assert.equal(body.email, 'test@example.com')
       assert.equal(body.password, 'password123')
-      return Response.json({ id: 'user-uuid-1', email: 'test@example.com' }, { status: 201 })
+      return Response.json({ data: { id: 'user-uuid-1', email: 'test@example.com' } }, { status: 201 })
     }
     throw new Error(`Unexpected url ${url}`)
   })
@@ -52,15 +54,15 @@ test('register fetches CSRF and sends POST with X-CSRF-TOKEN and credentials', a
 
 test('login sends credentials and updates cached CSRF token if returned in header', async t => {
   t.mock.method(globalThis, 'fetch', async (url, options) => {
-    if (url === '/api/auth/csrf') {
-      return Response.json({ token: 'csrf-initial' })
+    if (url === '/api/v1/auth/csrf') {
+      return Response.json({ data: { token: 'csrf-initial' } })
     }
-    if (url === '/api/auth/login') {
+    if (url === '/api/v1/auth/login') {
       assert.equal(options.method, 'POST')
       assert.equal(options.credentials, 'same-origin')
       assert.equal(options.headers['X-CSRF-TOKEN'], 'csrf-initial')
       const headers = new Headers({ 'X-CSRF-TOKEN': 'csrf-rotated' })
-      return new Response(JSON.stringify({ id: 'user-uuid-1', email: 'test@example.com' }), {
+      return new Response(JSON.stringify({ data: { id: 'user-uuid-1', email: 'test@example.com' } }), {
         status: 200,
         headers,
       })
@@ -77,11 +79,11 @@ test('login sends credentials and updates cached CSRF token if returned in heade
 
 test('login rejects with AuthApiError on invalid credentials', async t => {
   t.mock.method(globalThis, 'fetch', async (url) => {
-    if (url === '/api/auth/csrf') {
-      return Response.json({ token: 'csrf-123' })
+    if (url === '/api/v1/auth/csrf') {
+      return Response.json({ data: { token: 'csrf-123' } })
     }
     return Response.json(
-      { code: 'invalid_credentials', message: 'Email hoặc mật khẩu không chính xác.' },
+      { error: { code: 'INVALID_CREDENTIALS', message: 'Email hoặc mật khẩu không chính xác.' } },
       { status: 401 }
     )
   })
@@ -96,10 +98,10 @@ test('login rejects with AuthApiError on invalid credentials', async t => {
 
 test('getCurrentUser returns user object when authenticated', async t => {
   t.mock.method(globalThis, 'fetch', async (url, options) => {
-    assert.equal(url, '/api/auth/me')
+    assert.equal(url, '/api/v1/me')
     assert.equal(options.method, 'GET')
     assert.equal(options.credentials, 'same-origin')
-    return Response.json({ id: 'user-uuid-1', email: 'test@example.com' })
+    return Response.json({ data: { id: 'user-uuid-1', email: 'test@example.com' } })
   })
 
   const user = await getCurrentUser()
@@ -109,21 +111,21 @@ test('getCurrentUser returns user object when authenticated', async t => {
 
 test('getCurrentUser returns null when unauthenticated (401)', async t => {
   t.mock.method(globalThis, 'fetch', async (url) => {
-    assert.equal(url, '/api/auth/me')
-    return Response.json({ code: 'unauthenticated' }, { status: 401 })
+    assert.equal(url, '/api/v1/me')
+    return Response.json({ error: { code: 'UNAUTHORIZED' } }, { status: 401 })
   })
 
   const user = await getCurrentUser()
   assert.equal(user, null)
 })
 
-test('logout calls /api/auth/logout with CSRF and clears cache', async t => {
+test('logout calls /api/v1/auth/logout with CSRF and clears cache', async t => {
   let logoutCalled = false
   t.mock.method(globalThis, 'fetch', async (url, options) => {
-    if (url === '/api/auth/csrf') {
-      return Response.json({ token: 'csrf-logout' })
+    if (url === '/api/v1/auth/csrf') {
+      return Response.json({ data: { token: 'csrf-logout' } })
     }
-    if (url === '/api/auth/logout') {
+    if (url === '/api/v1/auth/logout') {
       assert.equal(options.method, 'POST')
       assert.equal(options.credentials, 'same-origin')
       assert.equal(options.headers['X-CSRF-TOKEN'], 'csrf-logout')

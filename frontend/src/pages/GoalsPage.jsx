@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { createGoal, deleteGoal, GoalApiError, listGoals, updateGoal } from '../lib/goals.js'
+import { createGoal, deleteGoal, GoalApiError, listGoals, updateGoal, parseSyllabusDocument } from '../lib/goals.js'
 import { generatePlanDraft, getGoalDraftStatus, setGoalDraftStatus } from '../lib/ai-planner.js'
 import './GoalsPage.css'
 
@@ -69,6 +69,13 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
   const [successMessage, setSuccessMessage] = useState('')
   const [isUnauthenticated, setIsUnauthenticated] = useState(false)
   const [draftStatuses, setDraftStatuses] = useState({})
+
+  // Syllabus Parsing State (Gemini 3.8 Flash)
+  const [showSyllabusBox, setShowSyllabusBox] = useState(false)
+  const [isParsingSyllabus, setIsParsingSyllabus] = useState(false)
+  const [syllabusText, setSyllabusText] = useState('')
+  const [syllabusFileName, setSyllabusFileName] = useState('')
+  const [syllabusError, setSyllabusError] = useState('')
 
   function getStatus(goalId) {
     return draftStatuses[goalId] ?? getGoalDraftStatus(goalId)
@@ -162,6 +169,88 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
     setEditing(null)
     setForm(emptyForm)
     setFormErrors({})
+    setSyllabusFileName('')
+    setSyllabusText('')
+  }
+
+  function applySyllabusResult(data) {
+    if (!data) return
+    setForm(prev => ({
+      ...prev,
+      subject: data.subject || prev.subject,
+      topics: data.topics || prev.topics,
+      startDate: data.startDate || prev.startDate || localDateString(),
+      examDate: data.examDate || prev.examDate || '',
+      minutesPerDay: String(data.minutesPerDay || prev.minutesPerDay || '90'),
+    }))
+    setFormErrors({})
+    setSuccessMessage('✓ Đã điền nhanh thông tin từ đề cương môn học bằng Gemini 3.8 Flash! Hãy xem lại và bấm Tạo mục tiêu.')
+    setShowSyllabusBox(false)
+    setTimeout(() => setSuccessMessage(''), 5000)
+  }
+
+  async function handleSyllabusFileUpload(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setSyllabusFileName(file.name)
+    setSyllabusError('')
+    setIsParsingSyllabus(true)
+
+    try {
+      let result
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+      if (isPdf) {
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => {
+            const res = reader.result
+            const b64 = typeof res === 'string' ? res.split(',')[1] : ''
+            resolve(b64)
+          }
+          reader.onerror = reject
+          reader.readAsDataURL(file)
+        })
+        result = await parseSyllabusDocument({
+          base64,
+          mimeType: 'application/pdf',
+          fileName: file.name,
+        })
+      } else {
+        const text = await file.text()
+        result = await parseSyllabusDocument({
+          content: text,
+          fileName: file.name,
+          mimeType: file.type || 'text/plain',
+        })
+      }
+      applySyllabusResult(result)
+    } catch (err) {
+      setSyllabusError(err.message || 'Không thể trích xuất đề cương môn học.')
+    } finally {
+      setIsParsingSyllabus(false)
+      event.target.value = ''
+    }
+  }
+
+  async function handleParseSyllabusText() {
+    if (!syllabusText.trim()) {
+      setSyllabusError('Vui lòng nhập nội dung đề cương môn học.')
+      return
+    }
+    setSyllabusError('')
+    setIsParsingSyllabus(true)
+    try {
+      const result = await parseSyllabusDocument({
+        content: syllabusText.trim(),
+        fileName: 'de_cuong.txt',
+        mimeType: 'text/plain',
+      })
+      applySyllabusResult(result)
+    } catch (err) {
+      setSyllabusError(err.message || 'Không thể trích xuất đề cương môn học.')
+    } finally {
+      setIsParsingSyllabus(false)
+    }
   }
 
   async function submitForm(event) {
@@ -247,9 +336,9 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
     <section className="goals-page" aria-labelledby="goals-title">
       <div className="goals-heading">
         <div className="goals-heading-info">
-          <p className="eyebrow">SPRINT 2 · US-01</p>
+          <p className="eyebrow">SPRINT 3 · US-06 & AI FEAT</p>
           <h1 id="goals-title">Mục tiêu ôn tập</h1>
-          <p className="goals-subtitle">Tạo mục tiêu rõ ràng để giới hạn thời gian và chuẩn bị cho kỳ thi.</p>
+          <p className="goals-subtitle">Tạo mục tiêu rõ ràng để giới hạn thời gian và chuẩn bị cho kỳ thi với sự hỗ trợ của Gemini 3.8 Flash.</p>
         </div>
         <div className="goals-heading-actions">
           <button className="button button--secondary" type="button" onClick={onBack}>
@@ -267,8 +356,8 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
       <div className="goal-banner">
         <span className="goal-banner-icon" aria-hidden="true">✦</span>
         <div className="goal-banner-content">
-          <strong>Giao diện US-01:</strong> Đang kết nối API chuẩn <code>/api/goals</code>.
-          Giao diện hỗ trợ đầy đủ tạo, sửa (kiểm soát version), xóa và ràng buộc tối đa 90 ngày.
+          <strong>Chuẩn hóa API & AI US-06:</strong> Kết nối <code>/api/v1/auth</code> và <code>/api/v1/goals</code>.
+          Hỗ trợ đọc đề cương bằng model <strong>Gemini 3.8 Flash</strong> và sinh lịch học lặp lại hàng tuần.
         </div>
       </div>
 
@@ -307,8 +396,77 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
         <section className="goal-form-card" aria-labelledby="goal-form-title">
           <div className="goal-card-heading">
             <h2 id="goal-form-title">{editing ? 'Chỉnh sửa mục tiêu' : 'Tạo mục tiêu mới'}</h2>
-            <span className="goal-card-badge">{editing ? `Phiên bản v${editing.version}` : 'US-01 Form'}</span>
+            <div className="goal-card-heading-tags">
+              <span className="goal-card-badge">{editing ? `Phiên bản v${editing.version}` : 'US-01 Form'}</span>
+            </div>
           </div>
+
+          {/* Quickfill Syllabus Component using Gemini 3.8 Flash */}
+          <div className="syllabus-quickfill-box">
+            <div className="syllabus-quickfill-topbar">
+              <button
+                type="button"
+                className="button button--secondary button--sm syllabus-trigger-btn"
+                onClick={() => setShowSyllabusBox(prev => !prev)}
+                disabled={isParsingSyllabus}
+              >
+                <span className="syllabus-btn-icon" aria-hidden="true">📄</span>
+                <span>{showSyllabusBox ? 'Đóng công cụ tải đề cương' : 'Tải file đề cương để điền nhanh'}</span>
+              </button>
+              <span className="syllabus-gemini-tag">Gemini 3.8 Flash</span>
+            </div>
+
+            {showSyllabusBox && (
+              <div className="syllabus-quickfill-content">
+                <p className="syllabus-quickfill-desc">
+                  Tải lên file đề cương môn học (<strong>.pdf</strong>, <strong>.docx</strong>, <strong>.txt</strong>, <strong>.md</strong>) hoặc dán văn bản để AI tự động trích xuất tên môn, các chương mục ôn tập và đề xuất ngày thi.
+                </p>
+
+                <div className="syllabus-upload-actions">
+                  <label className={`button button--primary button--sm syllabus-file-label ${isParsingSyllabus ? 'button--loading' : ''}`}>
+                    <span>{isParsingSyllabus ? '⏳ Đang dùng Gemini 3.8 Flash đọc file...' : '📁 Chọn tệp đề cương (.pdf, .txt, .docx, .md)'}</span>
+                    <input
+                      type="file"
+                      accept=".pdf,.docx,.txt,.md,.text"
+                      onChange={handleSyllabusFileUpload}
+                      disabled={isParsingSyllabus}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                  {syllabusFileName && <span className="syllabus-chosen-filename">Tệp: {syllabusFileName}</span>}
+                </div>
+
+                <div className="syllabus-divider"><span>HOẶC DÁN VĂN BẢN ĐỀ CƯƠNG VÀO ĐÂY</span></div>
+
+                <textarea
+                  className="syllabus-textarea"
+                  rows={3}
+                  placeholder="Dán nội dung đề cương môn học, các chương mục trọng tâm vào đây..."
+                  value={syllabusText}
+                  onChange={e => setSyllabusText(e.target.value)}
+                  disabled={isParsingSyllabus}
+                />
+
+                <div className="syllabus-text-actions">
+                  <button
+                    type="button"
+                    className="button button--secondary button--sm"
+                    onClick={handleParseSyllabusText}
+                    disabled={isParsingSyllabus || !syllabusText.trim()}
+                  >
+                    {isParsingSyllabus ? '⏳ Đang phân tích...' : '✨ Điền nhanh bằng Gemini Flash →'}
+                  </button>
+                </div>
+
+                {syllabusError && (
+                  <div className="syllabus-error-message">
+                    <span>⚠ {syllabusError}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <form onSubmit={submitForm} noValidate className="goal-form">
             <div className="goal-field">
               <label htmlFor="goal-subject">Môn học</label>
@@ -360,34 +518,31 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
                   type="date"
                   name="examDate"
                   value={form.examDate}
-                  min={examMin}
-                  max={examMax || undefined}
                   onChange={changeField}
+                  min={examMin}
+                  max={examMax}
                   required
                   aria-invalid={Boolean(formErrors.examDate)}
                 />
-                <small className="field-hint">Tối đa 90 ngày kể từ ngày bắt đầu.</small>
+                <small className="field-hint">Tối đa 90 ngày sau ngày bắt đầu.</small>
                 {formErrors.examDate && <small className="field-error">{formErrors.examDate}</small>}
               </div>
             </div>
             <div className="goal-field">
-              <label htmlFor="goal-budget">Thời gian học mỗi ngày</label>
-              <div className="goal-budget-input">
-                <input
-                  id="goal-budget"
-                  type="number"
-                  name="minutesPerDay"
-                  value={form.minutesPerDay}
-                  onChange={changeField}
-                  min="15"
-                  max="480"
-                  step="1"
-                  required
-                  aria-invalid={Boolean(formErrors.minutesPerDay)}
-                />
-                <span>phút / ngày</span>
-              </div>
-              <small className="field-hint">Cho phép từ 15 đến 480 phút mỗi ngày.</small>
+              <label htmlFor="goal-minutes">Số phút học mỗi ngày</label>
+              <input
+                id="goal-minutes"
+                type="number"
+                name="minutesPerDay"
+                min={15}
+                max={480}
+                step={15}
+                value={form.minutesPerDay}
+                onChange={changeField}
+                required
+                aria-invalid={Boolean(formErrors.minutesPerDay)}
+              />
+              <small className="field-hint">Từ 15 đến 480 phút.</small>
               {formErrors.minutesPerDay && <small className="field-error">{formErrors.minutesPerDay}</small>}
             </div>
             <div className="goal-form-actions">
@@ -396,7 +551,7 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
               </button>
               {editing && (
                 <button className="button button--secondary" type="button" onClick={resetForm} disabled={saving}>
-                  Hủy sửa
+                  Hủy chỉnh sửa
                 </button>
               )}
             </div>
@@ -406,97 +561,100 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
         <section className="goal-list-card" aria-labelledby="goal-list-title">
           <div className="goal-card-heading">
             <h2 id="goal-list-title">Mục tiêu của tôi</h2>
-            <span className="goal-card-badge">{goals.length} mục tiêu</span>
+            <button className="button button--secondary button--sm" type="button" onClick={refresh} disabled={loading}>
+              Tải lại
+            </button>
           </div>
-          {loading ? (
-            <div className="goal-empty" role="status">
-              <span className="goal-empty-icon" aria-hidden="true">⏳</span>
-              <p>Đang tải mục tiêu…</p>
+          {loading && <p className="goal-list-empty">Đang tải danh sách mục tiêu…</p>}
+          {!loading && goals.length === 0 && (
+            <div className="goal-list-empty">
+              <p>Chưa có mục tiêu nào được lưu.</p>
+              <p className="empty-hint">Hãy điền form bên trái hoặc dùng nút <strong>"Tải file đề cương để điền nhanh"</strong> để bắt đầu!</p>
             </div>
-          ) : goals.length === 0 ? (
-            <div className="goal-empty">
-              <span className="goal-empty-icon" aria-hidden="true">✦</span>
-              <h3>Chưa có mục tiêu nào</h3>
-              <p>Tạo mục tiêu đầu tiên ở biểu mẫu bên trái để bắt đầu lập kế hoạch ôn tập.</p>
-            </div>
-          ) : (
-            <div className="goal-list">
+          )}
+          {!loading && goals.length > 0 && (
+            <div className="goal-items">
               {goals.map(goal => (
-                <article className="goal-item" key={goal.id}>
-                  <div className="goal-item-top">
-                    <div className="goal-item-title-group">
-                      <h3>{goal.subject}</h3>
-                      <span className="goal-version">v{goal.version}</span>
-                    </div>
-                    <span className="goal-budget">{goal.minutesPerDay} phút/ngày</span>
-                  </div>
+                <article key={goal.id} className="goal-item">
+                  <header className="goal-item-header">
+                    <h3>{goal.subject}</h3>
+                    <span className="goal-version">v{goal.version}</span>
+                  </header>
                   <p className="goal-topics">{goal.topics}</p>
-                  <p className="goal-dates">Bắt đầu {displayDate(goal.startDate)} · Thi {displayDate(goal.examDate)}</p>
-
-                  {/* US-06 Gemini Flash Plan Status Banner */}
-                  {getStatus(goal.id)?.status === 'generating' && (
-                    <div className="goal-ai-banner goal-ai-banner--generating" role="status">
-                      <div className="goal-ai-banner-text">
-                        <span className="ai-spin-icon">⏳</span>
-                        <span>Đang dùng <strong>Gemini Flash</strong> phân tích chủ đề và sinh lịch ôn tập...</span>
-                      </div>
+                  <dl className="goal-meta">
+                    <div>
+                      <dt>Bắt đầu:</dt>
+                      <dd>{displayDate(goal.startDate)}</dd>
                     </div>
-                  )}
-
-                  {getStatus(goal.id)?.status === 'ready' && (
-                    <div
-                      className="goal-ai-banner goal-ai-banner--ready"
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => {
-                        if (onReviewDraft) onReviewDraft(getStatus(goal.id).draft)
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          if (onReviewDraft) onReviewDraft(getStatus(goal.id).draft)
-                        }
-                      }}
-                      title="Bấm để xem trước và tùy chỉnh trên lịch học"
-                    >
-                      <div className="goal-ai-banner-text">
-                        <span className="ai-sparkle-icon">✨</span>
-                        <span><strong>Đã sinh lịch nháp AI!</strong> Bấm để xem & tùy chỉnh trên lịch học →</span>
-                      </div>
-                      <button
-                        type="button"
-                        className="button button--primary button--sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (onReviewDraft) onReviewDraft(getStatus(goal.id).draft)
-                        }}
-                      >
-                        Xem lịch nháp →
-                      </button>
+                    <div>
+                      <dt>Ngày thi:</dt>
+                      <dd>{displayDate(goal.examDate)}</dd>
                     </div>
-                  )}
-
-                  {getStatus(goal.id)?.status === 'confirmed' && (
-                    <div className="goal-ai-banner goal-ai-banner--confirmed" role="status">
-                      <div className="goal-ai-banner-text">
-                        <span className="ai-check-icon">✓</span>
-                        <span><strong>Đã thêm vào lịch học</strong> · Lịch ôn tập định kỳ đang kích hoạt</span>
-                      </div>
+                    <div>
+                      <dt>Ngân sách:</dt>
+                      <dd>{goal.minutesPerDay} phút/ngày</dd>
                     </div>
-                  )}
+                  </dl>
 
-                  {getStatus(goal.id)?.status === 'error' && (
-                    <div className="goal-ai-banner goal-ai-banner--error" role="alert">
-                      <div className="goal-ai-banner-text">
-                        <span>⚠ {getStatus(goal.id).message || 'Lỗi khi sinh lịch.'}</span>
-                      </div>
-                      <button
-                        type="button"
-                        className="button button--secondary button--sm"
-                        onClick={() => generateAiPlan(goal)}
-                      >
-                        Thử lại
-                      </button>
+                  {/* US-06 AI Generation Status Banner */}
+                  {getStatus(goal.id) && (
+                    <div className={`goal-ai-status-banner goal-ai-status-banner--${getStatus(goal.id)?.status}`}>
+                      {getStatus(goal.id)?.status === 'generating' && (
+                        <div className="goal-ai-status-content">
+                          <span className="goal-ai-spinner" aria-hidden="true">⏳</span>
+                          <div>
+                            <strong>AI đang sinh lịch học:</strong> Đang dùng Gemini Flash phân tích chủ đề và lập lịch hàng tuần...
+                          </div>
+                        </div>
+                      )}
+
+                      {getStatus(goal.id)?.status === 'ready' && (
+                        <div className="goal-ai-status-content">
+                          <span className="goal-ai-icon" aria-hidden="true">✨</span>
+                          <div className="goal-ai-text">
+                            <strong>Đã sinh xong kế hoạch học tập ({getStatus(goal.id)?.taskCount || 'nhiều'} buổi học)!</strong>
+                            <p>Bạn có thể mở lịch học để xem trước, kéo thả điều chỉnh các buổi học lặp lại theo tuần.</p>
+                          </div>
+                          <button
+                            type="button"
+                            className="button button--primary button--sm goal-ai-review-btn"
+                            onClick={() => {
+                              if (onReviewDraft && getStatus(goal.id)?.draft) {
+                                onReviewDraft(getStatus(goal.id).draft)
+                              } else if (onNavigateDaily) {
+                                onNavigateDaily()
+                              }
+                            }}
+                          >
+                            Xem lịch & Điều chỉnh →
+                          </button>
+                        </div>
+                      )}
+
+                      {getStatus(goal.id)?.status === 'confirmed' && (
+                        <div className="goal-ai-status-content goal-ai-status-content--confirmed">
+                          <span className="goal-ai-icon" aria-hidden="true">✓</span>
+                          <div>
+                            <strong>Đã thêm vào lịch:</strong> Toàn bộ các buổi học đã được xác nhận và đưa vào lịch học chính thức.
+                          </div>
+                        </div>
+                      )}
+
+                      {getStatus(goal.id)?.status === 'error' && (
+                        <div className="goal-ai-status-content goal-ai-status-content--error">
+                          <span className="goal-ai-icon" aria-hidden="true">⚠</span>
+                          <div>
+                            <strong>Không thể sinh lịch:</strong> {getStatus(goal.id)?.message}
+                          </div>
+                          <button
+                            type="button"
+                            className="button button--secondary button--sm"
+                            onClick={() => generateAiPlan(goal)}
+                          >
+                            Thử lại
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
 

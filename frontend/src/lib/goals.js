@@ -192,3 +192,40 @@ export async function deleteGoal(goalId, { signal } = {}) {
     throw error
   }
 }
+
+export async function parseSyllabusDocument({ content, base64, mimeType, fileName } = {}) {
+  try {
+    const payload = await request('/api/goals/parse-syllabus', {
+      method: 'POST',
+      body: { content, base64, mimeType, fileName },
+    })
+    return payload?.data || payload
+  } catch (error) {
+    if (isBackendPending(error)) {
+      // Local heuristic fallback if backend is offline
+      const text = content || ''
+      let subject = 'Môn học ôn tập'
+      const sm = text.match(/(?:môn(?:\s*học)?|học\s*phần|subject|đề\s*cương(?:\s*môn)?|giáo\s*trình)\s*[:：-]\s*([^\r\n]+)/i)
+      if (sm) {
+        subject = sm[1].trim()
+      } else if (fileName) {
+        const nameOnly = fileName.replace(/\.[^.]+$/, '').replace(/(?:de_?cuong|syllabus|tai_?lieu)[_\-\s]*/gi, '').replace(/[_-]/g, ' ').trim()
+        if (nameOnly) subject = nameOnly
+      }
+
+      const today = new Date()
+      const startStr = today.toISOString().split('T')[0]
+      const examDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)
+      const examStr = examDate.toISOString().split('T')[0]
+
+      return {
+        subject: subject.slice(0, 100),
+        topics: 'Tổng quan kiến thức cốt lõi, Các dạng bài tập trọng tâm, Luyện giải đề thi thực tế',
+        startDate: startStr,
+        examDate: examStr,
+        minutesPerDay: 90,
+      }
+    }
+    throw error
+  }
+}

@@ -1,5 +1,6 @@
 package com.studyplanner.auth;
 
+import java.util.Map;
 import java.util.Objects;
 
 import org.springframework.http.HttpHeaders;
@@ -16,10 +17,9 @@ import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.studyplanner.auth.dto.CsrfResponse;
+import com.studyplanner.auth.dto.AuthErrorResponse;
 import com.studyplanner.auth.dto.LoginRequest;
 import com.studyplanner.auth.dto.RegisterRequest;
 import com.studyplanner.auth.dto.UserResponse;
@@ -29,7 +29,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/auth")
 public class AuthController {
     private final AuthService authService;
     private final SecurityContextRepository securityContextRepository;
@@ -43,8 +42,8 @@ public class AuthController {
         this.sessionAuthenticationStrategy = Objects.requireNonNull(sessionAuthenticationStrategy, "sessionAuthenticationStrategy must not be null");
     }
 
-    @GetMapping("/csrf")
-    public ResponseEntity<CsrfResponse> csrf(HttpServletRequest request, HttpServletResponse response) {
+    @GetMapping({"/api/v1/auth/csrf", "/api/auth/csrf"})
+    public ResponseEntity<Map<String, Object>> csrf(HttpServletRequest request, HttpServletResponse response) {
         CsrfToken csrfToken = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
         if (csrfToken == null) {
             csrfToken = (CsrfToken) request.getAttribute("_csrf");
@@ -62,23 +61,25 @@ public class AuthController {
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
-        return ResponseEntity.ok(new CsrfResponse(
-                csrfToken.getHeaderName(),
-                csrfToken.getParameterName(),
-                tokenValue
+        return ResponseEntity.ok(Map.of(
+                "data", Map.of(
+                        "headerName", csrfToken.getHeaderName(),
+                        "parameterName", csrfToken.getParameterName(),
+                        "token", tokenValue
+                )
         ));
     }
 
-    @PostMapping("/register")
-    public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
+    @PostMapping({"/api/v1/auth/register", "/api/auth/register"})
+    public ResponseEntity<Map<String, Object>> register(@Valid @RequestBody RegisterRequest request) {
         UserResponse user = authService.register(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(user);
+        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("data", user));
     }
 
-    @PostMapping("/login")
-    public ResponseEntity<UserResponse> login(@Valid @RequestBody LoginRequest request,
-                                              HttpServletRequest httpRequest,
-                                              HttpServletResponse httpResponse) {
+    @PostMapping({"/api/v1/auth/login", "/api/auth/login"})
+    public ResponseEntity<Map<String, Object>> login(@Valid @RequestBody LoginRequest request,
+                                                     HttpServletRequest httpRequest,
+                                                     HttpServletResponse httpResponse) {
         Authentication authentication = authService.authenticate(request.email(), request.password());
 
         SecurityContext context = SecurityContextHolder.createEmptyContext();
@@ -105,15 +106,15 @@ public class AuthController {
             httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
         }
 
-        return ResponseEntity.ok(responseBody);
+        return ResponseEntity.ok(Map.of("data", responseBody));
     }
 
-    @GetMapping("/me")
+    @GetMapping({"/api/v1/me", "/api/auth/me"})
     public ResponseEntity<?> me(@AuthenticationPrincipal AppUserPrincipal principal) {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new com.studyplanner.auth.dto.AuthErrorResponse("unauthenticated", "Bạn cần đăng nhập."));
+                    .body(new AuthErrorResponse("UNAUTHORIZED", "Bạn cần đăng nhập."));
         }
-        return ResponseEntity.ok(new UserResponse(principal.id(), principal.getUsername()));
+        return ResponseEntity.ok(Map.of("data", new UserResponse(principal.id(), principal.getUsername())));
     }
 }

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createGoal, deleteGoal, GoalApiError, listGoals, updateGoal } from './goals.js'
+import { createGoal, deleteGoal, GoalApiError, listGoals, updateGoal, parseSyllabusDocument } from './goals.js'
 
 test("listGoals requests the current user list and validates response shape", async t => {
   t.mock.method(globalThis, 'fetch', async (url, options) => {
@@ -66,4 +66,29 @@ test('listGoals exposes 401 instead of treating unauthenticated access as an emp
     code: 'unauthenticated', message: 'Bạn cần đăng nhập.',
   }, { status: 401 }))
   await assert.rejects(listGoals(), error => error.status === 401 && error.code === 'unauthenticated')
+})
+
+test('parseSyllabusDocument posts to /api/goals/parse-syllabus and returns extracted fields', async t => {
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.equal(url, '/api/goals/parse-syllabus')
+    assert.equal(options.method, 'POST')
+    const body = JSON.parse(options.body)
+    assert.equal(body.fileName, 'de_cuong_csdl.txt')
+    return Response.json({
+      data: {
+        subject: 'Cơ sở dữ liệu',
+        topics: 'Mô hình ER, SQL JOIN, Chuẩn hóa 3NF',
+        startDate: '2026-11-10',
+        examDate: '2026-12-10',
+        minutesPerDay: 90,
+      },
+    })
+  })
+
+  const result = await parseSyllabusDocument({
+    content: 'Môn: Cơ sở dữ liệu',
+    fileName: 'de_cuong_csdl.txt',
+  })
+  assert.equal(result.subject, 'Cơ sở dữ liệu')
+  assert.equal(result.minutesPerDay, 90)
 })

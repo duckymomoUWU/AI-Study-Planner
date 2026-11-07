@@ -26,7 +26,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studyplanner.auth.AppUserPrincipal;
 
 @RestController
-@RequestMapping("/api/goals")
+@RequestMapping({"/api/v1/goals", "/api/goals"})
 public class GoalController {
 
     private final GoalService goalService;
@@ -71,6 +71,8 @@ public class GoalController {
     public record ConfirmDraftTaskRequest(String title, LocalDate scheduledDate, Integer estimatedMinutes, String source) {}
 
     public record ConfirmDraftRequest(Integer expectedGoalVersion, List<ConfirmDraftTaskRequest> tasks) {}
+
+    public record ParseSyllabusRequest(String content, String base64, String mimeType, String fileName) {}
 
     @GetMapping
     public ResponseEntity<?> listGoals(@AuthenticationPrincipal AppUserPrincipal principal) {
@@ -137,6 +139,29 @@ public class GoalController {
         }
         goalService.deleteGoal(principal.id(), id);
         return ResponseEntity.noContent().build();
+    }
+
+    // =========================================================================
+    // SYLLABUS DOCUMENT PARSING (GEMINI 3.8 FLASH)
+    // =========================================================================
+
+    @PostMapping("/parse-syllabus")
+    public ResponseEntity<?> parseSyllabus(@RequestBody(required = false) ParseSyllabusRequest request) {
+        String content = request != null ? request.content() : "";
+        String base64 = request != null ? request.base64() : null;
+        String mimeType = request != null ? request.mimeType() : "text/plain";
+        String fileName = request != null ? request.fileName() : "de_cuong.txt";
+
+        GeminiPlanService.SyllabusData result = geminiPlanService.parseSyllabus(content, base64, mimeType, fileName);
+        return ResponseEntity.ok(Map.of(
+                "data", Map.of(
+                        "subject", result.subject(),
+                        "topics", result.topics(),
+                        "startDate", result.startDate().toString(),
+                        "examDate", result.examDate().toString(),
+                        "minutesPerDay", result.minutesPerDay()
+                )
+        ));
     }
 
     // =========================================================================
@@ -239,21 +264,18 @@ public class GoalController {
         }
     }
 
-    @GetMapping("/{id}/plan-drafts/{draftId}")
-    public ResponseEntity<?> getPlanDraft(@AuthenticationPrincipal AppUserPrincipal principal,
-                                         @PathVariable("id") UUID goalId,
-                                         @PathVariable("draftId") UUID draftId) {
+    @GetMapping("/plan-drafts/{draftId}")
+    public ResponseEntity<?> getPlanDraftById(@AuthenticationPrincipal AppUserPrincipal principal,
+                                             @PathVariable("draftId") UUID draftId) {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        // Verify ownership
-        goalService.getGoal(principal.id(), goalId);
 
-        var draftOpt = planDraftRepository.findDraft(principal.id(), goalId, draftId);
+        var draftOpt = planDraftRepository.findDraftById(principal.id(), draftId);
         if (draftOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
                     "code", "draft_not_found",
-                    "message", "Bản nháp không tồn tại hoặc đã hết hạn."
+                    "message", "Bản nháp kế hoạch không tồn tại hoặc đã hết hạn."
             ));
         }
 

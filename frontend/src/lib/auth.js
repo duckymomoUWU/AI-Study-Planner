@@ -18,7 +18,7 @@ export async function getCsrfToken() {
   if (cachedCsrfToken) {
     return cachedCsrfToken
   }
-  const response = await fetch('/api/auth/csrf', {
+  const response = await fetch('/api/v1/auth/csrf', {
     method: 'GET',
     credentials: 'same-origin',
     headers: { Accept: 'application/json' },
@@ -27,7 +27,7 @@ export async function getCsrfToken() {
     throw new AuthApiError(response.status, 'csrf_error', 'Không thể lấy CSRF token')
   }
   const data = await response.json()
-  cachedCsrfToken = data.token
+  cachedCsrfToken = data.data?.token || data.token
   return cachedCsrfToken
 }
 
@@ -58,31 +58,33 @@ async function requestWithCsrf(url, options = {}) {
   const payload = await response.json().catch(() => null)
 
   if (!response.ok) {
-    const code = payload?.code || 'auth_error'
-    const message = payload?.message || `Yêu cầu thất bại (${response.status})`
-    const fieldErrors = payload?.fieldErrors || []
+    const errorBody = payload?.error || payload || {}
+    const rawCode = errorBody.code || 'auth_error'
+    const code = rawCode.toLowerCase()
+    const message = errorBody.message || `Yêu cầu thất bại (${response.status})`
+    const fieldErrors = errorBody.details || errorBody.fieldErrors || []
     throw new AuthApiError(response.status, code, message, fieldErrors)
   }
 
-  return payload
+  return payload?.data !== undefined ? payload.data : payload
 }
 
 export async function register(email, password) {
-  return requestWithCsrf('/api/auth/register', {
+  return requestWithCsrf('/api/v1/auth/register', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   })
 }
 
 export async function login(email, password) {
-  return requestWithCsrf('/api/auth/login', {
+  return requestWithCsrf('/api/v1/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   })
 }
 
 export async function getCurrentUser() {
-  const response = await fetch('/api/auth/me', {
+  const response = await fetch('/api/v1/me', {
     method: 'GET',
     credentials: 'same-origin',
     headers: { Accept: 'application/json' },
@@ -92,20 +94,23 @@ export async function getCurrentUser() {
     return null
   }
 
+  const payload = await response.json().catch(() => null)
+
   if (!response.ok) {
-    const payload = await response.json().catch(() => null)
+    const errorBody = payload?.error || payload || {}
+    const rawCode = errorBody.code || 'me_error'
     throw new AuthApiError(
       response.status,
-      payload?.code || 'me_error',
-      payload?.message || 'Không thể kiểm tra phiên đăng nhập'
+      rawCode.toLowerCase(),
+      errorBody.message || 'Không thể kiểm tra phiên đăng nhập'
     )
   }
 
-  return await response.json()
+  return payload?.data !== undefined ? payload.data : payload
 }
 
 export async function logout() {
-  await requestWithCsrf('/api/auth/logout', {
+  await requestWithCsrf('/api/v1/auth/logout', {
     method: 'POST',
   })
   clearCsrfTokenCache()
