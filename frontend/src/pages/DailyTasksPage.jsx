@@ -17,7 +17,18 @@ function addDays(baseDate, days) {
   return result
 }
 
-const STORAGE_KEY_MOCKUP = 'ai_study_planner_calendar_tasks_mockup_v5'
+const STORAGE_KEY_MOCKUP = 'ai_study_planner_calendar_tasks_mockup_v6'
+
+// Clean up older stale mockup storage versions from user browser
+if (typeof window !== 'undefined') {
+  try {
+    ['v1', 'v2', 'v3', 'v4', 'v5'].forEach(v => {
+      localStorage.removeItem(`ai_study_planner_calendar_tasks_mockup_${v}`)
+    })
+  } catch {
+    // ignore
+  }
+}
 
 // Exact reference mockup calendar tasks matching May 18-20, 2026 (Mon - Wed)
 function getMockupCalendarTasks() {
@@ -412,8 +423,8 @@ function getRecurrenceLabel(task) {
   return 'Lặp lại định kỳ'
 }
 
-const START_HOUR = 7
-const HOURS = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
+const MOCKUP_HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17] // 9am - 5pm matching mockup design exactly
+const FULL_HOURS = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22] // 7am - 10pm for user schedule / AI draft
 
 function formatHour(h) {
   if (h === 0 || h === 24) return '12am'
@@ -464,6 +475,8 @@ export default function DailyTasksPage({
   // If not logged in, view mockup; in review mode, always view real schedule with draft overlaid
   const [userMockupOverride, setUserMockupOverride] = useState(false)
   const isViewingMockup = !isReviewMode && (!currentUser || userMockupOverride)
+  const activeHours = isViewingMockup ? MOCKUP_HOURS : FULL_HOURS
+  const activeStartHour = activeHours[0]
 
   // Separate date state for mockup vs real schedule
   const [mockupBaseDate, setMockupBaseDate] = useState(() => new Date(2026, 4, 18, 12, 0, 0))
@@ -1243,7 +1256,7 @@ export default function DailyTasksPage({
           >
             {/* Time labels column */}
             <div className="cal-time-col">
-              {HOURS.map(hour => (
+              {activeHours.map(hour => (
                 <div key={hour} className="cal-time-cell">
                   <span>{formatHour(hour)}</span>
                 </div>
@@ -1256,36 +1269,51 @@ export default function DailyTasksPage({
               const dayTasks = activeTasks.filter(t => isTaskOnDate(t, date))
 
               return (
-                <div key={dateStr} className="cal-day-column">
+                <div
+                  key={dateStr}
+                  className="cal-day-column"
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    e.dataTransfer.dropEffect = 'move'
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    const relativeY = Math.max(0, e.clientY - rect.top)
+                    const hourIndex = Math.min(activeHours.length - 1, Math.floor(relativeY / 64))
+                    const targetHour = activeHours[hourIndex]
+                    if (dragOverSlot?.date !== dateStr || dragOverSlot?.hour !== targetHour) {
+                      setDragOverSlot({ date: dateStr, hour: targetHour })
+                    }
+                  }}
+                  onDragLeave={(e) => {
+                    if (e.currentTarget.contains(e.relatedTarget)) return
+                    setDragOverSlot(null)
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    const relativeY = Math.max(0, e.clientY - rect.top)
+                    const hourIndex = Math.min(activeHours.length - 1, Math.floor(relativeY / 64))
+                    const targetHour = activeHours[hourIndex]
+                    handleDropTask(e, dateStr, targetHour)
+                  }}
+                >
                   {/* Grid hour slot backgrounds */}
-                  {HOURS.map(hour => (
+                  {activeHours.map(hour => (
                     <div
                       key={hour}
                       className={`cal-hour-slot ${dragOverSlot?.date === dateStr && dragOverSlot?.hour === hour ? 'cal-time-cell--drag-over' : ''}`}
                       onClick={() => handleSlotClick(dateStr, hour)}
-                      onDragOver={(e) => {
-                        e.preventDefault()
-                        e.dataTransfer.dropEffect = 'move'
-                        setDragOverSlot({ date: dateStr, hour })
-                      }}
-                      onDragLeave={() => {
-                        setDragOverSlot(null)
-                      }}
-                      onDrop={(e) => {
-                        e.preventDefault()
-                        handleDropTask(e, dateStr, hour)
-                      }}
                       title={`Bấm để thêm task vào lúc ${formatHour(hour)}`}
                     />
                   ))}
 
                   {/* Render Task Blocks inside day column */}
                   {computeTaskLayout(dayTasks).map(task => {
-                    const startH = parseHour(task.startHour, 9.0)
+                    const startH = parseHour(task.startHour, activeStartHour)
                     const durH = parseDuration(task.durationHours, 1.5)
-                    const clampedStart = Math.min(22.5, Math.max(START_HOUR, startH))
-                    const topOffset = Math.max(0, (clampedStart - START_HOUR) * 64)
-                    const maxAllowedHeight = Math.max(28, (HOURS.length * 64) - topOffset - 4)
+                    const maxHour = activeHours[activeHours.length - 1] + 1
+                    const clampedStart = Math.min(maxHour - 0.25, Math.max(activeStartHour, startH))
+                    const topOffset = Math.max(0, (clampedStart - activeStartHour) * 64)
+                    const maxAllowedHeight = Math.max(28, (activeHours.length * 64) - topOffset - 4)
                     const blockHeight = Math.min(maxAllowedHeight, Math.max(28, durH * 64 - 4))
                     const isSelected = selectedTask?.id === task.id
                     const isCompleted = isTaskCompletedOnDate(task, dateStr)
@@ -1317,6 +1345,10 @@ export default function DailyTasksPage({
                         onDragEnd={() => {
                           setDraggingTaskId(null)
                           setDragOverSlot(null)
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault()
+                          e.dataTransfer.dropEffect = 'move'
                         }}
                         className={`cal-task-block ${blockClass} ${task.isDraft ? 'cal-task-block--draft' : ''} ${draggingTaskId === task.id ? 'cal-task-block--dragging' : ''} ${isSelected ? 'cal-task-block--selected' : ''}`}
                         style={{
@@ -1522,7 +1554,7 @@ export default function DailyTasksPage({
                       value={editTaskForm.startHour}
                       onChange={e => setEditTaskForm(f => ({ ...f, startHour: Number(e.target.value) }))}
                     >
-                      {HOURS.map(h => (
+                      {FULL_HOURS.map(h => (
                         <option key={h} value={h}>{formatHour(h)} ({h}:00)</option>
                       ))}
                     </select>
@@ -2121,7 +2153,7 @@ export default function DailyTasksPage({
                     value={newForm.startHour}
                     onChange={e => setNewForm(f => ({ ...f, startHour: Number(e.target.value) }))}
                   >
-                    {HOURS.map(h => (
+                    {FULL_HOURS.map(h => (
                       <option key={h} value={h}>{formatHour(h)} ({h}:00)</option>
                     ))}
                   </select>

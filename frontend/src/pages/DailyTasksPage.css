@@ -1122,8 +1122,9 @@
 }
 
 .cal-task-block--dragging {
-  opacity: 0.5;
+  opacity: 0.35 !important;
   transform: scale(0.98);
+  pointer-events: none !important;
 }
 
 .draft-pill-tag {
