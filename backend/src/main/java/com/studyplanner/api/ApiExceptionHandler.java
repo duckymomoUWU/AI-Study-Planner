@@ -27,6 +27,7 @@ import com.studyplanner.api.ApiErrorResponse.ErrorDetail;
 import com.studyplanner.auth.DuplicateEmailException;
 import com.studyplanner.goals.GoalPolicy;
 import com.studyplanner.goals.GoalService;
+import com.studyplanner.tasks.TaskService;
 
 /**
  * The single place that turns exceptions into the error contract (docs/backend-api-rules.md).
@@ -66,6 +67,11 @@ public class ApiExceptionHandler {
     @ExceptionHandler(GoalService.GoalNotFoundException.class)
     ResponseEntity<ApiErrorResponse> goalNotFound() {
         return respond(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy mục tiêu.", null);
+    }
+
+    @ExceptionHandler(TaskService.TaskNotFoundException.class)
+    ResponseEntity<ApiErrorResponse> taskNotFound() {
+        return respond(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy công việc.", null);
     }
 
     @ExceptionHandler(GoalService.GoalConflictException.class)

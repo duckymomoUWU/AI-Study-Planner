@@ -137,6 +137,19 @@ public class GoalJdbcRepository {
         ) == 1;
     }
 
+    /**
+     * Increments the goal version once. Call it in the same transaction, after the goal row is locked, whenever
+     * a task of the goal really changes (docs/backend-api-rules.md section 9).
+     */
+    public boolean bumpVersion(UUID trustedOwnerId, UUID goalId) {
+        requireOwner(trustedOwnerId);
+        Objects.requireNonNull(goalId, "goalId");
+        return jdbc.update(
+                "UPDATE study_goals SET version = version + 1 WHERE user_id = :ownerId AND id = :goalId",
+                owner(trustedOwnerId).addValue("goalId", goalId)
+        ) == 1;
+    }
+
     /** Database V1 cascade removes tasks and drafts; UI confirmation must happen before calling. */
     public boolean deleteOwned(UUID trustedOwnerId, UUID goalId) {
         requireOwner(trustedOwnerId);
