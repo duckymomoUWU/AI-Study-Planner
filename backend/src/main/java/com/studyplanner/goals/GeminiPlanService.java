@@ -96,12 +96,12 @@ public class GeminiPlanService {
 
                 Yêu cầu bắt buộc cho mỗi buổi học (task):
                 1. "title": Tiêu đề súc tích, bắt đầu bằng "Focus Time: [Tên chủ đề]" hoặc "Luyện đề: [Tên chủ đề]".
-                2. "startHour": Giờ học thực tế (số thập phân từ 7.0 đến 21.0, ví dụ 9.0 cho 9h sáng, 14.0 cho 14h chiều, 19.5 cho 19h30 tối).
+                2. "startHour": Giờ học thực tế (số thập phân trong khoảng học tập ban ngày từ 8.0 đến 16.5, ví dụ 9.0 cho 9h sáng, 13.5 cho 13h30 chiều, 15.0 cho 15h chiều). TUYỆT ĐỐI không chọn sau 17.5 để tránh quá muộn.
                 3. "durationHours": Số giờ học phù hợp với ngân sách thời gian (ví dụ 1.5 hoặc 2.0).
                 4. "estimatedMinutes": Số phút học (ví dụ %d).
                 5. "scheduledDate": Ngày đầu tiên diễn ra buổi học (YYYY-MM-DD) trong khoảng [%s đến %s).
                 6. "recurrence": "weekly".
-                7. "recurringDays": Mảng các thứ lặp lại hàng tuần (0=Chủ nhật, 1=Thứ 2, 2=Thứ 3, 3=Thứ 4, 4=Thứ 5, 5=Thứ 6, 6=Thứ 7).
+                7. "recurringDays": Mảng các thứ lặp lại hàng tuần (0=Chủ nhật, 1=Thứ 2, 2=Thứ 3, 3=Thứ 4, 4=Thứ 5, 5=Thứ 6, 6=Thứ 7). Bắt buộc phải chứa thứ tương ứng với "scheduledDate".
                 8. "targetGrade": Mục tiêu điểm số cụ thể. Ví dụ: "Điểm 8.5+ (Điểm A) - Hiểu sâu bản chất, làm chủ các câu hỏi lý thuyết và bài tập nâng cao."
                 9. "effort": Mức độ nỗ lực và thời gian đầu tư. Ví dụ: "Mức độ nỗ lực: Cao (khoảng 5 - 7 giờ/tuần ôn tập chủ động, tập trung cao độ)."
                 10. "courseWeight": Đánh giá độ nặng môn học. Ví dụ: "Độ nặng môn: Nặng (3 - 4 tín chỉ chuyên ngành), khối lượng bài tập lớn và tính toán phức tạp."
@@ -394,23 +394,31 @@ public class GeminiPlanService {
                 {0, 6}     // T7, CN
         };
         int[] chosenDays = daySchedules[Math.abs(req.subject().hashCode()) % daySchedules.length];
-        double[] preferredHours = new double[]{9.0, 14.0, 19.5, 10.0};
+        double[] preferredHours = new double[]{9.0, 13.5, 15.5, 10.5};
 
         LocalDate startDate = req.startDate() != null ? req.startDate() : LocalDate.now();
 
         int count = Math.min(topicList.size(), 4);
         for (int i = 0; i < count; i++) {
             String topic = topicList.get(i);
+            LocalDate taskDate = startDate.plusDays(i);
+            int dow = taskDate.getDayOfWeek().getValue() % 7; // Java DayOfWeek: 1=Mon..7=Sun -> 0=Sun..6=Sat
+
             ObjectNode task = tasksArray.addObject();
             task.put("title", "Focus Time: " + topic);
-            task.put("scheduledDate", startDate.plusDays(i).toString());
+            task.put("scheduledDate", taskDate.toString());
             task.put("startHour", preferredHours[i % preferredHours.length]);
             task.put("durationHours", durationHours);
             task.put("estimatedMinutes", minutes);
             task.put("recurrence", "weekly");
 
             ArrayNode recDays = task.putArray("recurringDays");
+            java.util.Set<Integer> daySet = new java.util.TreeSet<>();
+            daySet.add(dow);
             for (int d : chosenDays) {
+                daySet.add(d);
+            }
+            for (int d : daySet) {
                 recDays.add(d);
             }
 

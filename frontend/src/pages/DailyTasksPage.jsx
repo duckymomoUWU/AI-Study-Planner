@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { listGoals } from '../lib/goals.js'
-import { confirmPlanDraft, parseHour, parseDuration } from '../lib/ai-planner.js'
+import { confirmPlanDraft, parseHour, parseDuration, applyBestFitToDraftTasks } from '../lib/ai-planner.js'
 import './DailyTasksPage.css'
 
 // Helper: Format date YYYY-MM-DD
@@ -460,12 +460,6 @@ export default function DailyTasksPage({
   onFinishReview,
 }) {
   const isReviewMode = Boolean(reviewDraft)
-  const [draftTasks, setDraftTasks] = useState(() => reviewDraft?.tasks || [])
-  const [prevDraft, setPrevDraft] = useState(reviewDraft)
-  if (reviewDraft !== prevDraft) {
-    setPrevDraft(reviewDraft)
-    setDraftTasks(reviewDraft?.tasks || [])
-  }
 
   const [draggingTaskId, setDraggingTaskId] = useState(null)
   const [dragOverSlot, setDragOverSlot] = useState(null)
@@ -514,6 +508,21 @@ export default function DailyTasksPage({
   const userTasks = userStorageKey
     ? (tasksByUser[userStorageKey] ?? loadUserTasks(userStorageKey))
     : []
+
+  // Existing tasks already on the calendar (user's own tasks if present, otherwise mockup demo tasks)
+  const existingCalendarTasks = userTasks.length > 0 ? userTasks : mockupTasks
+
+  // Draft tasks with automatic best-fit slot assignment against existing calendar tasks
+  const [draftTasks, setDraftTasks] = useState(() => {
+    const raw = reviewDraft?.tasks || []
+    return applyBestFitToDraftTasks(raw, existingCalendarTasks)
+  })
+  const [prevDraft, setPrevDraft] = useState(reviewDraft)
+  if (reviewDraft !== prevDraft) {
+    setPrevDraft(reviewDraft)
+    const raw = reviewDraft?.tasks || []
+    setDraftTasks(applyBestFitToDraftTasks(raw, existingCalendarTasks))
+  }
 
   function setUserTasks(updater) {
     if (!userStorageKey) return
@@ -736,9 +745,9 @@ export default function DailyTasksPage({
     recurringDays: [1],
   })
 
-  // Active tasks based on mode
+  // Active tasks based on mode: in review mode, show existing calendar tasks alongside draft tasks
   const activeTasks = isReviewMode
-    ? [...userTasks, ...draftTasks]
+    ? [...existingCalendarTasks, ...draftTasks]
     : (isViewingMockup ? mockupTasks : userTasks)
 
   function handleDropTask(e, targetDateStr, targetHour) {
@@ -987,7 +996,11 @@ export default function DailyTasksPage({
         <div className="cal-review-banner">
           <div className="cal-review-banner-header">
             <div className="cal-review-title">
-              <span className="cal-review-badge">✨ BẢN NHÁP AI (GEMINI FLASH)</span>
+              <div className="cal-review-badge-group">
+                <span className="cal-review-badge">✨ BẢN NHÁP AI (GEMINI FLASH)</span>
+                <span className="cal-review-fit-badge" title="AI đã tự động kiểm tra lịch bận để chọn khung giờ tối ưu nhất, không bị trùng lịch">✓ Đã ghép tối ưu (Best-fit, tránh trùng)</span>
+                <span className="cal-review-existing-badge" title="Hiển thị đồng thời các công việc/lịch học đã có trên thời khóa biểu của bạn">📅 Cùng {existingCalendarTasks.length} lịch đã có</span>
+              </div>
               <h3>Lịch ôn tập đề xuất cho môn: {reviewDraft.goalSubject || 'Mục tiêu'}</h3>
             </div>
             <div className="cal-review-actions">
@@ -1311,7 +1324,8 @@ export default function DailyTasksPage({
                     const startH = parseHour(task.startHour, activeStartHour)
                     const durH = parseDuration(task.durationHours, 1.5)
                     const maxHour = activeHours[activeHours.length - 1] + 1
-                    const clampedStart = Math.min(maxHour - 0.25, Math.max(activeStartHour, startH))
+                    // Ensure the card fits strictly within the calendar bounds without overflowing past 10pm / end of grid
+                    const clampedStart = Math.min(maxHour - durH - 0.05, Math.max(activeStartHour, startH))
                     const topOffset = Math.max(0, (clampedStart - activeStartHour) * 64)
                     const maxAllowedHeight = Math.max(28, (activeHours.length * 64) - topOffset - 4)
                     const blockHeight = Math.min(maxAllowedHeight, Math.max(28, durH * 64 - 4))
@@ -1420,6 +1434,11 @@ export default function DailyTasksPage({
                 {selectedTask.isDraft && (
                   <span className="badge badge--focus" style={{ background: '#f5f3ff', color: '#6d28d9', borderColor: '#c4b5fd' }}>
                     ✨ Bản nháp AI
+                  </span>
+                )}
+                {selectedTask.isBestFit && (
+                  <span className="badge badge--success" style={{ background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0' }} title="Đã tự động chọn khung giờ trống tối ưu để không trùng lịch">
+                    ✓ Ghép tối ưu (Best-fit)
                   </span>
                 )}
                 {selectedTask.recurrence && selectedTask.recurrence !== 'none' && (
@@ -1752,6 +1771,11 @@ export default function DailyTasksPage({
             ) : (
               /* View Mode */
               <div className="detail-body">
+                {selectedTask.isDraft && (
+                  <div className="detail-best-fit-hint" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '8px 12px', marginBottom: '14px', fontSize: '13px', color: '#166534', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>⚡ <strong>Khung giờ tối ưu (Best-fit):</strong> Khung giờ này được AI tự động ghép vào ô thời gian trống để tránh trùng với các lịch hiện có. Bạn có thể kéo thả trên lịch hoặc bấm "Chỉnh sửa thủ công" để đổi giờ.</span>
+                  </div>
+                )}
                 <h3 className="detail-title">{selectedTask.title}</h3>
 
                 <div className="detail-info-grid">
