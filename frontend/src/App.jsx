@@ -12,10 +12,35 @@ const stages = [
   { number: '03', title: 'Học từng ngày', text: 'Xem việc cần làm và theo dõi những bước đã hoàn thành.', sprint: 'Sprint 3' },
 ]
 
+function getPageFromHash() {
+  if (typeof window === 'undefined') return 'overview'
+  const hash = window.location.hash.toLowerCase()
+  if (hash === '#auth' || hash === '#login' || hash === '#register') return 'auth'
+  if (hash === '#goals') return 'goals'
+  return 'overview'
+}
+
 export default function App() {
-  const [activePage, setActivePage] = useState('overview') // 'overview' | 'goals' | 'auth'
+  const [activePage, setActivePageState] = useState(getPageFromHash) // 'overview' | 'goals' | 'auth'
   const [currentUser, setCurrentUser] = useState(null)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+
+  function setActivePage(page) {
+    setActivePageState(page)
+    if (page === 'overview') {
+      window.location.hash = ''
+    } else {
+      window.location.hash = `#${page}`
+    }
+  }
+
+  useEffect(() => {
+    function onHashChange() {
+      setActivePageState(getPageFromHash())
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
 
   useEffect(() => {
     let ignore = false
@@ -140,6 +165,7 @@ export default function App() {
           <main id="main" tabIndex={-1}>
             {activePage === 'auth' ? (
               <AuthPage
+                initialTab={window.location.hash === '#register' ? 'register' : 'login'}
                 onAuthSuccess={handleAuthSuccess}
                 onBack={() => setActivePage('overview')}
               />
