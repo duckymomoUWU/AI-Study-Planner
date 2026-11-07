@@ -24,6 +24,13 @@ function nextDate(value) {
   return localDateString(date)
 }
 
+function maxDate90Days(startDateStr) {
+  if (!startDateStr) return ''
+  const date = new Date(`${startDateStr}T12:00:00`)
+  date.setDate(date.getDate() + 90)
+  return localDateString(date)
+}
+
 function displayDate(value) {
   if (!value) return 'Chưa có ngày'
   return new Intl.DateTimeFormat('vi-VN').format(new Date(`${value}T12:00:00`))
@@ -31,7 +38,7 @@ function displayDate(value) {
 
 function apiMessage(error) {
   if (error instanceof GoalApiError && error.status === 401) {
-    return 'Bạn cần đăng nhập để quản lý mục tiêu. Luồng đăng nhập ASP-12 chưa được kết nối.'
+    return 'Bạn cần đăng nhập để quản lý mục tiêu cá nhân.'
   }
   if (error instanceof GoalApiError && error.status === 404) {
     return 'API mục tiêu chưa khả dụng hoặc mục tiêu không còn tồn tại. Backend Goal CRUD vẫn đang được hoàn thiện.'
@@ -46,7 +53,7 @@ function mapFieldErrors(error) {
   return Object.fromEntries((error?.fieldErrors || []).map(item => [item.field, item.message]))
 }
 
-export default function GoalsPage({ onBack }) {
+export default function GoalsPage({ onBack, onNavigateDaily }) {
   const [goals, setGoals] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -55,15 +62,22 @@ export default function GoalsPage({ onBack }) {
   const [formErrors, setFormErrors] = useState({})
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(emptyForm)
+  const [successMessage, setSuccessMessage] = useState('')
+  const [isUnauthenticated, setIsUnauthenticated] = useState(false)
 
   const refresh = useCallback(async () => {
     setLoading(true)
     setPageError('')
+    setIsUnauthenticated(false)
     try {
       const items = await listGoals()
       setGoals(items)
     } catch (error) {
-      setPageError(apiMessage(error))
+      if (error instanceof GoalApiError && error.status === 401) {
+        setIsUnauthenticated(true)
+      } else {
+        setPageError(apiMessage(error))
+      }
     } finally {
       setLoading(false)
     }
@@ -76,7 +90,13 @@ export default function GoalsPage({ onBack }) {
         if (!controller.signal.aborted) setGoals(items)
       })
       .catch(error => {
-        if (!controller.signal.aborted && error.name !== 'AbortError') setPageError(apiMessage(error))
+        if (!controller.signal.aborted && error.name !== 'AbortError') {
+          if (error instanceof GoalApiError && error.status === 401) {
+            setIsUnauthenticated(true)
+          } else {
+            setPageError(apiMessage(error))
+          }
+        }
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false)
@@ -101,6 +121,7 @@ export default function GoalsPage({ onBack }) {
     })
     setFormErrors({})
     setPageError('')
+    setSuccessMessage('')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -114,7 +135,21 @@ export default function GoalsPage({ onBack }) {
     event.preventDefault()
     setSaving(true)
     setPageError('')
+    setSuccessMessage('')
     setFormErrors({})
+
+    // Client-side 90 days guard
+    if (form.startDate && form.examDate) {
+      const start = new Date(`${form.startDate}T12:00:00`)
+      const exam = new Date(`${form.examDate}T12:00:00`)
+      const diffDays = Math.round((exam - start) / (1000 * 60 * 60 * 24))
+      if (diffDays > 90) {
+        setFormErrors(prev => ({ ...prev, examDate: 'Khoảng cách giữa ngày bắt đầu và ngày thi không được vượt quá 90 ngày.' }))
+        setSaving(false)
+        return
+      }
+    }
+
     const payload = {
       subject: form.subject,
       topics: form.topics,
@@ -123,9 +158,16 @@ export default function GoalsPage({ onBack }) {
       minutesPerDay: Number(form.minutesPerDay),
       ...(editing ? { version: editing.version } : {}),
     }
+
     try {
-      if (editing) await updateGoal(editing.id, payload)
-      else await createGoal(payload)
+      if (editing) {
+        await updateGoal(editing.id, payload)
+        setSuccessMessage('Đã cập nhật mục tiêu thành công!')
+      } else {
+        await createGoal(payload)
+        setSuccessMessage('Đã tạo mục tiêu ôn tập thành công!')
+      }
+      setTimeout(() => setSuccessMessage(''), 4000)
       resetForm()
       await refresh()
     } catch (error) {
@@ -146,8 +188,11 @@ export default function GoalsPage({ onBack }) {
 
     setDeletingId(goal.id)
     setPageError('')
+    setSuccessMessage('')
     try {
       await deleteGoal(goal.id)
+      setSuccessMessage(`Đã xóa mục tiêu "${goal.subject}".`)
+      setTimeout(() => setSuccessMessage(''), 3000)
       if (editing?.id === goal.id) resetForm()
       await refresh()
     } catch (error) {
@@ -160,17 +205,81 @@ export default function GoalsPage({ onBack }) {
   const examMin = form.startDate
     ? [localDateString(), nextDate(form.startDate)].sort().at(-1)
     : localDateString()
+  const examMax = form.startDate ? maxDate90Days(form.startDate) : ''
 
   return (
     <section className="goals-page" aria-labelledby="goals-title">
       <div className="goals-heading">
         <div>
-          <p className="eyebrow">QUẢN LÝ HỌC TẬP</p>
+          <p className="eyebrow">SPRINT 2 · US-01</p>
           <h1 id="goals-title">Mục tiêu ôn tập</h1>
           <p>Tạo mục tiêu rõ ràng để giới hạn thời gian và chuẩn bị cho kỳ thi.</p>
         </div>
-        <button className="button button--secondary" type="button" onClick={onBack}>← Tổng quan</button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button className="button button--secondary" type="button" onClick={onBack}>← Tổng quan</button>
+          {onNavigateDaily && (
+            <button className="button button--primary" type="button" onClick={onNavigateDaily}>Xem lịch học hôm nay →</button>
+          )}
+        </div>
       </div>
+
+      {/* Notice Banner */}
+      <div style={{
+        background: '#f0fdf4',
+        border: '1px solid #bbf7d0',
+        color: '#166534',
+        padding: '0.75rem 1rem',
+        borderRadius: '8px',
+        fontSize: '0.875rem',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.75rem',
+      }}>
+        <span>✦</span>
+        <span>
+          <strong>Giao diện US-01:</strong> Đang kết nối API chuẩn <code>/api/goals</code>.
+          Giao diện hỗ trợ đầy đủ tạo, sửa (kiểm soát version), xóa và ràng buộc tối đa 90 ngày.
+        </span>
+      </div>
+
+      {/* Feedback Alert */}
+      {successMessage && (
+        <div style={{
+          background: '#ecfdf5',
+          border: '1px solid #a7f3d0',
+          color: '#065f46',
+          padding: '0.75rem 1rem',
+          borderRadius: '8px',
+          fontSize: '0.875rem',
+        }}>
+          {successMessage}
+        </div>
+      )}
+
+      {/* Unauthenticated Alert */}
+      {isUnauthenticated && (
+        <div style={{
+          background: '#eff6ff',
+          border: '1px solid #bfdbfe',
+          color: '#1e40af',
+          padding: '0.75rem 1rem',
+          borderRadius: '8px',
+          fontSize: '0.875rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}>
+          <div><strong>Chưa xác thực:</strong> Bạn cần đăng nhập để lưu trữ mục tiêu cá nhân.</div>
+          <button
+            type="button"
+            className="button button--primary"
+            style={{ fontSize: '0.8125rem', padding: '0.35rem 0.75rem' }}
+            onClick={() => { window.location.hash = '#login' }}
+          >
+            Đăng nhập ngay →
+          </button>
+        </div>
+      )}
 
       {pageError && <div className="goal-alert" role="alert">{pageError}</div>}
 
@@ -178,7 +287,7 @@ export default function GoalsPage({ onBack }) {
         <section className="goal-form-card" aria-labelledby="goal-form-title">
           <div className="goal-card-heading">
             <h2 id="goal-form-title">{editing ? 'Chỉnh sửa mục tiêu' : 'Tạo mục tiêu mới'}</h2>
-            <span>{editing ? `Phiên bản ${editing.version}` : 'Bước 1 / 3'}</span>
+            <span>{editing ? `Phiên bản v${editing.version}` : 'US-01 Form'}</span>
           </div>
           <form onSubmit={submitForm} noValidate>
             <div className="goal-field">
@@ -204,7 +313,8 @@ export default function GoalsPage({ onBack }) {
               <div className="goal-field">
                 <label htmlFor="goal-exam">Ngày thi</label>
                 <input id="goal-exam" type="date" name="examDate" value={form.examDate}
-                  min={examMin} onChange={changeField} required aria-invalid={Boolean(formErrors.examDate)} />
+                  min={examMin} max={examMax || undefined} onChange={changeField} required aria-invalid={Boolean(formErrors.examDate)} />
+                <small className="field-hint">Tối đa 90 ngày kể từ ngày bắt đầu.</small>
                 {formErrors.examDate && <small className="field-error">{formErrors.examDate}</small>}
               </div>
             </div>
