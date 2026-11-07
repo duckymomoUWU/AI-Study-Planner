@@ -1,13 +1,13 @@
 # ASP-27 — ASP-9 verification evidence
 
-Date of runs: 2026-11-07, Windows 11, branch `dev2`. Contract: [ASP-9-goals-api.md](ASP-9-goals-api.md). Results are what was actually executed; anything not run is marked **Chưa chạy**.
+Date of runs: 2026-11-07, Windows 11, branch `dev2`. Re-run on the same day after the move to the `/api/v1` contract ([Backend API rules](../backend-api-rules.md)): paths, envelope and error codes below use the new names (`PATCH` replaced `PUT`, `NOT_FOUND`, `GOAL_UPDATE_CONFLICT`, `GOAL_VERSION_CONFLICT`). Contract: [ASP-9-goals-api.md](ASP-9-goals-api.md). Results are what was actually executed; anything not run is marked **Chưa chạy**.
 
 ## 1. Commands and results
 
 | Check | Command | Result |
 | --- | --- | --- |
-| Backend unit + PostgreSQL integration | `mvn -f backend/pom.xml -Dgoal.integration=true -Dauth.integration=true verify` against a disposable `postgres:17` container (port 55432, not the project database) | **Đạt**: 98 tests, 0 failures, 0 errors, 0 skipped |
-| Frontend tests | `npm test` in `frontend/` | **Đạt**: 30 tests, 0 failures |
+| Backend unit + PostgreSQL integration | `mvn -f backend/pom.xml -Dgoal.integration=true -Dauth.integration=true verify` against a disposable `postgres:17` container (port 55432, not the project database) | **Đạt**: 111 tests, 0 failures, 0 errors, 0 skipped |
+| Frontend tests | `npm test` in `frontend/` | **Đạt**: 32 tests, 0 failures |
 | Frontend lint | `npm run lint` | **Đạt** (no findings) |
 | Frontend build | `npm run build` | **Đạt** |
 | Browser demo (React + Spring Boot + PostgreSQL) | Vite dev server, `spring-boot:run`, real registration and session in the in-app browser | **Đạt** for the steps in section 4; limits in section 5 |
@@ -29,9 +29,9 @@ Test names are classes under `backend/src/test/java/com/studyplanner/goals/` (an
 | 1. Server validates; UI shows errors at the field | Field errors rendered under the matching input | `GoalControllerTest`; `goalErrors.test.js`; demo steps 1, 2 (screenshots in session) | Đạt (UI logic checked in browser; no React component test) |
 | 1. Saved and shown after reload | Goal still listed after browser reload | Demo step 4 (F5 with session) | Đạt |
 | 2. See own list and detail only | Own goal listed/readable; other account sees empty list and 404 | API+DB `crossAccountAccessIsRejected`; `GoalServicePostgresIntegrationTest` | Đạt |
-| 2. No access by changing ID / direct request | A's goal ID with B's session → 404 `goal_not_found`; no session → 401 | API+DB `crossAccountAccessIsRejected` | Đạt |
+| 2. No access by changing ID / direct request | A's goal ID with B's session → 404 `NOT_FOUND`; no session → 401 | API+DB `crossAccountAccessIsRejected` | Đạt |
 | 3. Edit and see it again | PUT saves, `version` +1, GET shows new values; stale version → 409 | API+DB `updatePersistsAndChecksVersion`; demo step 6 (v0 → v1) | Đạt |
-| 3. Edit checks existing tasks | Task on/after new exam date, or day total over new budget → 409 `goal_tasks_conflict` naming task, date and minutes over | API+DB `updateRejectedByExistingTasksIsAtomic`; `GoalServicePostgresIntegrationTest.updateBoundariesWithRealTasks`; `GoalPolicyTest`; demo step 5 | Đạt |
+| 3. Edit checks existing tasks | Task on/after new exam date, or day total over new budget → 409 `GOAL_UPDATE_CONFLICT` naming task, date and minutes over | API+DB `updateRejectedByExistingTasksIsAtomic`; `GoalServicePostgresIntegrationTest.updateBoundariesWithRealTasks`; `GoalPolicyTest`; demo step 5 | Đạt |
 | 3. Rejected edit keeps data | Row unchanged after 409 (values and version) | Same API+DB test; demo step 5 (checked in the database) | Đạt |
 | 3. Invalid edit input rejected | 400 with field errors, even when tasks also conflict | API+DB `updateCrossAccountAndInvalidInput`; `GoalControllerTest` | Đạt |
 | 3. Account A cannot edit B's goal | 404, goal unchanged | API+DB `updateCrossAccountAndInvalidInput`; `GoalServicePostgresIntegrationTest.updateByAnotherAccountIsRejected...` | Đạt |
@@ -77,3 +77,9 @@ Local only; test account `demo-a@example.test`, no real data.
 ## 6. Status of ASP-9
 
 AC 1–4 are met for the Goal CRUD and ownership scope, with real PostgreSQL evidence. **ASP-9 is not declared Done:** AC 5 depends on ASP-10/13/14 (task creation limits and shortfall reporting), the log audit and the required review are not done, and limits L1–L7 remain.
+
+## 7. Re-run after the contract change (2026-11-07)
+
+- `mvn clean verify -Dgoal.integration=true -Dauth.integration=true` (disposable `postgres:17`): 111 tests, 0 failures, 0 skipped. `npm test` 32 tests, `npm run lint` and `npm run build` clean.
+- Live HTTP against the running app (curl, throwaway account, deleted afterwards): `/api/v1/auth/csrf`, register (201), duplicate register (409 `EMAIL_ALREADY_EXISTS`), wrong password (401 `INVALID_CREDENTIALS`), login, `/api/v1/me`, `POST` (201, trimmed subject), `POST` with `userId` and 481 minutes (400, `unknown_field` and `out_of_range`), paged list with `meta`, `PATCH` (200, version 1), stale `PATCH` (409 `GOAL_VERSION_CONFLICT`), `DELETE` (204), logout (204), `/api/v1/me` afterwards (401 `UNAUTHORIZED`); the old path `/api/goals` no longer serves data.
+- Browser (new frontend, new throwaway account): register with automatic login, server error under minutes (481), create (subject trimmed, listed), edit rejected by existing tasks with the task/day message, valid edit to version 1, detail panel, delete with the confirmation stubbed to accept (goal and tasks gone from the database). Limits L1–L7 above still apply.

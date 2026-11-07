@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.studyplanner.api.ApiResponse;
+import com.studyplanner.api.UnauthenticatedException;
 import com.studyplanner.auth.dto.CsrfResponse;
 import com.studyplanner.auth.dto.LoginRequest;
 import com.studyplanner.auth.dto.RegisterRequest;
@@ -28,8 +30,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 
+/** Auth endpoints under /api/v1 (docs/backend-api-rules.md). Logout is handled by the security filter chain. */
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/v1")
 public class AuthController {
     private final AuthService authService;
     private final SecurityContextRepository securityContextRepository;
@@ -43,42 +46,23 @@ public class AuthController {
         this.sessionAuthenticationStrategy = Objects.requireNonNull(sessionAuthenticationStrategy, "sessionAuthenticationStrategy must not be null");
     }
 
-    @GetMapping("/csrf")
-    public ResponseEntity<CsrfResponse> csrf(HttpServletRequest request, HttpServletResponse response) {
-        CsrfToken csrfToken = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
-        if (csrfToken == null) {
-            csrfToken = (CsrfToken) request.getAttribute("_csrf");
-        }
-        if (csrfToken == null) {
-            throw new IllegalStateException("CSRF token is not available in request context");
-        }
-
-        String tokenValue = csrfToken.getToken();
-
-        ResponseCookie cookie = ResponseCookie.from("XSRF-TOKEN", tokenValue)
-                .path("/")
-                .httpOnly(false)
-                .sameSite("Lax")
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-
-        return ResponseEntity.ok(new CsrfResponse(
-                csrfToken.getHeaderName(),
-                csrfToken.getParameterName(),
-                tokenValue
-        ));
+    @GetMapping("/auth/csrf")
+    public ApiResponse<CsrfResponse> csrf(HttpServletRequest request, HttpServletResponse response) {
+        CsrfToken csrfToken = requireCsrfToken(request);
+        addCsrfCookie(response, csrfToken.getToken());
+        return ApiResponse.of(new CsrfResponse(csrfToken.getToken(), csrfToken.getHeaderName()));
     }
 
-    @PostMapping("/register")
-    public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
+    @PostMapping("/auth/register")
+    public ResponseEntity<ApiResponse<UserResponse>> register(@Valid @RequestBody RegisterRequest request) {
         UserResponse user = authService.register(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(user);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.of(user));
     }
 
-    @PostMapping("/login")
-    public ResponseEntity<UserResponse> login(@Valid @RequestBody LoginRequest request,
-                                              HttpServletRequest httpRequest,
-                                              HttpServletResponse httpResponse) {
+    @PostMapping("/auth/login")
+    public ApiResponse<UserResponse> login(@Valid @RequestBody LoginRequest request,
+                                           HttpServletRequest httpRequest,
+                                           HttpServletResponse httpResponse) {
         Authentication authentication = authService.authenticate(request.email(), request.password());
 
         SecurityContext context = SecurityContextHolder.createEmptyContext();
@@ -89,31 +73,45 @@ public class AuthController {
         securityContextRepository.saveContext(context, httpRequest, httpResponse);
 
         AppUserPrincipal principal = (AppUserPrincipal) authentication.getPrincipal();
-        UserResponse responseBody = new UserResponse(principal.id(), principal.getUsername());
 
+        // The session was just replaced, so the client needs a fresh CSRF token (also sent as a cookie).
         CsrfToken csrfToken = (CsrfToken) httpRequest.getAttribute(CsrfToken.class.getName());
         if (csrfToken == null) {
             csrfToken = (CsrfToken) httpRequest.getAttribute("_csrf");
         }
         if (csrfToken != null) {
-            httpResponse.setHeader("X-CSRF-TOKEN", csrfToken.getToken());
-            ResponseCookie cookie = ResponseCookie.from("XSRF-TOKEN", csrfToken.getToken())
-                    .path("/")
-                    .httpOnly(false)
-                    .sameSite("Lax")
-                    .build();
-            httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+            httpResponse.setHeader(csrfToken.getHeaderName(), csrfToken.getToken());
+            addCsrfCookie(httpResponse, csrfToken.getToken());
         }
 
-        return ResponseEntity.ok(responseBody);
+        return ApiResponse.of(authService.getUser(principal.id()).orElseThrow(UnauthenticatedException::new));
     }
 
     @GetMapping("/me")
-    public ResponseEntity<?> me(@AuthenticationPrincipal AppUserPrincipal principal) {
+    public ApiResponse<UserResponse> me(@AuthenticationPrincipal AppUserPrincipal principal) {
         if (principal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new com.studyplanner.auth.dto.AuthErrorResponse("unauthenticated", "Bạn cần đăng nhập."));
+            throw new UnauthenticatedException();
         }
-        return ResponseEntity.ok(new UserResponse(principal.id(), principal.getUsername()));
+        return ApiResponse.of(authService.getUser(principal.id()).orElseThrow(UnauthenticatedException::new));
+    }
+
+    private static CsrfToken requireCsrfToken(HttpServletRequest request) {
+        CsrfToken csrfToken = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
+        if (csrfToken == null) {
+            csrfToken = (CsrfToken) request.getAttribute("_csrf");
+        }
+        if (csrfToken == null) {
+            throw new IllegalStateException("CSRF token is not available in request context");
+        }
+        return csrfToken;
+    }
+
+    private static void addCsrfCookie(HttpServletResponse response, String token) {
+        ResponseCookie cookie = ResponseCookie.from("XSRF-TOKEN", token)
+                .path("/")
+                .httpOnly(false)
+                .sameSite("Lax")
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 }

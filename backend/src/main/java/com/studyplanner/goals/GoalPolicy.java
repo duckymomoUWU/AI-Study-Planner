@@ -43,13 +43,13 @@ public final class GoalPolicy {
         if (goal.examDate() == null) {
             errors.add(new Violation("examDate", "required", "Ngày thi là bắt buộc."));
         } else if (goal.examDate().isBefore(today)) {
-            errors.add(new Violation("examDate", "past_date", "Ngày thi không được ở trong quá khứ."));
+            errors.add(new Violation("examDate", "must_not_be_in_past", "Ngày thi không được ở trong quá khứ."));
         }
         if (goal.startDate() != null && goal.examDate() != null) {
             if (!goal.examDate().isAfter(goal.startDate())) {
-                errors.add(new Violation("examDate", "not_after_start", "Ngày thi phải sau ngày bắt đầu."));
+                errors.add(new Violation("examDate", "must_be_after_start_date", "Ngày thi phải sau ngày bắt đầu."));
             } else if (ChronoUnit.DAYS.between(goal.startDate(), goal.examDate()) > 90) {
-                errors.add(new Violation("examDate", "over_90_days", "Khoảng thời gian không được vượt quá 90 ngày."));
+                errors.add(new Violation("examDate", "exceeds_90_days", "Khoảng thời gian không được vượt quá 90 ngày."));
             }
         }
         if (goal.minutesPerDay() == null || goal.minutesPerDay() < 15 || goal.minutesPerDay() > 480) {
@@ -71,7 +71,7 @@ public final class GoalPolicy {
                 continue;
             }
             if (goal.examDate() != null && !task.scheduledDate().isBefore(goal.examDate())) {
-                errors.add(new Violation("examDate", "task_after_deadline",
+                errors.add(new Violation("examDate", "task_on_or_after_exam_date",
                         "Công việc" + label(task) + " ngày " + task.scheduledDate()
                                 + " nằm vào hoặc sau ngày thi mới " + goal.examDate()
                                 + ". Hãy chuyển công việc về trước ngày thi hoặc chọn ngày thi muộn hơn."));

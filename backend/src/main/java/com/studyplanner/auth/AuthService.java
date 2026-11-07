@@ -2,6 +2,7 @@ package com.studyplanner.auth;
 
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.security.authentication.AuthenticationManager;
@@ -40,7 +41,7 @@ public class AuthService {
 
         String hashedPassword = passwordEncoder.encode(request.password());
         AppUser savedUser = users.insertUser(normalizedEmail, hashedPassword);
-        return new UserResponse(savedUser.id(), savedUser.email());
+        return new UserResponse(savedUser.id(), savedUser.email(), savedUser.createdAt());
     }
 
     public Authentication authenticate(String email, String rawPassword) {
@@ -49,10 +50,8 @@ public class AuthService {
         return authenticationManager.authenticate(authToken);
     }
 
-    public UserResponse getCurrentUser(Authentication authentication) {
-        if (authentication == null || !(authentication.getPrincipal() instanceof AppUserPrincipal principal)) {
-            return null;
-        }
-        return new UserResponse(principal.id(), principal.getUsername());
+    /** Account lookup for /me and login responses; empty if the account no longer exists. */
+    public Optional<UserResponse> getUser(UUID id) {
+        return users.findById(id).map(u -> new UserResponse(u.id(), u.email(), u.createdAt()));
     }
 }

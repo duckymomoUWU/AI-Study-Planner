@@ -1,5 +1,7 @@
 # TÀI LIỆU HƯỚNG DẪN TÍCH HỢP VÀ ĐẶC TẢ BỘ API AUTHENTICATION (DEV 1 — ASP-12)
 
+> **Đã lỗi thời một phần (2026-11-07):** backend đã chuyển sang hợp đồng chung `/api/v1` với response bọc `{data, meta}` và lỗi `{error:{code,message,details}}` (mã lỗi dạng `UPPER_SNAKE_CASE`, sửa mục tiêu bằng `PATCH` + `expectedVersion`). Đường dẫn, dạng body và mã lỗi trong tài liệu này là của phiên bản cũ. Nguồn đúng: [Backend API rules](backend-api-rules.md) và [ASP-9 Goal API contract](product/ASP-9-goals-api.md).
+
 **Dự án:** AI Study Planner  
 **Thành viên:** DEV 1 — Backend Authentication  
 **Mã Jira:** ASP-12  

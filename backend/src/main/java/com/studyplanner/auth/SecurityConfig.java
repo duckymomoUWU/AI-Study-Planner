@@ -77,17 +77,16 @@ public class SecurityConfig {
                         .sessionFixation(fixation -> fixation.changeSessionId())
                 )
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(HttpMethod.GET, "/api/auth/csrf", "/actuator/health").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
-                        .requestMatchers("/api/auth/**").authenticated()
-                        .requestMatchers("/api/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/auth/csrf", "/actuator/health").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/register", "/api/v1/auth/login").permitAll()
+                        .requestMatchers("/api/**").authenticated() // every business route is /api/v1/**
                         .anyRequest().permitAll()
                 )
                 .requestCache(cache -> cache.disable())
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
                 .logout(logout -> logout
-                        .logoutUrl("/api/auth/logout")
+                        .logoutUrl("/api/v1/auth/logout")
                         .invalidateHttpSession(true)
                         .clearAuthentication(true)
                         .deleteCookies("JSESSIONID")
@@ -101,7 +100,7 @@ public class SecurityConfig {
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             response.setCharacterEncoding("UTF-8");
                             response.getWriter().write(
-                                    "{\"code\":\"unauthenticated\",\"message\":\"Bạn cần đăng nhập.\"}"
+                                    "{\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Bạn cần đăng nhập.\"}}"
                             );
                         })
                         .accessDeniedHandler((request, response, exception) -> {
@@ -109,7 +108,7 @@ public class SecurityConfig {
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             response.setCharacterEncoding("UTF-8");
                             response.getWriter().write(
-                                    "{\"code\":\"forbidden_or_csrf\",\"message\":\"Yêu cầu không hợp lệ hoặc phiên đã hết hạn.\"}"
+                                    "{\"error\":{\"code\":\"CSRF_INVALID\",\"message\":\"Yêu cầu không hợp lệ hoặc phiên đã hết hạn.\"}}"
                             );
                         })
                 );

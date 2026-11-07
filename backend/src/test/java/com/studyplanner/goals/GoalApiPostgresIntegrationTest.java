@@ -5,7 +5,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -53,9 +53,9 @@ class GoalApiPostgresIntegrationTest {
 
     private MockHttpSession registerAndLogin(String email) throws Exception {
         String creds = "{\"email\":\"" + email + "\",\"password\":\"Password123!\"}";
-        mvc.perform(post("/api/auth/register").with(csrf()).contentType(MediaType.APPLICATION_JSON).content(creds))
+        mvc.perform(post("/api/v1/auth/register").with(csrf()).contentType(MediaType.APPLICATION_JSON).content(creds))
                 .andExpect(status().isCreated());
-        var result = mvc.perform(post("/api/auth/login").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+        var result = mvc.perform(post("/api/v1/auth/login").with(csrf()).contentType(MediaType.APPLICATION_JSON)
                         .content(creds))
                 .andExpect(status().isOk()).andReturn();
         return (MockHttpSession) result.getRequest().getSession(false);
@@ -67,10 +67,10 @@ class GoalApiPostgresIntegrationTest {
     }
 
     private JsonNode create(MockHttpSession s, String json) throws Exception {
-        String res = mvc.perform(post("/api/goals").session(s).with(csrf())
+        String res = mvc.perform(post("/api/v1/goals").session(s).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON).content(json))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        return mapper.readTree(res);
+        return mapper.readTree(res).get("data");
     }
 
     @Test
@@ -81,29 +81,37 @@ class GoalApiPostgresIntegrationTest {
         assertEquals("Giải tích", created.get("subject").asText());
         assertEquals(0, created.get("version").asInt());
 
-        mvc.perform(get("/api/goals").session(s))
+        mvc.perform(get("/api/v1/goals").session(s))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items.length()").value(1))
-                .andExpect(jsonPath("$.items[0].id").value(created.get("id").asText()));
-        mvc.perform(get("/api/goals/" + created.get("id").asText()).session(s))
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].id").value(created.get("id").asText()));
+        mvc.perform(get("/api/v1/goals/" + created.get("id").asText()).session(s))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.subject").value("Giải tích"))
-                .andExpect(jsonPath("$.timezone").value("Asia/Ho_Chi_Minh"));
+                .andExpect(jsonPath("$.data.subject").value("Giải tích"))
+                .andExpect(jsonPath("$.data.timezone").value("Asia/Ho_Chi_Minh"));
 
         Integer rows = jdbc.queryForObject("SELECT count(*) FROM study_goals", Integer.class);
         assertEquals(1, rows);
     }
 
     @Test
-    @DisplayName("client-supplied userId is ignored; goal belongs to the logged-in user")
+    @DisplayName("owner comes from the session; a client-supplied userId is rejected and nothing is stored")
     void ownerComesFromSession() throws Exception {
-        var s = registerAndLogin("b-" + UUID.randomUUID() + "@example.test");
+        String email = "b-" + UUID.randomUUID() + "@example.test";
+        var s = registerAndLogin(email);
         UUID other = UUID.randomUUID();
         String json = body("Toán", 60, today, today.plusDays(10)).replaceFirst("\\{", "{\"userId\":\"" + other + "\",");
-        create(s, json);
-        Integer foreign = jdbc.queryForObject("SELECT count(*) FROM study_goals WHERE user_id = ?",
-                Integer.class, other);
-        assertEquals(0, foreign);
+
+        mvc.perform(post("/api/v1/goals").session(s).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(json))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details[?(@.field=='userId' && @.issue=='unknown_field')]").exists());
+        assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM study_goals", Integer.class));
+
+        create(s, body("Toán", 60, today, today.plusDays(10)));
+        Integer mine = jdbc.queryForObject(
+                "SELECT count(*) FROM study_goals g JOIN app_users u ON u.id = g.user_id WHERE u.email = ?",
+                Integer.class, email);
+        assertEquals(1, mine);
     }
 
     @Test
@@ -113,12 +121,12 @@ class GoalApiPostgresIntegrationTest {
         var b = registerAndLogin("d-" + UUID.randomUUID() + "@example.test");
         JsonNode goal = create(a, body("Toán", 60, today, today.plusDays(10)));
 
-        mvc.perform(get("/api/goals/" + goal.get("id").asText()).session(b))
+        mvc.perform(get("/api/v1/goals/" + goal.get("id").asText()).session(b))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code").value("goal_not_found"));
-        mvc.perform(get("/api/goals").session(b))
-                .andExpect(jsonPath("$.items").isEmpty());
-        mvc.perform(get("/api/goals/" + goal.get("id").asText()))
+                .andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
+        mvc.perform(get("/api/v1/goals").session(b))
+                .andExpect(jsonPath("$.data").isEmpty());
+        mvc.perform(get("/api/v1/goals/" + goal.get("id").asText()))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -131,9 +139,9 @@ class GoalApiPostgresIntegrationTest {
 
         assertRejected(s, body("Toán", 14, today, today.plusDays(10)), "minutesPerDay", "out_of_range");
         assertRejected(s, body("Toán", 481, today, today.plusDays(10)), "minutesPerDay", "out_of_range");
-        assertRejected(s, body("Toán", 60, today, today.plusDays(91)), "examDate", "over_90_days");
-        assertRejected(s, body("Toán", 60, today, today), "examDate", "not_after_start");
-        assertRejected(s, body("Toán", 60, today.minusDays(20), today.minusDays(1)), "examDate", "past_date");
+        assertRejected(s, body("Toán", 60, today, today.plusDays(91)), "examDate", "exceeds_90_days");
+        assertRejected(s, body("Toán", 60, today, today), "examDate", "must_be_after_start_date");
+        assertRejected(s, body("Toán", 60, today.minusDays(20), today.minusDays(1)), "examDate", "must_not_be_in_past");
         assertRejected(s, body("   ", 60, today, today.plusDays(10)), "subject", "required");
         assertRejected(s, body("Toán", 60, today, today.plusDays(10)).replace("Tích phân", "  "),
                 "topics", "required");
@@ -143,15 +151,15 @@ class GoalApiPostgresIntegrationTest {
     }
 
     private void assertRejected(MockHttpSession s, String json, String field, String code) throws Exception {
-        mvc.perform(post("/api/goals").session(s).with(csrf())
+        mvc.perform(post("/api/v1/goals").session(s).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON).content(json))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.fieldErrors[?(@.field=='" + field + "' && @.code=='" + code + "')]").exists());
+                .andExpect(jsonPath("$.error.details[?(@.field=='" + field + "' && @.issue=='" + code + "')]").exists());
     }
 
-    private String putBody(String subject, int minutes, LocalDate start, LocalDate exam, int version) {
+    private String patchBody(String subject, int minutes, LocalDate start, LocalDate exam, int version) {
         String base = body(subject, minutes, start, exam);
-        return base.substring(0, base.length() - 1) + ",\"version\":" + version + "}";
+        return base.substring(0, base.length() - 1) + ",\"expectedVersion\":" + version + "}";
     }
 
     private void addTask(String goalId, LocalDate date, int minutes) {
@@ -166,20 +174,20 @@ class GoalApiPostgresIntegrationTest {
         JsonNode goal = create(s, body("Toán", 60, today, today.plusDays(30)));
         String id = goal.get("id").asText();
 
-        mvc.perform(put("/api/goals/" + id).session(s).with(csrf()).contentType(MediaType.APPLICATION_JSON)
-                        .content(putBody("  Toán rời rạc ", 120, today, today.plusDays(45), 0)))
+        mvc.perform(patch("/api/v1/goals/" + id).session(s).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content(patchBody("  Toán rời rạc ", 120, today, today.plusDays(45), 0)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.subject").value("Toán rời rạc"))
-                .andExpect(jsonPath("$.version").value(1));
-        mvc.perform(get("/api/goals/" + id).session(s))
-                .andExpect(jsonPath("$.minutesPerDay").value(120))
-                .andExpect(jsonPath("$.examDate").value(today.plusDays(45).toString()));
+                .andExpect(jsonPath("$.data.subject").value("Toán rời rạc"))
+                .andExpect(jsonPath("$.data.version").value(1));
+        mvc.perform(get("/api/v1/goals/" + id).session(s))
+                .andExpect(jsonPath("$.data.minutesPerDay").value(120))
+                .andExpect(jsonPath("$.data.examDate").value(today.plusDays(45).toString()));
 
-        mvc.perform(put("/api/goals/" + id).session(s).with(csrf()).contentType(MediaType.APPLICATION_JSON)
-                        .content(putBody("Cũ", 30, today, today.plusDays(45), 0)))
+        mvc.perform(patch("/api/v1/goals/" + id).session(s).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content(patchBody("Cũ", 30, today, today.plusDays(45), 0)))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("stale_goal_version"));
-        mvc.perform(get("/api/goals/" + id).session(s)).andExpect(jsonPath("$.subject").value("Toán rời rạc"));
+                .andExpect(jsonPath("$.error.code").value("GOAL_VERSION_CONFLICT"));
+        mvc.perform(get("/api/v1/goals/" + id).session(s)).andExpect(jsonPath("$.data.subject").value("Toán rời rạc"));
     }
 
     @Test
@@ -193,42 +201,42 @@ class GoalApiPostgresIntegrationTest {
         addTask(id, busy, 40);
         addTask(id, today.plusDays(20), 30);
 
-        mvc.perform(put("/api/goals/" + id).session(s).with(csrf()).contentType(MediaType.APPLICATION_JSON)
-                        .content(putBody("Toán", 100, today, today.plusDays(15), 0)))
+        mvc.perform(patch("/api/v1/goals/" + id).session(s).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content(patchBody("Toán", 100, today, today.plusDays(15), 0)))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("goal_tasks_conflict"))
-                .andExpect(jsonPath("$.fieldErrors[?(@.code=='task_after_deadline')].message")
+                .andExpect(jsonPath("$.error.code").value("GOAL_UPDATE_CONFLICT"))
+                .andExpect(jsonPath("$.error.details[?(@.issue=='task_on_or_after_exam_date')].message")
                         .value(org.hamcrest.Matchers.hasItem(
                                 org.hamcrest.Matchers.containsString(today.plusDays(20).toString()))))
-                .andExpect(jsonPath("$.fieldErrors[?(@.code=='daily_budget_exceeded')].message")
+                .andExpect(jsonPath("$.error.details[?(@.issue=='daily_budget_exceeded')].message")
                         .value(org.hamcrest.Matchers.hasItem(
                                 org.hamcrest.Matchers.containsString(busy.toString()))));
 
-        mvc.perform(get("/api/goals/" + id).session(s))
-                .andExpect(jsonPath("$.minutesPerDay").value(120))
-                .andExpect(jsonPath("$.examDate").value(today.plusDays(30).toString()))
-                .andExpect(jsonPath("$.version").value(0));
+        mvc.perform(get("/api/v1/goals/" + id).session(s))
+                .andExpect(jsonPath("$.data.minutesPerDay").value(120))
+                .andExpect(jsonPath("$.data.examDate").value(today.plusDays(30).toString()))
+                .andExpect(jsonPath("$.data.version").value(0));
     }
 
     @Test
     @DisplayName("PUT: another account gets 404 and the goal is unchanged; invalid input is 400")
-    void updateCrossAccountAndInvalidInput() throws Exception {
+    void updateCrossAccountAndInvalidInpatch() throws Exception {
         var a = registerAndLogin("h-" + UUID.randomUUID() + "@example.test");
         var b = registerAndLogin("i-" + UUID.randomUUID() + "@example.test");
         JsonNode goal = create(a, body("Toán", 60, today, today.plusDays(30)));
         String id = goal.get("id").asText();
 
-        mvc.perform(put("/api/goals/" + id).session(b).with(csrf()).contentType(MediaType.APPLICATION_JSON)
-                        .content(putBody("Hack", 200, today, today.plusDays(30), 0)))
+        mvc.perform(patch("/api/v1/goals/" + id).session(b).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content(patchBody("Hack", 200, today, today.plusDays(30), 0)))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code").value("goal_not_found"));
-        mvc.perform(get("/api/goals/" + id).session(a)).andExpect(jsonPath("$.subject").value("Toán"));
+                .andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
+        mvc.perform(get("/api/v1/goals/" + id).session(a)).andExpect(jsonPath("$.data.subject").value("Toán"));
 
-        mvc.perform(put("/api/goals/" + id).session(a).with(csrf()).contentType(MediaType.APPLICATION_JSON)
-                        .content(putBody("Toán", 481, today, today.plusDays(91), 0)))
+        mvc.perform(patch("/api/v1/goals/" + id).session(a).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content(patchBody("Toán", 481, today, today.plusDays(91), 0)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.fieldErrors[?(@.field=='minutesPerDay')]").exists())
-                .andExpect(jsonPath("$.fieldErrors[?(@.field=='examDate' && @.code=='over_90_days')]").exists());
+                .andExpect(jsonPath("$.error.details[?(@.field=='minutesPerDay')]").exists())
+                .andExpect(jsonPath("$.error.details[?(@.field=='examDate' && @.issue=='exceeds_90_days')]").exists());
     }
 
     private int rows(String table, String goalId) {
@@ -260,7 +268,7 @@ class GoalApiPostgresIntegrationTest {
         assertEquals(2, rows("study_tasks", doomed));
         assertEquals(1, rows("plan_drafts", doomed));
 
-        mvc.perform(delete("/api/goals/" + doomed).session(s).with(csrf())).andExpect(status().isNoContent());
+        mvc.perform(delete("/api/v1/goals/" + doomed).session(s).with(csrf())).andExpect(status().isNoContent());
 
         assertEquals(0, rows("study_goals", doomed));
         assertEquals(0, rows("study_tasks", doomed));
@@ -268,10 +276,10 @@ class GoalApiPostgresIntegrationTest {
         assertEquals(1, rows("study_goals", kept));
         assertEquals(1, rows("study_tasks", kept));
         assertEquals(1, rows("plan_drafts", kept));
-        mvc.perform(get("/api/goals/" + doomed).session(s)).andExpect(status().isNotFound());
-        mvc.perform(delete("/api/goals/" + doomed).session(s).with(csrf()))
-                .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("goal_not_found"));
-        mvc.perform(get("/api/goals").session(s)).andExpect(jsonPath("$.items.length()").value(1));
+        mvc.perform(get("/api/v1/goals/" + doomed).session(s)).andExpect(status().isNotFound());
+        mvc.perform(delete("/api/v1/goals/" + doomed).session(s).with(csrf()))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
+        mvc.perform(get("/api/v1/goals").session(s)).andExpect(jsonPath("$.data.length()").value(1));
     }
 
     @Test
@@ -283,13 +291,94 @@ class GoalApiPostgresIntegrationTest {
         addTask(id, today.plusDays(1), 30);
         addDraft(id);
 
-        mvc.perform(delete("/api/goals/" + id).session(b).with(csrf()))
-                .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("goal_not_found"));
-        mvc.perform(delete("/api/goals/" + id).with(csrf())).andExpect(status().isUnauthorized());
+        mvc.perform(delete("/api/v1/goals/" + id).session(b).with(csrf()))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
+        mvc.perform(delete("/api/v1/goals/" + id).with(csrf())).andExpect(status().isUnauthorized());
 
         assertEquals(1, rows("study_goals", id));
         assertEquals(1, rows("study_tasks", id));
         assertEquals(1, rows("plan_drafts", id));
-        mvc.perform(get("/api/goals/" + id).session(a)).andExpect(status().isOk());
+        mvc.perform(get("/api/v1/goals/" + id).session(a)).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("list is paged (data + meta), newest first, and limited to the caller")
+    void listIsPagedWithMeta() throws Exception {
+        var a = registerAndLogin("p-" + UUID.randomUUID() + "@example.test");
+        var other = registerAndLogin("q-" + UUID.randomUUID() + "@example.test");
+        String first = create(a, body("Một", 60, today, today.plusDays(10))).get("id").asText();
+        String second = create(a, body("Hai", 60, today, today.plusDays(10))).get("id").asText();
+        String third = create(a, body("Ba", 60, today, today.plusDays(10))).get("id").asText();
+        create(other, body("Của người khác", 60, today, today.plusDays(10)));
+
+        mvc.perform(get("/api/v1/goals?page=1&limit=2").session(a))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].id").value(third))
+                .andExpect(jsonPath("$.data[1].id").value(second))
+                .andExpect(jsonPath("$.meta.page").value(1))
+                .andExpect(jsonPath("$.meta.limit").value(2))
+                .andExpect(jsonPath("$.meta.totalItems").value(3))
+                .andExpect(jsonPath("$.meta.totalPages").value(2));
+        mvc.perform(get("/api/v1/goals?page=2&limit=2").session(a))
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].id").value(first));
+        mvc.perform(get("/api/v1/goals?limit=101").session(a))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    @DisplayName("createdAt is returned as UTC; timezone can be set on create and changed by PATCH")
+    void createdAtAndTimezone() throws Exception {
+        var s = registerAndLogin("t-" + UUID.randomUUID() + "@example.test");
+        String json = body("Toán", 60, today, today.plusDays(10)).replaceFirst("\\}$", ",\"timezone\":\"America/New_York\"}");
+        String res = mvc.perform(post("/api/v1/goals").session(s).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON).content(json))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.timezone").value("America/New_York"))
+                .andExpect(jsonPath("$.data.createdAt").value(org.hamcrest.Matchers.endsWith("Z")))
+                .andReturn().getResponse().getContentAsString();
+        String id = mapper.readTree(res).get("data").get("id").asText();
+
+        mvc.perform(patch("/api/v1/goals/" + id).session(s).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"timezone\":\"Asia/Ho_Chi_Minh\",\"expectedVersion\":0}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.timezone").value("Asia/Ho_Chi_Minh"))
+                .andExpect(jsonPath("$.data.version").value(1))
+                .andExpect(jsonPath("$.data.subject").value("Toán"));
+
+        mvc.perform(post("/api/v1/goals").session(s).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content(body("Toán", 60, today, today.plusDays(10))
+                                .replaceFirst("\\}$", ",\"timezone\":\"Mars/Olympus\"}")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details[?(@.field=='timezone' && @.issue=='invalid_timezone')]").exists());
+    }
+
+    @Test
+    @DisplayName("PATCH changes only the sent fields; PUT and missing CSRF are refused")
+    void patchIsPartialAndPutIsNotAllowed() throws Exception {
+        var s = registerAndLogin("r-" + UUID.randomUUID() + "@example.test");
+        String id = create(s, body("Toán", 60, today, today.plusDays(10))).get("id").asText();
+
+        mvc.perform(patch("/api/v1/goals/" + id).session(s).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"minutesPerDay\":200,\"expectedVersion\":0}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.minutesPerDay").value(200))
+                .andExpect(jsonPath("$.data.subject").value("Toán"))
+                .andExpect(jsonPath("$.data.examDate").value(today.plusDays(10).toString()));
+
+        mvc.perform(patch("/api/v1/goals/" + id).session(s).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"expectedVersion\":1}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details[?(@.issue=='empty_patch')]").exists());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/v1/goals/" + id)
+                        .session(s).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(body("A", 60, today, today.plusDays(10))))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.error.code").value("METHOD_NOT_ALLOWED"));
+        mvc.perform(post("/api/v1/goals").session(s).contentType(MediaType.APPLICATION_JSON)
+                        .content(body("A", 60, today, today.plusDays(10))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("CSRF_INVALID"));
     }
 }

@@ -173,12 +173,11 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
       startDate: form.startDate,
       examDate: form.examDate,
       minutesPerDay: Number(form.minutesPerDay),
-      ...(editing ? { version: editing.version } : {}),
     }
 
     try {
       if (editing) {
-        const updated = await updateGoal(editing.id, payload)
+        const updated = await updateGoal(editing.id, payload, editing.version)
         if (detail?.id === updated.id) setDetail(updated)
         setSuccessMessage('Đã cập nhật mục tiêu thành công!')
       } else {

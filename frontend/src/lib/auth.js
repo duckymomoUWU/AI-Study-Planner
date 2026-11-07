@@ -1,9 +1,12 @@
+const BASE = '/api/v1'
+
 export class AuthApiError extends Error {
   constructor(status, code, message, fieldErrors = []) {
     super(message || 'Lỗi xác thực')
     this.name = 'AuthApiError'
     this.status = status
     this.code = code
+    // Items look like { field, issue, message } (the API's error.details).
     this.fieldErrors = fieldErrors
   }
 }
@@ -14,11 +17,21 @@ export function clearCsrfTokenCache() {
   cachedCsrfToken = null
 }
 
+function errorFrom(response, payload, fallbackCode) {
+  const error = payload?.error
+  return new AuthApiError(
+    response.status,
+    error?.code || fallbackCode,
+    error?.message || `Yêu cầu thất bại (${response.status})`,
+    error?.details || [],
+  )
+}
+
 export async function getCsrfToken() {
   if (cachedCsrfToken) {
     return cachedCsrfToken
   }
-  const response = await fetch('/api/auth/csrf', {
+  const response = await fetch(`${BASE}/auth/csrf`, {
     method: 'GET',
     credentials: 'same-origin',
     headers: { Accept: 'application/json' },
@@ -26,11 +39,12 @@ export async function getCsrfToken() {
   if (!response.ok) {
     throw new AuthApiError(response.status, 'csrf_error', 'Không thể lấy CSRF token')
   }
-  const data = await response.json()
-  cachedCsrfToken = data.token
+  const payload = await response.json()
+  cachedCsrfToken = payload?.data?.token
   return cachedCsrfToken
 }
 
+/** Sends a write request with the CSRF header and returns the envelope's `data` (null for 204). */
 async function requestWithCsrf(url, options = {}) {
   const token = await getCsrfToken()
   const headers = {
@@ -58,31 +72,28 @@ async function requestWithCsrf(url, options = {}) {
   const payload = await response.json().catch(() => null)
 
   if (!response.ok) {
-    const code = payload?.code || 'auth_error'
-    const message = payload?.message || `Yêu cầu thất bại (${response.status})`
-    const fieldErrors = payload?.fieldErrors || []
-    throw new AuthApiError(response.status, code, message, fieldErrors)
+    throw errorFrom(response, payload, 'auth_error')
   }
 
-  return payload
+  return payload?.data ?? null
 }
 
 export async function register(email, password) {
-  return requestWithCsrf('/api/auth/register', {
+  return requestWithCsrf(`${BASE}/auth/register`, {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   })
 }
 
 export async function login(email, password) {
-  return requestWithCsrf('/api/auth/login', {
+  return requestWithCsrf(`${BASE}/auth/login`, {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   })
 }
 
 export async function getCurrentUser() {
-  const response = await fetch('/api/auth/me', {
+  const response = await fetch(`${BASE}/me`, {
     method: 'GET',
     credentials: 'same-origin',
     headers: { Accept: 'application/json' },
@@ -94,18 +105,15 @@ export async function getCurrentUser() {
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null)
-    throw new AuthApiError(
-      response.status,
-      payload?.code || 'me_error',
-      payload?.message || 'Không thể kiểm tra phiên đăng nhập'
-    )
+    throw errorFrom(response, payload, 'me_error')
   }
 
-  return await response.json()
+  const payload = await response.json()
+  return payload?.data ?? null
 }
 
 export async function logout() {
-  await requestWithCsrf('/api/auth/logout', {
+  await requestWithCsrf(`${BASE}/auth/logout`, {
     method: 'POST',
   })
   clearCsrfTokenCache()

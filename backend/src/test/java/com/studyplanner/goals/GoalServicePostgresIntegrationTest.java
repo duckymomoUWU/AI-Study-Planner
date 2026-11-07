@@ -43,24 +43,24 @@ class GoalServicePostgresIntegrationTest {
 
     @Test
     void createListAndGetAreRestrictedToTheCurrentOwner() {
-        var goal = service.createGoal(ownerA, input("Toán", 90, today.plusDays(30)));
+        var goal = create(ownerA, input("Toán", 90, today.plusDays(30)));
 
-        assertEquals(1, service.listGoals(ownerA).size());
+        assertEquals(1, list(ownerA).size());
         assertEquals(goal.id(), service.getGoal(ownerA, goal.id()).id());
-        assertTrue(service.listGoals(ownerB).isEmpty());
+        assertTrue(list(ownerB).isEmpty());
         assertThrows(GoalService.GoalNotFoundException.class,
                 () -> service.getGoal(ownerB, goal.id()));
     }
 
     @Test
     void updateRejectsDailyOverBudgetWithoutPartiallyChangingGoal() {
-        var goal = service.createGoal(ownerA, input("Toán", 120, today.plusDays(30)));
+        var goal = create(ownerA, input("Toán", 120, today.plusDays(30)));
         LocalDate taskDay = today.plusDays(1);
         insertTask(goal.id(), taskDay, 60);
         insertTask(goal.id(), taskDay, 50);
 
         var exception = assertThrows(GoalService.GoalValidationException.class,
-                () -> service.updateGoal(ownerA, goal.id(),
+                () -> update(ownerA, goal.id(),
                         input("Toán nâng cao", 100, goal.examDate()), goal.version()));
 
         assertTrue(exception.violations().stream()
@@ -73,36 +73,36 @@ class GoalServicePostgresIntegrationTest {
 
     @Test
     void updateRejectsExistingTaskOnOrAfterNewExamDate() {
-        var goal = service.createGoal(ownerA, input("Lý", 90, today.plusDays(30)));
+        var goal = create(ownerA, input("Lý", 90, today.plusDays(30)));
         insertTask(goal.id(), today.plusDays(20), 30);
 
         var exception = assertThrows(GoalService.GoalValidationException.class,
-                () -> service.updateGoal(ownerA, goal.id(),
+                () -> update(ownerA, goal.id(),
                         input("Lý", 90, today.plusDays(15)), goal.version()));
 
         assertTrue(exception.violations().stream()
-                .anyMatch(violation -> violation.code().equals("task_after_deadline")));
+                .anyMatch(violation -> violation.code().equals("task_on_or_after_exam_date")));
         assertEquals(today.plusDays(30), service.getGoal(ownerA, goal.id()).examDate());
     }
 
     @Test
     void successfulUpdateIncrementsVersionAndRejectsStaleVersion() {
-        var goal = service.createGoal(ownerA, input("Hóa", 90, today.plusDays(30)));
+        var goal = create(ownerA, input("Hóa", 90, today.plusDays(30)));
 
-        var updated = service.updateGoal(ownerA, goal.id(),
+        var updated = update(ownerA, goal.id(),
                 input("Hóa hữu cơ", 120, goal.examDate()), goal.version());
 
         assertEquals("Hóa hữu cơ", updated.subject());
         assertEquals(1, updated.version());
         assertThrows(GoalService.GoalConflictException.class,
-                () -> service.updateGoal(ownerA, goal.id(),
+                () -> update(ownerA, goal.id(),
                         input("Hóa cũ", 120, goal.examDate()), 0));
         assertEquals("Hóa hữu cơ", service.getGoal(ownerA, goal.id()).subject());
     }
 
     @Test
     void deleteCascadesTasksAndPlanDraftsButOnlyForTheOwnedGoal() {
-        var goal = service.createGoal(ownerA, input("Sinh", 60, today.plusDays(20)));
+        var goal = create(ownerA, input("Sinh", 60, today.plusDays(20)));
         insertTask(goal.id(), today.plusDays(1), 30);
         jdbc.update(
                 "INSERT INTO plan_drafts (goal_id, goal_version, proposal, expires_at) "
@@ -124,10 +124,10 @@ class GoalServicePostgresIntegrationTest {
 
     @Test
     void updateByAnotherAccountIsRejectedAndLeavesGoalUntouched() {
-        var goal = service.createGoal(ownerA, input("Toán", 90, today.plusDays(30)));
+        var goal = create(ownerA, input("Toán", 90, today.plusDays(30)));
 
         assertThrows(GoalService.GoalNotFoundException.class,
-                () -> service.updateGoal(ownerB, goal.id(), input("Hack", 200, today.plusDays(40)), goal.version()));
+                () -> update(ownerB, goal.id(), input("Hack", 200, today.plusDays(40)), goal.version()));
 
         var unchanged = service.getGoal(ownerA, goal.id());
         assertEquals("Toán", unchanged.subject());
@@ -137,28 +137,28 @@ class GoalServicePostgresIntegrationTest {
 
     @Test
     void updateBoundariesWithRealTasks() {
-        var goal = service.createGoal(ownerA, input("Toán", 120, today.plusDays(30)));
+        var goal = create(ownerA, input("Toán", 120, today.plusDays(30)));
         var day = today.plusDays(3);
         insertTask(goal.id(), day, 60);
         insertTask(goal.id(), day, 40);
         insertTask(goal.id(), today.plusDays(9), 30);
 
         // Daily total 100 equals the new budget; last task is the day before the new exam date.
-        var ok = service.updateGoal(ownerA, goal.id(), input("Toán", 100, today.plusDays(10)), goal.version());
+        var ok = update(ownerA, goal.id(), input("Toán", 100, today.plusDays(10)), goal.version());
         assertEquals(100, ok.minutesPerDay());
         assertEquals(today.plusDays(10), ok.examDate());
         assertEquals(1, ok.version());
 
         // One minute below the day total is rejected and nothing changes.
         var overBudget = assertThrows(GoalService.GoalValidationException.class,
-                () -> service.updateGoal(ownerA, goal.id(), input("Toán", 99, today.plusDays(10)), 1));
+                () -> update(ownerA, goal.id(), input("Toán", 99, today.plusDays(10)), 1));
         assertTrue(overBudget.violations().stream().anyMatch(v -> v.code().equals("daily_budget_exceeded")
                 && v.message().contains(day.toString())));
 
         // Exam date equal to the last task's day is rejected.
         var onExamDay = assertThrows(GoalService.GoalValidationException.class,
-                () -> service.updateGoal(ownerA, goal.id(), input("Toán", 100, today.plusDays(9)), 1));
-        assertTrue(onExamDay.violations().stream().anyMatch(v -> v.code().equals("task_after_deadline")));
+                () -> update(ownerA, goal.id(), input("Toán", 100, today.plusDays(9)), 1));
+        assertTrue(onExamDay.violations().stream().anyMatch(v -> v.code().equals("task_on_or_after_exam_date")));
 
         var stored = service.getGoal(ownerA, goal.id());
         assertEquals(100, stored.minutesPerDay());
@@ -169,13 +169,59 @@ class GoalServicePostgresIntegrationTest {
 
     @Test
     void updateOnlyChecksTasksOfTheSameGoal() {
-        var goalA = service.createGoal(ownerA, input("Toán", 120, today.plusDays(30)));
-        var goalB = service.createGoal(ownerA, input("Lý", 120, today.plusDays(30)));
+        var goalA = create(ownerA, input("Toán", 120, today.plusDays(30)));
+        var goalB = create(ownerA, input("Lý", 120, today.plusDays(30)));
         insertTask(goalB.id(), today.plusDays(5), 110);
 
         // Goal B's heavy day must not block lowering goal A's budget (budget is per goal).
-        var updated = service.updateGoal(ownerA, goalA.id(), input("Toán", 30, today.plusDays(30)), goalA.version());
+        var updated = update(ownerA, goalA.id(), input("Toán", 30, today.plusDays(30)), goalA.version());
         assertEquals(30, updated.minutesPerDay());
+    }
+
+    private GoalJdbcRepository.StoredGoal create(UUID owner, GoalPolicy.GoalInput input) {
+        return service.createGoal(owner, input, null);
+    }
+
+    /** Sends every editable field, like a full edit form would. */
+    private GoalJdbcRepository.StoredGoal update(UUID owner, UUID goalId, GoalPolicy.GoalInput input, int version) {
+        return service.patchGoal(owner, goalId, new GoalPatch(input.subject(), input.topics(), input.startDate(),
+                input.examDate(), input.minutesPerDay(), null), version);
+    }
+
+    private java.util.List<GoalJdbcRepository.StoredGoal> list(UUID owner) {
+        return service.listGoals(owner, 1, 100).items();
+    }
+
+    @Test
+    void listIsPagedSortedNewestFirstAndCountsOnlyOwnGoals() {
+        var first = create(ownerA, input("Một", 60, today.plusDays(10)));
+        var second = create(ownerA, input("Hai", 60, today.plusDays(10)));
+        var third = create(ownerA, input("Ba", 60, today.plusDays(10)));
+        create(ownerB, input("Của B", 60, today.plusDays(10)));
+
+        var page1 = service.listGoals(ownerA, 1, 2);
+        var page2 = service.listGoals(ownerA, 2, 2);
+
+        assertEquals(3, page1.totalItems());
+        assertEquals(java.util.List.of(third.id(), second.id()), page1.items().stream().map(g -> g.id()).toList());
+        assertEquals(java.util.List.of(first.id()), page2.items().stream().map(g -> g.id()).toList());
+        assertTrue(service.listGoals(ownerA, 3, 2).items().isEmpty());
+    }
+
+    @Test
+    void patchChangesOnlySentFieldsAndTimezoneAndReturnsCreatedAt() {
+        var goal = create(ownerA, input("Toán", 90, today.plusDays(30)));
+        assertTrue(goal.createdAt() != null);
+
+        var patched = service.patchGoal(ownerA, goal.id(),
+                new GoalPatch(null, null, null, null, 45, "UTC"), goal.version());
+
+        assertEquals("Toán", patched.subject());
+        assertEquals(45, patched.minutesPerDay());
+        assertEquals("UTC", patched.timezone());
+        assertEquals(goal.examDate(), patched.examDate());
+        assertEquals(goal.createdAt(), patched.createdAt());
+        assertEquals(1, patched.version());
     }
 
     private GoalPolicy.GoalInput input(String subject, int budget, LocalDate examDate) {

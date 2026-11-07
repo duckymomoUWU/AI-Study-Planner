@@ -54,9 +54,9 @@ export default function AuthPage({ onAuthSuccess, onBack, initialTab = 'login' }
       }
     } catch (err) {
       if (err instanceof AuthApiError) {
-        if (err.code === 'invalid_credentials') {
+        if (err.code === 'INVALID_CREDENTIALS') {
           setGeneralError('Email hoặc mật khẩu không chính xác.')
-        } else if (err.code === 'forbidden_or_csrf') {
+        } else if (err.code === 'CSRF_INVALID') {
           setGeneralError('Phiên làm việc đã hết hạn hoặc token CSRF không hợp lệ. Vui lòng thử lại.')
         } else {
           setGeneralError(err.message || 'Đăng nhập không thành công.')
@@ -107,9 +107,9 @@ export default function AuthPage({ onAuthSuccess, onBack, initialTab = 'login' }
       }
     } catch (err) {
       if (err instanceof AuthApiError) {
-        if (err.code === 'email_already_exists') {
+        if (err.code === 'EMAIL_ALREADY_EXISTS') {
           setGeneralError('Email này đã được sử dụng. Vui lòng chọn email khác hoặc đăng nhập.')
-        } else if (err.code === 'validation_failed' && err.fieldErrors?.length) {
+        } else if (err.code === 'VALIDATION_ERROR' && err.fieldErrors?.length) {
           const map = {}
           for (const item of err.fieldErrors) {
             map[item.field] = item.message

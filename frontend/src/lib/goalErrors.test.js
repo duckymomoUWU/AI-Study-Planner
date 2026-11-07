@@ -3,13 +3,13 @@ import assert from 'node:assert/strict'
 import { describeGoalError } from './goalErrors.js'
 import { GoalApiError } from './goals.js'
 
-const fe = (field, code, message) => ({ field, code, message })
+const fe = (field, issue, message) => ({ field, issue, message })
 
 test('validation errors keep every message of each field', () => {
   const error = new GoalApiError('Dữ liệu mục tiêu không hợp lệ.', {
     status: 400,
-    code: 'validation_failed',
-    fieldErrors: [fe('examDate', 'past_date', 'A'), fe('examDate', 'over_90_days', 'B'), fe('subject', 'required', 'C')],
+    code: 'VALIDATION_ERROR',
+    fieldErrors: [fe('examDate', 'must_not_be_in_past', 'A'), fe('examDate', 'exceeds_90_days', 'B'), fe('subject', 'required', 'C')],
   })
   const result = describeGoalError(error)
   assert.deepEqual(result.fieldErrors, { examDate: ['A', 'B'], subject: ['C'] })
@@ -17,11 +17,11 @@ test('validation errors keep every message of each field', () => {
   assert.deepEqual(result.conflicts, [])
 })
 
-test('goal_tasks_conflict shows the server message and the list of blocking tasks/days', () => {
+test('GOAL_UPDATE_CONFLICT shows the server message and the list of blocking tasks/days', () => {
   const error = new GoalApiError('Thay đổi làm công việc hiện có vi phạm.', {
     status: 409,
-    code: 'goal_tasks_conflict',
-    fieldErrors: [fe('examDate', 'task_after_deadline', 'Công việc "X" ngày 2026-12-01 nằm sau ngày thi'),
+    code: 'GOAL_UPDATE_CONFLICT',
+    fieldErrors: [fe('examDate', 'task_on_or_after_exam_date', 'Công việc "X" ngày 2026-12-01 nằm sau ngày thi'),
       fe('minutesPerDay', 'daily_budget_exceeded', 'Ngày 2026-11-20 có 120 phút, vượt 20 phút')],
   })
   const result = describeGoalError(error)
@@ -32,7 +32,7 @@ test('goal_tasks_conflict shows the server message and the list of blocking task
 })
 
 test('stale version 409 asks the user to reload', () => {
-  const result = describeGoalError(new GoalApiError('x', { status: 409, code: 'stale_goal_version' }))
+  const result = describeGoalError(new GoalApiError('x', { status: 409, code: 'GOAL_VERSION_CONFLICT' }))
   assert.match(result.message, /tải lại/)
   assert.deepEqual(result.conflicts, [])
 })

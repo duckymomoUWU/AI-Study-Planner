@@ -53,6 +53,6 @@ compose.yml               PostgreSQL dùng chung, chạy từ root
 
 ## Trạng thái triển khai
 
-- **Backend Auth (ASP-12 - Dev 1):** Hoàn thành bộ API JSON xác thực (`/api/auth/csrf`, `/register`, `/login`, `/me`, `/logout`), BCrypt băm mật khẩu, session cookie `HttpOnly`, phòng vệ CSRF và nhận diện user từ máy chủ. Đạt 100% qua bộ test 32 ca kiểm thử tự động.
+- **Backend Auth (ASP-12 - Dev 1):** Hoàn thành bộ API JSON xác thực (`/api/v1/auth/csrf`, `/register`, `/login`, `/logout` và `/api/v1/me`), BCrypt băm mật khẩu, session cookie `HttpOnly`, phòng vệ CSRF và nhận diện user từ máy chủ. Đạt 100% qua bộ test 32 ca kiểm thử tự động.
 - **Frontend Auth (shadcn/ui - Dev 3):** Hoàn thành màn hình Đăng nhập / Tạo tài khoản (`AuthPage.jsx`) sử dụng bộ component shadcn/ui composable (`Card`, `Button`, `Input`, `Label`, `Alert`, `Tabs`). Đồng bộ trạng thái đăng nhập, xử lý 401 và hiển thị email người dùng.
 - **Goal API Foundation (ASP-9/ASP-23/24 - Dev 2):** Đã có `GoalPolicy`, `GoalJdbcRepository`, `GoalService` và test suite. Sẵn sàng kết nối `GoalController` với Auth Principal.

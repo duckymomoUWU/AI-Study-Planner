@@ -6,124 +6,136 @@ beforeEach(() => {
   clearCsrfTokenCache()
 })
 
-test('getCsrfToken requests /api/auth/csrf and caches token', async t => {
+const csrfResponse = token => Response.json({ data: { token, headerName: 'X-CSRF-TOKEN' } })
+const user = { id: 'user-uuid-1', email: 'test@example.com', createdAt: '2026-11-07T03:00:00Z' }
+
+test('getCsrfToken requests /api/v1/auth/csrf, reads data.token and caches it', async t => {
   let callCount = 0
   t.mock.method(globalThis, 'fetch', async (url, options) => {
-    assert.equal(url, '/api/auth/csrf')
+    assert.equal(url, '/api/v1/auth/csrf')
     assert.equal(options.method, 'GET')
     assert.equal(options.credentials, 'same-origin')
     callCount++
-    return Response.json({
-      headerName: 'X-CSRF-TOKEN',
-      parameterName: '_csrf',
-      token: 'mock-csrf-token-123',
-    })
+    return csrfResponse('mock-csrf-token-123')
   })
 
-  const token1 = await getCsrfToken()
-  assert.equal(token1, 'mock-csrf-token-123')
-
-  const token2 = await getCsrfToken()
-  assert.equal(token2, 'mock-csrf-token-123')
+  assert.equal(await getCsrfToken(), 'mock-csrf-token-123')
+  assert.equal(await getCsrfToken(), 'mock-csrf-token-123')
   assert.equal(callCount, 1, 'Token should be cached after first request')
 })
 
-test('register fetches CSRF and sends POST with X-CSRF-TOKEN and credentials', async t => {
+test('register fetches CSRF, posts to /api/v1/auth/register and unwraps data', async t => {
   t.mock.method(globalThis, 'fetch', async (url, options) => {
-    if (url === '/api/auth/csrf') {
-      return Response.json({ token: 'csrf-abc' })
+    if (url === '/api/v1/auth/csrf') {
+      return csrfResponse('csrf-abc')
     }
-    if (url === '/api/auth/register') {
+    if (url === '/api/v1/auth/register') {
       assert.equal(options.method, 'POST')
       assert.equal(options.credentials, 'same-origin')
       assert.equal(options.headers['X-CSRF-TOKEN'], 'csrf-abc')
       const body = JSON.parse(options.body)
       assert.equal(body.email, 'test@example.com')
       assert.equal(body.password, 'password123')
-      return Response.json({ id: 'user-uuid-1', email: 'test@example.com' }, { status: 201 })
+      return Response.json({ data: user }, { status: 201 })
     }
     throw new Error(`Unexpected url ${url}`)
   })
 
-  const user = await register('test@example.com', 'password123')
-  assert.equal(user.id, 'user-uuid-1')
-  assert.equal(user.email, 'test@example.com')
+  const created = await register('test@example.com', 'password123')
+  assert.equal(created.id, 'user-uuid-1')
+  assert.equal(created.email, 'test@example.com')
 })
 
-test('login sends credentials and updates cached CSRF token if returned in header', async t => {
+test('login sends credentials and updates the cached CSRF token if returned in a header', async t => {
   t.mock.method(globalThis, 'fetch', async (url, options) => {
-    if (url === '/api/auth/csrf') {
-      return Response.json({ token: 'csrf-initial' })
+    if (url === '/api/v1/auth/csrf') {
+      return csrfResponse('csrf-initial')
     }
-    if (url === '/api/auth/login') {
+    if (url === '/api/v1/auth/login') {
       assert.equal(options.method, 'POST')
-      assert.equal(options.credentials, 'same-origin')
       assert.equal(options.headers['X-CSRF-TOKEN'], 'csrf-initial')
-      const headers = new Headers({ 'X-CSRF-TOKEN': 'csrf-rotated' })
-      return new Response(JSON.stringify({ id: 'user-uuid-1', email: 'test@example.com' }), {
+      return new Response(JSON.stringify({ data: user }), {
         status: 200,
-        headers,
+        headers: new Headers({ 'X-CSRF-TOKEN': 'csrf-rotated' }),
       })
     }
     throw new Error(`Unexpected url ${url}`)
   })
 
-  const user = await login('test@example.com', 'password123')
-  assert.equal(user.email, 'test@example.com')
-
-  // Next CSRF request should return the rotated token from cache
+  assert.equal((await login('test@example.com', 'password123')).email, 'test@example.com')
   assert.equal(await getCsrfToken(), 'csrf-rotated')
 })
 
-test('login rejects with AuthApiError on invalid credentials', async t => {
-  t.mock.method(globalThis, 'fetch', async (url) => {
-    if (url === '/api/auth/csrf') {
-      return Response.json({ token: 'csrf-123' })
+test('login rejects with AuthApiError carrying code and details from the error envelope', async t => {
+  t.mock.method(globalThis, 'fetch', async url => {
+    if (url === '/api/v1/auth/csrf') {
+      return csrfResponse('csrf-123')
     }
     return Response.json(
-      { code: 'invalid_credentials', message: 'Email hoặc mật khẩu không chính xác.' },
-      { status: 401 }
+      { error: { code: 'INVALID_CREDENTIALS', message: 'Email hoặc mật khẩu không chính xác.' } },
+      { status: 401 },
     )
   })
 
   await assert.rejects(login('test@example.com', 'wrong'), error => {
     assert.ok(error instanceof AuthApiError)
     assert.equal(error.status, 401)
-    assert.equal(error.code, 'invalid_credentials')
+    assert.equal(error.code, 'INVALID_CREDENTIALS')
     return true
   })
 })
 
-test('getCurrentUser returns user object when authenticated', async t => {
-  t.mock.method(globalThis, 'fetch', async (url, options) => {
-    assert.equal(url, '/api/auth/me')
-    assert.equal(options.method, 'GET')
-    assert.equal(options.credentials, 'same-origin')
-    return Response.json({ id: 'user-uuid-1', email: 'test@example.com' })
+test('register exposes field details of a VALIDATION_ERROR', async t => {
+  t.mock.method(globalThis, 'fetch', async url => {
+    if (url === '/api/v1/auth/csrf') {
+      return csrfResponse('csrf-123')
+    }
+    return Response.json({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Dữ liệu không hợp lệ.',
+        details: [{ field: 'email', issue: 'invalid_email', message: 'Email không đúng định dạng.' }],
+      },
+    }, { status: 400 })
   })
 
-  const user = await getCurrentUser()
-  assert.equal(user.id, 'user-uuid-1')
-  assert.equal(user.email, 'test@example.com')
+  await assert.rejects(register('x', 'password123'), error => {
+    assert.equal(error.code, 'VALIDATION_ERROR')
+    assert.equal(error.fieldErrors[0].field, 'email')
+    assert.equal(error.fieldErrors[0].issue, 'invalid_email')
+    return true
+  })
+})
+
+test('getCurrentUser reads /api/v1/me and unwraps data', async t => {
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.equal(url, '/api/v1/me')
+    assert.equal(options.method, 'GET')
+    assert.equal(options.credentials, 'same-origin')
+    return Response.json({ data: user })
+  })
+
+  const current = await getCurrentUser()
+  assert.equal(current.id, 'user-uuid-1')
+  assert.equal(current.email, 'test@example.com')
 })
 
 test('getCurrentUser returns null when unauthenticated (401)', async t => {
-  t.mock.method(globalThis, 'fetch', async (url) => {
-    assert.equal(url, '/api/auth/me')
-    return Response.json({ code: 'unauthenticated' }, { status: 401 })
+  t.mock.method(globalThis, 'fetch', async url => {
+    assert.equal(url, '/api/v1/me')
+    return Response.json({ error: { code: 'UNAUTHORIZED', message: 'Bạn cần đăng nhập.' } }, { status: 401 })
   })
 
-  const user = await getCurrentUser()
-  assert.equal(user, null)
+  assert.equal(await getCurrentUser(), null)
 })
 
-test('logout calls /api/auth/logout with CSRF and clears cache', async t => {
+test('logout posts to /api/v1/auth/logout with CSRF and clears the cache', async t => {
   let logoutCalled = false
   t.mock.method(globalThis, 'fetch', async (url, options) => {
-    if (url === '/api/auth/csrf') {
-      return Response.json({ token: 'csrf-logout' })
+    if (url === '/api/v1/auth/csrf') {
+      return csrfResponse('csrf-logout')
     }
-    if (url === '/api/auth/logout') {
+    if (url === '/api/v1/auth/logout') {
       assert.equal(options.method, 'POST')
       assert.equal(options.credentials, 'same-origin')
       assert.equal(options.headers['X-CSRF-TOKEN'], 'csrf-logout')
@@ -133,7 +145,6 @@ test('logout calls /api/auth/logout with CSRF and clears cache', async t => {
     throw new Error(`Unexpected url ${url}`)
   })
 
-  const result = await logout()
-  assert.equal(result, true)
+  assert.equal(await logout(), true)
   assert.equal(logoutCalled, true)
 })

@@ -60,13 +60,13 @@ class AuthPostgresIntegrationTest {
 
         // 1. Register new user
         var registerRequest = new RegisterRequest(email, password);
-        MvcResult registerResult = mockMvc.perform(post("/api/auth/register")
+        MvcResult registerResult = mockMvc.perform(post("/api/v1/auth/register")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(registerRequest)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").isNotEmpty())
-                .andExpect(jsonPath("$.email").value(email.toLowerCase()))
+                .andExpect(jsonPath("$.data.id").isNotEmpty())
+                .andExpect(jsonPath("$.data.email").value(email.toLowerCase()))
                 .andReturn();
 
         // Verify inserted into PostgreSQL with BCrypt hash
@@ -75,54 +75,54 @@ class AuthPostgresIntegrationTest {
         assertEquals(1, count);
 
         // 2. Register duplicate email returns 409 Conflict
-        mockMvc.perform(post("/api/auth/register")
+        mockMvc.perform(post("/api/v1/auth/register")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(registerRequest)))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("email_already_exists"));
+                .andExpect(jsonPath("$.error.code").value("EMAIL_ALREADY_EXISTS"));
 
         // 3. Login with wrong password returns 401 Unauthorized
         var badLogin = new LoginRequest(email, "WrongPassword!");
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(badLogin)))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("invalid_credentials"));
+                .andExpect(jsonPath("$.error.code").value("INVALID_CREDENTIALS"));
 
         // 4. Login with correct password establishes session
         var goodLogin = new LoginRequest(email, password);
-        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+        MvcResult loginResult = mockMvc.perform(post("/api/v1/auth/login")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(goodLogin)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value(email.toLowerCase()))
+                .andExpect(jsonPath("$.data.email").value(email.toLowerCase()))
                 .andReturn();
 
         MockHttpSession session = (MockHttpSession) loginResult.getRequest().getSession(false);
         assertNotNull(session, "Session should be created upon successful login");
 
-        // 5. GET /api/auth/me with session returns authenticated user
-        mockMvc.perform(get("/api/auth/me")
+        // 5. GET /api/v1/me with session returns authenticated user
+        mockMvc.perform(get("/api/v1/me")
                         .session(session))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value(email.toLowerCase()));
+                .andExpect(jsonPath("$.data.email").value(email.toLowerCase()));
 
         // 6. Logout invalidates session
-        mockMvc.perform(post("/api/auth/logout")
+        mockMvc.perform(post("/api/v1/auth/logout")
                         .with(csrf())
                         .session(session))
                 .andExpect(status().isNoContent());
 
         assertTrue(session.isInvalid(), "Session must be invalidated after logout");
 
-        // 7. Subsequent GET /api/auth/me returns 401 Unauthorized
-        mockMvc.perform(get("/api/auth/me")
+        // 7. Subsequent GET /api/v1/me returns 401 Unauthorized
+        mockMvc.perform(get("/api/v1/me")
                         .session(session))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("unauthenticated"));
+                .andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
     }
 
     @Test
@@ -133,18 +133,18 @@ class AuthPostgresIntegrationTest {
         String password = "Password123!";
 
         // Register A and B
-        mockMvc.perform(post("/api/auth/register").with(csrf())
+        mockMvc.perform(post("/api/v1/auth/register").with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new RegisterRequest(emailA, password))))
                 .andExpect(status().isCreated());
 
-        mockMvc.perform(post("/api/auth/register").with(csrf())
+        mockMvc.perform(post("/api/v1/auth/register").with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new RegisterRequest(emailB, password))))
                 .andExpect(status().isCreated());
 
         // Login A
-        MvcResult loginA = mockMvc.perform(post("/api/auth/login").with(csrf())
+        MvcResult loginA = mockMvc.perform(post("/api/v1/auth/login").with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new LoginRequest(emailA, password))))
                 .andExpect(status().isOk())
@@ -152,7 +152,7 @@ class AuthPostgresIntegrationTest {
         MockHttpSession sessionA = (MockHttpSession) loginA.getRequest().getSession(false);
 
         // Login B
-        MvcResult loginB = mockMvc.perform(post("/api/auth/login").with(csrf())
+        MvcResult loginB = mockMvc.perform(post("/api/v1/auth/login").with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new LoginRequest(emailB, password))))
                 .andExpect(status().isOk())
@@ -160,13 +160,13 @@ class AuthPostgresIntegrationTest {
         MockHttpSession sessionB = (MockHttpSession) loginB.getRequest().getSession(false);
 
         // Check A
-        mockMvc.perform(get("/api/auth/me").session(sessionA))
+        mockMvc.perform(get("/api/v1/me").session(sessionA))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value(emailA.toLowerCase()));
+                .andExpect(jsonPath("$.data.email").value(emailA.toLowerCase()));
 
         // Check B
-        mockMvc.perform(get("/api/auth/me").session(sessionB))
+        mockMvc.perform(get("/api/v1/me").session(sessionB))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value(emailB.toLowerCase()));
+                .andExpect(jsonPath("$.data.email").value(emailB.toLowerCase()));
     }
 }

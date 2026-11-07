@@ -4,7 +4,7 @@ import { GoalApiError } from './goals.js'
  * Turns a goal API failure into what the UI needs:
  * - message: text for the page-level alert
  * - fieldErrors: { field: [messages] } so every message for a field can be shown
- * - conflicts: messages for tasks that block an edit (HTTP 409 goal_tasks_conflict)
+ * - conflicts: messages for tasks that block an edit (HTTP 409 GOAL_UPDATE_CONFLICT)
  */
 export function describeGoalError(error) {
   if (!(error instanceof GoalApiError)) {
@@ -20,6 +20,9 @@ export function describeGoalError(error) {
   if (error.status === 401) {
     return { message: 'Bạn cần đăng nhập để quản lý mục tiêu cá nhân.', fieldErrors: {}, conflicts: [] }
   }
+  if (error.status === 403 && error.code === 'CSRF_INVALID') {
+    return { message: 'Phiên làm việc đã hết hạn. Hãy tải lại trang rồi thử lại.', fieldErrors: {}, conflicts: [] }
+  }
   if (error.status === 404) {
     return {
       message: 'Không tìm thấy mục tiêu. Mục tiêu có thể đã bị xóa hoặc không thuộc tài khoản của bạn.',
@@ -27,7 +30,7 @@ export function describeGoalError(error) {
       conflicts: [],
     }
   }
-  if (error.status === 409 && error.code === 'goal_tasks_conflict') {
+  if (error.status === 409 && error.code === 'GOAL_UPDATE_CONFLICT') {
     return {
       message: error.message || 'Thay đổi làm công việc hiện có vi phạm ngày thi hoặc ngân sách thời gian.',
       fieldErrors,
