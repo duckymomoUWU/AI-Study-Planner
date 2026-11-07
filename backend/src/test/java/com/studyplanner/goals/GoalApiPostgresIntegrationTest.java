@@ -2,6 +2,7 @@ package com.studyplanner.goals;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -228,5 +229,67 @@ class GoalApiPostgresIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors[?(@.field=='minutesPerDay')]").exists())
                 .andExpect(jsonPath("$.fieldErrors[?(@.field=='examDate' && @.code=='over_90_days')]").exists());
+    }
+
+    private int rows(String table, String goalId) {
+        if (!table.equals("study_goals") && !table.equals("study_tasks") && !table.equals("plan_drafts")) {
+            throw new IllegalArgumentException(table);
+        }
+        String column = table.equals("study_goals") ? "id" : "goal_id";
+        return jdbc.queryForObject("SELECT count(*) FROM " + table + " WHERE " + column + " = ?::uuid",
+                Integer.class, goalId);
+    }
+
+    private void addDraft(String goalId) {
+        jdbc.update("INSERT INTO plan_drafts (goal_id, goal_version, proposal, expires_at) "
+                + "VALUES (?::uuid, 0, '{\"tasks\":[]}'::jsonb, now() + interval '1 day')", goalId);
+    }
+
+    @Test
+    @DisplayName("DELETE: removes the goal with its tasks and drafts; other goals are untouched; repeat is 404")
+    void deleteRemovesGoalTasksAndDraftsOnly() throws Exception {
+        var s = registerAndLogin("j-" + UUID.randomUUID() + "@example.test");
+        String doomed = create(s, body("Toán", 60, today, today.plusDays(30))).get("id").asText();
+        String kept = create(s, body("Lý", 60, today, today.plusDays(30))).get("id").asText();
+        addTask(doomed, today.plusDays(1), 30);
+        addTask(doomed, today.plusDays(2), 30);
+        addDraft(doomed);
+        addTask(kept, today.plusDays(1), 30);
+        addDraft(kept);
+        assertEquals(1, rows("study_goals", doomed));
+        assertEquals(2, rows("study_tasks", doomed));
+        assertEquals(1, rows("plan_drafts", doomed));
+
+        mvc.perform(delete("/api/goals/" + doomed).session(s).with(csrf())).andExpect(status().isNoContent());
+
+        assertEquals(0, rows("study_goals", doomed));
+        assertEquals(0, rows("study_tasks", doomed));
+        assertEquals(0, rows("plan_drafts", doomed));
+        assertEquals(1, rows("study_goals", kept));
+        assertEquals(1, rows("study_tasks", kept));
+        assertEquals(1, rows("plan_drafts", kept));
+        mvc.perform(get("/api/goals/" + doomed).session(s)).andExpect(status().isNotFound());
+        mvc.perform(delete("/api/goals/" + doomed).session(s).with(csrf()))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("goal_not_found"));
+        mvc.perform(get("/api/goals").session(s)).andExpect(jsonPath("$.items.length()").value(1));
+    }
+
+    @Test
+    @DisplayName("DELETE: another account gets 404 and nothing is deleted; no session is 401")
+    void deleteCrossAccountAndUnauthenticated() throws Exception {
+        var a = registerAndLogin("k-" + UUID.randomUUID() + "@example.test");
+        var b = registerAndLogin("l-" + UUID.randomUUID() + "@example.test");
+        String id = create(a, body("Toán", 60, today, today.plusDays(30))).get("id").asText();
+        addTask(id, today.plusDays(1), 30);
+        addDraft(id);
+
+        mvc.perform(delete("/api/goals/" + id).session(b).with(csrf()))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("goal_not_found"));
+        mvc.perform(delete("/api/goals/" + id).with(csrf())).andExpect(status().isUnauthorized());
+
+        assertEquals(1, rows("study_goals", id));
+        assertEquals(1, rows("study_tasks", id));
+        assertEquals(1, rows("plan_drafts", id));
+        mvc.perform(get("/api/goals/" + id).session(a)).andExpect(status().isOk());
     }
 }

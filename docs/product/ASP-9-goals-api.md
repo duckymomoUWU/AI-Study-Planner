@@ -1,6 +1,6 @@
 # ASP-22 / ASP-9 — Goal API contract (proposed)
 
-**Status:** Design contract for Jira [ASP-9](https://ai-study-planner-nhom.atlassian.net/browse/ASP-9). **Implementation status on this branch (ASP-23, ASP-24):** `POST`, `GET` (list, detail) and `PUT /api/goals/{goalId}` are implemented (`GoalController`) and covered by `GoalControllerTest` and the PostgreSQL tests (`GoalApiPostgresIntegrationTest`, `GoalServicePostgresIntegrationTest`). **`DELETE` is not exposed over HTTP yet** (ASP-26); the service method exists but has no controller. This document is the baseline for the remaining ASP-9 tasks; the endpoints are not on `main` until the stacked PRs merge. [requirements.md](../../requirements.md) remains the owner of product rules; this file only turns them into an API and data contract.
+**Status:** Design contract for Jira [ASP-9](https://ai-study-planner-nhom.atlassian.net/browse/ASP-9). **Implementation status on this branch (ASP-23, ASP-24, ASP-26):** `POST`, `GET` (list, detail), `PUT` and `DELETE /api/goals/{goalId}` are implemented (`GoalController`) and covered by `GoalControllerTest` and the PostgreSQL tests (`GoalApiPostgresIntegrationTest`, `GoalServicePostgresIntegrationTest`). `DELETE` returns 204 and removes the goal with its tasks and plan drafts through `ON DELETE CASCADE`; the confirmation dialog is a UI step (`goalDelete.js`). This document is the baseline for the remaining ASP-9 tasks; the endpoints are not on `main` until the stacked PRs merge. [requirements.md](../../requirements.md) remains the owner of product rules; this file only turns them into an API and data contract.
 
 ## 1. Current state
 
@@ -173,7 +173,7 @@ ASP-9 only consumes a trusted current-user ID from ASP-12. Goal endpoints must n
 
 ## 9. Verification checklist
 
-"Covered" means a test that passed against the ASP-23/24 code (including real PostgreSQL for create/list/detail). DELETE rows stay Pending until ASP-26 exposes it.
+"Covered" means a test that passed against the ASP-23/24 code (including real PostgreSQL for create/list/detail). Browser demos remain Pending.
 
 | Check | Expected | Status |
 | --- | --- | --- |
@@ -183,13 +183,13 @@ ASP-9 only consumes a trusted current-user ID from ASP-12. Goal endpoints must n
 | 90 days accepted, 91 days rejected | 201 / 400 `over_90_days` | Covered (ASP-23) |
 | 14 and 481 minutes rejected; 15 and 480 accepted | 400 / 201 | Covered (ASP-23) |
 | Decimal, string or null minutes | 400 | Covered (ASP-23) |
-| Another account's goal: get, update, delete | 404, nothing leaked | get, update Covered (ASP-23/24); delete Pending |
+| Another account's goal: get, update, delete | 404, nothing leaked | get, update, delete Covered (ASP-23/24/26) |
 | No session | 401 | Covered (ASP-23) |
 | Edit exam date to a day that has a task | 409 `goal_tasks_conflict`, nothing saved | Covered (ASP-24) |
 | Edit budget below a day's task total | 409 `goal_tasks_conflict`, nothing saved | Covered (ASP-24) |
 | Stale `version` on PUT | 409 `stale_goal_version` | Covered (ASP-24) |
-| Delete removes tasks and drafts; other goals untouched | 204, rows gone | Pending |
-| Cancel in the confirmation dialog | No DELETE request | Pending |
+| Delete removes tasks and drafts; other goals untouched | 204, rows gone | Covered (ASP-26, real PostgreSQL) |
+| Cancel in the confirmation dialog | No DELETE request | Covered by unit test (`goalDelete.test.js`); browser demo pending |
 | Logs contain no passwords, keys or study content | None present | Pending |
 
 ## 10. Open business decision

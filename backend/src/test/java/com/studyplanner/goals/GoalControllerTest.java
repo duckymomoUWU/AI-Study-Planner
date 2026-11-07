@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -254,5 +255,30 @@ class GoalControllerTest {
         mvc.perform(asUser(put("/api/goals/" + GOAL)).contentType(MediaType.APPLICATION_JSON).content(withVersion(0)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("validation_failed"));
+    }
+
+    @Test
+    void deleteRequiresAuthenticationAndCsrf() throws Exception {
+        mvc.perform(delete("/api/goals/" + GOAL).with(csrf())).andExpect(status().isUnauthorized());
+        var principal = new AppUserPrincipal(USER, "a@example.com", "hash");
+        mvc.perform(delete("/api/goals/" + GOAL).with(authentication(new UsernamePasswordAuthenticationToken(
+                        principal, null, principal.getAuthorities()))))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void deleteReturns204UsingPrincipalAsOwner() throws Exception {
+        mvc.perform(asUser(delete("/api/goals/" + GOAL))).andExpect(status().isNoContent());
+        verify(service).deleteGoal(USER, GOAL);
+    }
+
+    @Test
+    void deleteOfUnknownOtherOwnersOrMalformedIdIs404() throws Exception {
+        org.mockito.Mockito.doThrow(new GoalService.GoalNotFoundException()).when(service).deleteGoal(USER, GOAL);
+        mvc.perform(asUser(delete("/api/goals/" + GOAL)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("goal_not_found"));
+        mvc.perform(asUser(delete("/api/goals/not-a-uuid"))).andExpect(status().isNotFound());
     }
 }

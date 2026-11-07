@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createGoal, deleteGoal, GoalApiError, getGoal, listGoals, updateGoal } from '../lib/goals.js'
 import { describeGoalError } from '../lib/goalErrors.js'
+import { confirmAndDeleteGoal } from '../lib/goalDelete.js'
 import './GoalsPage.css'
 
 const emptyForm = {
@@ -198,23 +199,28 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
   }
 
   async function removeGoal(goal) {
-    const confirmed = window.confirm(
-      `Bạn có chắc muốn xóa mục tiêu "${goal.subject}"? Các công việc và bản nháp kế hoạch liên quan cũng sẽ bị xóa.`,
-    )
-    if (!confirmed) return
+    if (deletingId) return // a delete is already in flight
 
-    setDeletingId(goal.id)
     setPageError('')
     setSuccessMessage('')
+    setDeletingId(goal.id)
     try {
-      await deleteGoal(goal.id)
+      const result = await confirmAndDeleteGoal(goal, {
+        confirm: message => window.confirm(message),
+        remove: deleteGoal,
+      })
+      if (result === 'cancelled') return
       setSuccessMessage(`Đã xóa mục tiêu "${goal.subject}".`)
       setTimeout(() => setSuccessMessage(''), 3000)
       if (editing?.id === goal.id) resetForm()
       if (detail?.id === goal.id) setDetail(null)
       await refresh()
     } catch (error) {
-      setPageError(describeGoalError(error).message)
+      const described = describeGoalError(error)
+      setPageError(described.message)
+      if (error instanceof GoalApiError && error.status === 404) {
+        await refresh() // already removed elsewhere: bring the list back in sync
+      }
     } finally {
       setDeletingId(null)
     }
@@ -389,7 +395,7 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
                     <button type="button" onClick={() => showDetail(goal)} disabled={detailLoading}>Chi tiết</button>
                     <button type="button" onClick={() => startEditing(goal)}>Chỉnh sửa</button>
                     <button type="button" className="goal-delete" onClick={() => removeGoal(goal)}
-                      disabled={deletingId === goal.id}>
+                      disabled={deletingId !== null}>
                       {deletingId === goal.id ? 'Đang xóa…' : 'Xóa'}
                     </button>
                   </div>

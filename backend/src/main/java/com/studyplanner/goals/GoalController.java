@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,8 +20,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.studyplanner.auth.AppUserPrincipal;
 
 /**
- * ASP-23/24: create, list, read and update goals. The owner always comes from the authenticated
- * principal (ASP-12), never from the request. Delete belongs to a later task.
+ * ASP-23/24: create, list, read, update and delete goals. The owner always comes from the authenticated
+ * principal (ASP-12), never from the request. Delete (ASP-26) removes the goal and, through ON DELETE CASCADE, its tasks and plan drafts.
  */
 @RestController
 @RequestMapping("/api/goals")
@@ -66,6 +67,13 @@ public class GoalController {
                 : List.<GoalPolicy.Violation>of();
         rejectParseErrors(parsed, extra);
         return GoalResponse.from(service.updateGoal(owner, goalId, parsed.input(), version));
+    }
+
+    @DeleteMapping("/{goalId}")
+    public ResponseEntity<Void> delete(@AuthenticationPrincipal AppUserPrincipal principal,
+                                       @PathVariable UUID goalId) {
+        service.deleteGoal(owner(principal), goalId);
+        return ResponseEntity.noContent().build();
     }
 
     private static UUID owner(AppUserPrincipal principal) {
