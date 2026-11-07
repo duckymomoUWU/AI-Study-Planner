@@ -150,21 +150,6 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
     setFormErrors(current => ({ ...current, [name]: '' }))
   }
 
-  function startEditing(goal) {
-    setEditing(goal)
-    setForm({
-      subject: goal.subject || '',
-      topics: goal.topics || '',
-      startDate: goal.startDate || '',
-      examDate: goal.examDate || '',
-      minutesPerDay: String(goal.minutesPerDay ?? 90),
-    })
-    setFormErrors({})
-    setPageError('')
-    setSuccessMessage('')
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
   function resetForm() {
     setEditing(null)
     setForm(emptyForm)
@@ -659,9 +644,6 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
                   )}
 
                   <div className="goal-item-actions">
-                    <button type="button" className="button button--secondary button--sm" onClick={() => startEditing(goal)}>
-                      Chỉnh sửa
-                    </button>
                     {!getStatus(goal.id) && (
                       <button
                         type="button"
