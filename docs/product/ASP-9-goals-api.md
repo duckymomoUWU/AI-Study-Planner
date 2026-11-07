@@ -1,6 +1,6 @@
 # ASP-22 / ASP-9 — Goal API contract (proposed)
 
-**Status:** Design contract for Jira [ASP-9](https://ai-study-planner-nhom.atlassian.net/browse/ASP-9). **Implementation status on this branch (ASP-23):** `POST /api/goals`, `GET /api/goals` and `GET /api/goals/{goalId}` are implemented (`GoalController`) and covered by `GoalControllerTest` and `GoalApiPostgresIntegrationTest` (real PostgreSQL). **`PUT` and `DELETE` are not exposed over HTTP yet** (ASP-24 and ASP-26); the service layer for them exists but has no controller. This document is the baseline for the remaining ASP-9 tasks; the endpoints are not on `main` until the stacked PRs merge. [requirements.md](../../requirements.md) remains the owner of product rules; this file only turns them into an API and data contract.
+**Status:** Design contract for Jira [ASP-9](https://ai-study-planner-nhom.atlassian.net/browse/ASP-9). **Implementation status on this branch (ASP-23, ASP-24):** `POST`, `GET` (list, detail) and `PUT /api/goals/{goalId}` are implemented (`GoalController`) and covered by `GoalControllerTest` and the PostgreSQL tests (`GoalApiPostgresIntegrationTest`, `GoalServicePostgresIntegrationTest`). **`DELETE` is not exposed over HTTP yet** (ASP-26); the service method exists but has no controller. This document is the baseline for the remaining ASP-9 tasks; the endpoints are not on `main` until the stacked PRs merge. [requirements.md](../../requirements.md) remains the owner of product rules; this file only turns them into an API and data contract.
 
 ## 1. Current state
 
@@ -167,10 +167,13 @@ ASP-9 only consumes a trusted current-user ID from ASP-12. Goal endpoints must n
 - Every goal query includes `user_id`; never fetch by ID and filter afterwards.
 - The daily-minutes and deadline checks run in the same transaction as the write. Task writes (ASP-10) must take the same lock on the parent goal row to avoid races with goal edits.
 - `version` gives optimistic locking for concurrent goal edits.
+- Update flow (ASP-24): lock the owned goal row (`SELECT ... FOR UPDATE`), compare `version`, read the goal's tasks, validate, then `UPDATE ... WHERE version = ?`, all in one transaction. A rejected update rolls back, so nothing is saved halfway.
+- ASP-9 vs ASP-10: goal update only checks the tasks that exist when the goal is edited. ASP-10 is responsible for checking exam date and daily budget when a task is created or edited, and its task writes must first lock the parent goal row (`GoalJdbcRepository.lockOwned`) so a task insert and a goal edit cannot both pass their checks at the same time.
+- Update conflicts: 409 `goal_tasks_conflict` lists, in `fieldErrors`, every task on or after the new exam date (task title and date) and every day whose total exceeds the new budget (day, total, minutes over). If the input itself is invalid (400 `validation_failed`), input errors are reported and the status is 400 even when tasks also conflict.
 
 ## 9. Verification checklist
 
-"Covered" means a test that passed against the ASP-23 code (including real PostgreSQL for create/list/detail). PUT and DELETE rows stay Pending until ASP-24 and ASP-26 expose them.
+"Covered" means a test that passed against the ASP-23/24 code (including real PostgreSQL for create/list/detail). DELETE rows stay Pending until ASP-26 exposes it.
 
 | Check | Expected | Status |
 | --- | --- | --- |
@@ -180,11 +183,11 @@ ASP-9 only consumes a trusted current-user ID from ASP-12. Goal endpoints must n
 | 90 days accepted, 91 days rejected | 201 / 400 `over_90_days` | Covered (ASP-23) |
 | 14 and 481 minutes rejected; 15 and 480 accepted | 400 / 201 | Covered (ASP-23) |
 | Decimal, string or null minutes | 400 | Covered (ASP-23) |
-| Another account's goal: get, update, delete | 404, nothing leaked | get Covered (ASP-23); update, delete Pending |
+| Another account's goal: get, update, delete | 404, nothing leaked | get, update Covered (ASP-23/24); delete Pending |
 | No session | 401 | Covered (ASP-23) |
-| Edit exam date to a day that has a task | 409 `goal_tasks_conflict`, nothing saved | Pending |
-| Edit budget below a day's task total | 409 `goal_tasks_conflict`, nothing saved | Pending |
-| Stale `version` on PUT | 409 `stale_goal_version` | Pending |
+| Edit exam date to a day that has a task | 409 `goal_tasks_conflict`, nothing saved | Covered (ASP-24) |
+| Edit budget below a day's task total | 409 `goal_tasks_conflict`, nothing saved | Covered (ASP-24) |
+| Stale `version` on PUT | 409 `stale_goal_version` | Covered (ASP-24) |
 | Delete removes tasks and drafts; other goals untouched | 204, rows gone | Pending |
 | Cancel in the confirmation dialog | No DELETE request | Pending |
 | Logs contain no passwords, keys or study content | None present | Pending |

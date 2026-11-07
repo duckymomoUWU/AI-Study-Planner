@@ -13,7 +13,7 @@ import com.fasterxml.jackson.databind.JsonNode;
  * Unknown properties such as userId or timezone are ignored and never trusted.
  */
 public record GoalRequest(JsonNode subject, JsonNode topics, JsonNode startDate,
-                          JsonNode examDate, JsonNode minutesPerDay) {
+                          JsonNode examDate, JsonNode minutesPerDay, JsonNode version) {
 
     record Parsed(GoalPolicy.GoalInput input, List<GoalPolicy.Violation> errors) {}
 
@@ -33,6 +33,15 @@ public record GoalRequest(JsonNode subject, JsonNode topics, JsonNode startDate,
             }
         }
         return new Parsed(new GoalPolicy.GoalInput(subjectText, topicsText, start, exam, minutes), errors);
+    }
+
+    /** Returns the version, or null when missing or not a non-negative integer. */
+    Integer versionValue() {
+        if (version != null && version.isIntegralNumber() && version.canConvertToInt()
+                && version.intValue() >= 0) {
+            return version.intValue();
+        }
+        return null;
     }
 
     private static String text(String field, JsonNode n, List<GoalPolicy.Violation> errors) {

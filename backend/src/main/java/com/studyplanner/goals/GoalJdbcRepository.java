@@ -137,13 +137,16 @@ public class GoalJdbcRepository {
         Objects.requireNonNull(goalId, "goalId");
         return jdbc.query(
                 """
-                SELECT t.scheduled_date, t.estimated_minutes
+                SELECT t.id, t.title, t.scheduled_date, t.estimated_minutes
                   FROM study_tasks t
                   JOIN study_goals g ON g.id = t.goal_id
                  WHERE g.user_id = :ownerId AND g.id = :goalId
+                 ORDER BY t.scheduled_date, t.id
                 """,
                 owner(trustedOwnerId).addValue("goalId", goalId),
                 (rs, rowNum) -> new GoalPolicy.ScheduledTask(
+                        rs.getObject("id", UUID.class),
+                        rs.getString("title"),
                         rs.getObject("scheduled_date", LocalDate.class),
                         rs.getInt("estimated_minutes")
                 )

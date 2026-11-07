@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
 /** Pure domain rules for Jira ASP-9. No authentication or persistence is implied here. */
 public final class GoalPolicy {
@@ -15,7 +16,12 @@ public final class GoalPolicy {
     public record GoalInput(String subject, String topics, LocalDate startDate,
                             LocalDate examDate, Integer minutesPerDay) {}
 
-    public record ScheduledTask(LocalDate scheduledDate, int estimatedMinutes) {}
+    /** An existing task of the goal. id/title are optional and only used to make error messages specific. */
+    public record ScheduledTask(UUID id, String title, LocalDate scheduledDate, int estimatedMinutes) {
+        public ScheduledTask(LocalDate scheduledDate, int estimatedMinutes) {
+            this(null, null, scheduledDate, estimatedMinutes);
+        }
+    }
 
     public record Violation(String field, String code, String message) {}
 
@@ -66,18 +72,26 @@ public final class GoalPolicy {
             }
             if (goal.examDate() != null && !task.scheduledDate().isBefore(goal.examDate())) {
                 errors.add(new Violation("examDate", "task_after_deadline",
-                        "Có công việc được xếp vào ngày thi hoặc sau ngày thi."));
+                        "Công việc" + label(task) + " ngày " + task.scheduledDate()
+                                + " nằm vào hoặc sau ngày thi mới " + goal.examDate()
+                                + ". Hãy chuyển công việc về trước ngày thi hoặc chọn ngày thi muộn hơn."));
             }
             minutesByDate.merge(task.scheduledDate(), (long) task.estimatedMinutes(), Long::sum);
         }
         if (goal.minutesPerDay() != null && goal.minutesPerDay() >= 15 && goal.minutesPerDay() <= 480) {
-            for (var day : minutesByDate.entrySet()) {
+            for (var day : new java.util.TreeMap<>(minutesByDate).entrySet()) {
                 if (day.getValue() > goal.minutesPerDay()) {
                     errors.add(new Violation("minutesPerDay", "daily_budget_exceeded",
-                            "Công việc ngày " + day.getKey() + " vượt ngân sách học mỗi ngày."));
+                            "Ngày " + day.getKey() + " có " + day.getValue() + " phút công việc, vượt ngân sách mới "
+                                    + goal.minutesPerDay() + " phút (vượt " + (day.getValue() - goal.minutesPerDay())
+                                    + " phút). Hãy giảm công việc ngày đó hoặc tăng ngân sách."));
                 }
             }
         }
         return List.copyOf(errors);
+    }
+
+    private static String label(ScheduledTask task) {
+        return task.title() == null || task.title().isBlank() ? "" : " \"" + task.title() + "\"";
     }
 }

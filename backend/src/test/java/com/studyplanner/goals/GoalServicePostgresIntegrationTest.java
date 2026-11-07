@@ -122,6 +122,62 @@ class GoalServicePostgresIntegrationTest {
         assertEquals(0, count("plan_drafts", goal.id()));
     }
 
+    @Test
+    void updateByAnotherAccountIsRejectedAndLeavesGoalUntouched() {
+        var goal = service.createGoal(ownerA, input("Toán", 90, today.plusDays(30)));
+
+        assertThrows(GoalService.GoalNotFoundException.class,
+                () -> service.updateGoal(ownerB, goal.id(), input("Hack", 200, today.plusDays(40)), goal.version()));
+
+        var unchanged = service.getGoal(ownerA, goal.id());
+        assertEquals("Toán", unchanged.subject());
+        assertEquals(90, unchanged.minutesPerDay());
+        assertEquals(0, unchanged.version());
+    }
+
+    @Test
+    void updateBoundariesWithRealTasks() {
+        var goal = service.createGoal(ownerA, input("Toán", 120, today.plusDays(30)));
+        var day = today.plusDays(3);
+        insertTask(goal.id(), day, 60);
+        insertTask(goal.id(), day, 40);
+        insertTask(goal.id(), today.plusDays(9), 30);
+
+        // Daily total 100 equals the new budget; last task is the day before the new exam date.
+        var ok = service.updateGoal(ownerA, goal.id(), input("Toán", 100, today.plusDays(10)), goal.version());
+        assertEquals(100, ok.minutesPerDay());
+        assertEquals(today.plusDays(10), ok.examDate());
+        assertEquals(1, ok.version());
+
+        // One minute below the day total is rejected and nothing changes.
+        var overBudget = assertThrows(GoalService.GoalValidationException.class,
+                () -> service.updateGoal(ownerA, goal.id(), input("Toán", 99, today.plusDays(10)), 1));
+        assertTrue(overBudget.violations().stream().anyMatch(v -> v.code().equals("daily_budget_exceeded")
+                && v.message().contains(day.toString())));
+
+        // Exam date equal to the last task's day is rejected.
+        var onExamDay = assertThrows(GoalService.GoalValidationException.class,
+                () -> service.updateGoal(ownerA, goal.id(), input("Toán", 100, today.plusDays(9)), 1));
+        assertTrue(onExamDay.violations().stream().anyMatch(v -> v.code().equals("task_after_deadline")));
+
+        var stored = service.getGoal(ownerA, goal.id());
+        assertEquals(100, stored.minutesPerDay());
+        assertEquals(today.plusDays(10), stored.examDate());
+        assertEquals(1, stored.version());
+        assertEquals(3, count("study_tasks", goal.id()));
+    }
+
+    @Test
+    void updateOnlyChecksTasksOfTheSameGoal() {
+        var goalA = service.createGoal(ownerA, input("Toán", 120, today.plusDays(30)));
+        var goalB = service.createGoal(ownerA, input("Lý", 120, today.plusDays(30)));
+        insertTask(goalB.id(), today.plusDays(5), 110);
+
+        // Goal B's heavy day must not block lowering goal A's budget (budget is per goal).
+        var updated = service.updateGoal(ownerA, goalA.id(), input("Toán", 30, today.plusDays(30)), goalA.version());
+        assertEquals(30, updated.minutesPerDay());
+    }
+
     private GoalPolicy.GoalInput input(String subject, int budget, LocalDate examDate) {
         return new GoalPolicy.GoalInput(subject, "Chương 1", today, examDate, budget);
     }

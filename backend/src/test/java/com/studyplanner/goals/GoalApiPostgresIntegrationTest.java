@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -145,5 +146,87 @@ class GoalApiPostgresIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON).content(json))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors[?(@.field=='" + field + "' && @.code=='" + code + "')]").exists());
+    }
+
+    private String putBody(String subject, int minutes, LocalDate start, LocalDate exam, int version) {
+        String base = body(subject, minutes, start, exam);
+        return base.substring(0, base.length() - 1) + ",\"version\":" + version + "}";
+    }
+
+    private void addTask(String goalId, LocalDate date, int minutes) {
+        jdbc.update("INSERT INTO study_tasks (goal_id, title, scheduled_date, estimated_minutes) "
+                + "VALUES (?::uuid, ?, ?, ?)", goalId, "Task " + date, date, minutes);
+    }
+
+    @Test
+    @DisplayName("PUT: valid edit is saved and read back; version increments; stale version is 409")
+    void updatePersistsAndChecksVersion() throws Exception {
+        var s = registerAndLogin("f-" + UUID.randomUUID() + "@example.test");
+        JsonNode goal = create(s, body("Toán", 60, today, today.plusDays(30)));
+        String id = goal.get("id").asText();
+
+        mvc.perform(put("/api/goals/" + id).session(s).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content(putBody("  Toán rời rạc ", 120, today, today.plusDays(45), 0)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.subject").value("Toán rời rạc"))
+                .andExpect(jsonPath("$.version").value(1));
+        mvc.perform(get("/api/goals/" + id).session(s))
+                .andExpect(jsonPath("$.minutesPerDay").value(120))
+                .andExpect(jsonPath("$.examDate").value(today.plusDays(45).toString()));
+
+        mvc.perform(put("/api/goals/" + id).session(s).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content(putBody("Cũ", 30, today, today.plusDays(45), 0)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("stale_goal_version"));
+        mvc.perform(get("/api/goals/" + id).session(s)).andExpect(jsonPath("$.subject").value("Toán rời rạc"));
+    }
+
+    @Test
+    @DisplayName("PUT: tasks past the new exam date or over the new budget -> 409 with day details, nothing saved")
+    void updateRejectedByExistingTasksIsAtomic() throws Exception {
+        var s = registerAndLogin("g-" + UUID.randomUUID() + "@example.test");
+        JsonNode goal = create(s, body("Toán", 120, today, today.plusDays(30)));
+        String id = goal.get("id").asText();
+        LocalDate busy = today.plusDays(3);
+        addTask(id, busy, 70);
+        addTask(id, busy, 40);
+        addTask(id, today.plusDays(20), 30);
+
+        mvc.perform(put("/api/goals/" + id).session(s).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content(putBody("Toán", 100, today, today.plusDays(15), 0)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("goal_tasks_conflict"))
+                .andExpect(jsonPath("$.fieldErrors[?(@.code=='task_after_deadline')].message")
+                        .value(org.hamcrest.Matchers.hasItem(
+                                org.hamcrest.Matchers.containsString(today.plusDays(20).toString()))))
+                .andExpect(jsonPath("$.fieldErrors[?(@.code=='daily_budget_exceeded')].message")
+                        .value(org.hamcrest.Matchers.hasItem(
+                                org.hamcrest.Matchers.containsString(busy.toString()))));
+
+        mvc.perform(get("/api/goals/" + id).session(s))
+                .andExpect(jsonPath("$.minutesPerDay").value(120))
+                .andExpect(jsonPath("$.examDate").value(today.plusDays(30).toString()))
+                .andExpect(jsonPath("$.version").value(0));
+    }
+
+    @Test
+    @DisplayName("PUT: another account gets 404 and the goal is unchanged; invalid input is 400")
+    void updateCrossAccountAndInvalidInput() throws Exception {
+        var a = registerAndLogin("h-" + UUID.randomUUID() + "@example.test");
+        var b = registerAndLogin("i-" + UUID.randomUUID() + "@example.test");
+        JsonNode goal = create(a, body("Toán", 60, today, today.plusDays(30)));
+        String id = goal.get("id").asText();
+
+        mvc.perform(put("/api/goals/" + id).session(b).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content(putBody("Hack", 200, today, today.plusDays(30), 0)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("goal_not_found"));
+        mvc.perform(get("/api/goals/" + id).session(a)).andExpect(jsonPath("$.subject").value("Toán"));
+
+        mvc.perform(put("/api/goals/" + id).session(a).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content(putBody("Toán", 481, today, today.plusDays(91), 0)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field=='minutesPerDay')]").exists())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field=='examDate' && @.code=='over_90_days')]").exists());
     }
 }

@@ -11,6 +11,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -18,8 +19,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.studyplanner.auth.AppUserPrincipal;
 
 /**
- * ASP-23: create, list and read goals. The owner always comes from the authenticated
- * principal (ASP-12), never from the request. Update and delete belong to later tasks.
+ * ASP-23/24: create, list, read and update goals. The owner always comes from the authenticated
+ * principal (ASP-12), never from the request. Delete belongs to a later task.
  */
 @RestController
 @RequestMapping("/api/goals")
@@ -49,9 +50,22 @@ public class GoalController {
                                                @RequestBody GoalRequest request) {
         UUID owner = owner(principal);
         GoalRequest.Parsed parsed = request.toInput();
-        rejectParseErrors(parsed);
+        rejectParseErrors(parsed, List.of());
         var created = service.createGoal(owner, parsed.input());
         return ResponseEntity.status(HttpStatus.CREATED).body(GoalResponse.from(created));
+    }
+
+    @PutMapping("/{goalId}")
+    public GoalResponse update(@AuthenticationPrincipal AppUserPrincipal principal,
+                               @PathVariable UUID goalId, @RequestBody GoalRequest request) {
+        UUID owner = owner(principal);
+        GoalRequest.Parsed parsed = request.toInput();
+        Integer version = request.versionValue();
+        var extra = version == null
+                ? List.of(new GoalPolicy.Violation("version", "required", "Phiên bản mục tiêu là bắt buộc."))
+                : List.<GoalPolicy.Violation>of();
+        rejectParseErrors(parsed, extra);
+        return GoalResponse.from(service.updateGoal(owner, goalId, parsed.input(), version));
     }
 
     private static UUID owner(AppUserPrincipal principal) {
@@ -65,11 +79,12 @@ public class GoalController {
      * When parsing found type or format errors, report them together with the remaining
      * required-field errors so the UI can mark every bad field at once.
      */
-    private static void rejectParseErrors(GoalRequest.Parsed parsed) {
-        if (parsed.errors().isEmpty()) {
+    private static void rejectParseErrors(GoalRequest.Parsed parsed, List<GoalPolicy.Violation> extra) {
+        if (parsed.errors().isEmpty() && extra.isEmpty()) {
             return;
         }
         var all = new ArrayList<>(parsed.errors());
+        all.addAll(extra);
         var seen = all.stream().map(GoalPolicy.Violation::field).toList();
         GoalPolicy.validate(parsed.input(), LocalDate.MIN).stream()
                 .filter(v -> !seen.contains(v.field()))

@@ -19,6 +19,16 @@ public class GoalExceptionHandler {
 
     @ExceptionHandler(GoalService.GoalValidationException.class)
     ResponseEntity<GoalErrorResponse> validation(GoalService.GoalValidationException ex) {
+        // Plain input errors win (400); 409 only when every problem comes from existing tasks.
+        boolean tasksConflict = ex.violations().stream().allMatch(v ->
+                v.code().equals("task_after_deadline") || v.code().equals("daily_budget_exceeded")
+                        || v.code().equals("invalid_existing_task"));
+        if (tasksConflict) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GoalErrorResponse(
+                    "goal_tasks_conflict",
+                    "Thay đổi làm công việc hiện có vi phạm ngày thi hoặc ngân sách thời gian.",
+                    ex.violations()));
+        }
         return ResponseEntity.badRequest().body(new GoalErrorResponse(
                 "validation_failed", "Dữ liệu mục tiêu không hợp lệ.", ex.violations()));
     }
@@ -33,6 +43,12 @@ public class GoalExceptionHandler {
     ResponseEntity<GoalErrorResponse> badId() {
         // A malformed UUID gets the same response as an unknown goal.
         return notFound();
+    }
+
+    @ExceptionHandler(GoalService.GoalConflictException.class)
+    ResponseEntity<GoalErrorResponse> conflict(GoalService.GoalConflictException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new GoalErrorResponse(ex.getMessage(),
+                "Mục tiêu đã được thay đổi ở nơi khác. Hãy tải lại rồi thử lại."));
     }
 
     @ExceptionHandler(GoalController.UnauthenticatedException.class)
