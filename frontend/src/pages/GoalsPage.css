@@ -27,7 +27,33 @@
   overflow-wrap: anywhere;
 }
 
-/* Same reason as in DailyTasksPage.css: keep the header buttons on one baseline. */
+/* The detail panel uses the page's compact type scale, like the list items. */
+.goals-page .goal-detail {
+  font-size: 12px;
+}
+
+.goals-page .goal-detail h3 {
+  font-size: 14px;
+}
+
+.goals-page .goal-detail dl {
+  gap: 0.375rem 1rem;
+}
+
+.goals-page .goal-detail dt {
+  color: #64748b;
+}
+
+.goals-page .goal-detail .goal-item-top button {
+  background: none;
+  padding: 0;
+  color: #315bc1;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+/* The global .button--primary (App.css) adds margin-top: 22px for the hero card, which pushed the header
+   buttons out of line. Keep them on one baseline. */
 .goals-page .goals-heading .button,
 .goals-page .goals-heading .button--primary {
   margin-top: 0;

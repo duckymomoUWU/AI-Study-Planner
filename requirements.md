@@ -30,15 +30,15 @@ Giúp sinh viên tạo kế hoạch ôn tập theo môn học, nội dung, ngày
 Đọc PDF, kết nối LMS, đồng bộ lịch, thanh toán và tự động đánh giá kiến thức.
 
 ## Trạng thái
-Cập nhật 2026-11-07 (nhánh phát triển `dev2-sprint3`; chưa gộp vào `main`). Chi tiết hợp đồng API: [docs/backend-api-rules.md](docs/backend-api-rules.md).
+Cập nhật 2026-11-07 (nhánh kiểm thử tích hợp `integration/sprint2-sprint3-test`; chưa gộp vào `main`). Chi tiết hợp đồng API: [docs/backend-api-rules.md](docs/backend-api-rules.md).
 
 | Chức năng | Tình trạng |
 | --- | --- |
 | 1. Đăng ký, đăng nhập, đăng xuất, chỉ truy cập dữ liệu của mình | Đã hiện thực (session, CSRF, ownership) |
 | 2. Tạo, sửa, xóa mục tiêu | Đã hiện thực, có giao diện |
-| 3. Tạo, sửa, xóa công việc thủ công; xem công việc theo ngày | Mới có xem công việc theo ngày và theo mục tiêu (chỉ đọc); tạo, sửa, xóa chưa hiện thực |
-| 4. AI đề xuất bản nháp | Chưa hiện thực |
-| 5. Chỉ lưu kế hoạch sau khi xác nhận | Chưa hiện thực |
-| 6. Đánh dấu hoàn thành/mở lại; số công việc hoàn thành và còn lại | Đánh dấu hoàn thành/mở lại đã hiện thực (API và giao diện); số hoàn thành/còn lại hiển thị cho ngày đang xem; tiến độ theo mục tiêu chưa có |
+| 3. Tạo, sửa, xóa công việc thủ công; xem công việc theo ngày | Đã có xem theo ngày và mục tiêu; tạo, sửa, xóa chưa hiện thực qua API |
+| 4. AI đề xuất bản nháp | Chưa hiện thực trong các branch này |
+| 5. Chỉ lưu kế hoạch sau khi xác nhận | Chưa hiện thực trong các branch này |
+| 6. Đánh dấu hoàn thành/mở lại; số công việc hoàn thành và còn lại | Đã có API và giao diện đánh dấu hoàn thành/mở lại; có số lượng theo ngày và tiến độ theo từng mục tiêu (kể cả 0/0) |
 
-Các quy tắc nghiệp vụ ở trên không đổi. Mô tả đầy đủ của đánh dấu hoàn thành: [docs/product/task-completion.md](docs/product/task-completion.md).
+Mô tả tính năng: [đánh dấu hoàn thành](docs/product/task-completion.md) và [tiến độ mục tiêu](docs/product/goal-progress.md).

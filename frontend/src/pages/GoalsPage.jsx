@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { createGoal, deleteGoal, GoalApiError, getGoal, listGoals, updateGoal } from '../lib/goals.js'
 import { describeGoalError } from '../lib/goalErrors.js'
 import { confirmAndDeleteGoal } from '../lib/goalDelete.js'
+import GoalProgress from '../components/GoalProgress.jsx'
 import './GoalsPage.css'
 
 const emptyForm = {
@@ -370,6 +371,7 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
                 <dt>Múi giờ</dt><dd>{detail.timezone}</dd>
                 <dt>Phiên bản</dt><dd>v{detail.version}</dd>
               </dl>
+              <GoalProgress goalId={detail.id} version={detail.version} />
             </section>
           )}
           {loading ? (
@@ -390,6 +392,7 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
                   </div>
                   <p className="goal-topics">{goal.topics}</p>
                   <p className="goal-dates">Bắt đầu {displayDate(goal.startDate)} · Thi {displayDate(goal.examDate)}</p>
+                  <GoalProgress goalId={goal.id} version={goal.version} />
                   <div className="goal-item-actions">
                     <button type="button" onClick={() => showDetail(goal)} disabled={detailLoading}>Chi tiết</button>
                     <button type="button" onClick={() => startEditing(goal)}>Chỉnh sửa</button>
