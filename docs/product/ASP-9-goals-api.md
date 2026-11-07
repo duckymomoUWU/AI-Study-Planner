@@ -1,15 +1,17 @@
 # ASP-22 / ASP-9 — Goal API contract (proposed)
 
-**Status:** Design contract for Jira [ASP-9](https://ai-study-planner-nhom.atlassian.net/browse/ASP-9). **None of the endpoints below exist yet.** This document is the baseline for the backend and frontend tasks of ASP-9; it is not evidence that a feature runs. [requirements.md](../../requirements.md) remains the owner of product rules; this file only turns them into an API and data contract.
+**Status:** Design contract for Jira [ASP-9](https://ai-study-planner-nhom.atlassian.net/browse/ASP-9). **Implementation status on this branch (ASP-23):** `POST /api/goals`, `GET /api/goals` and `GET /api/goals/{goalId}` are implemented (`GoalController`) and covered by `GoalControllerTest` and `GoalApiPostgresIntegrationTest` (real PostgreSQL). **`PUT` and `DELETE` are not exposed over HTTP yet** (ASP-24 and ASP-26); the service layer for them exists but has no controller. This document is the baseline for the remaining ASP-9 tasks; the endpoints are not on `main` until the stacked PRs merge. [requirements.md](../../requirements.md) remains the owner of product rules; this file only turns them into an API and data contract.
 
-## 1. Current state (checked against `main`)
+## 1. Current state
+
+State when the contract was written (`main`): no controllers, services, repositories, tests or authentication; `/actuator/health` was the only endpoint. State on this branch:
 
 | Area | Finding |
 | --- | --- |
-| Backend | Spring Boot 3.5, Java 21, JDBC, Flyway, PostgreSQL. Only `StudyPlannerApplication`; no controllers, services, repositories or tests. |
-| Business API | None. `/actuator/health` is the only endpoint; `/api` is reserved. |
-| Authentication | None. No Spring Security, no session or token, no current-user mapping. |
-| Frontend | React + Vite. `src/lib/api.js` only calls `/actuator/health`. Vite proxies `/api` to the backend. |
+| Backend | Spring Boot 3.5, Java 21, JDBC, Flyway, PostgreSQL. `GoalPolicy`, `GoalJdbcRepository`, `GoalService` and `GoalController` (create, list, detail) with tests. |
+| Business API | `POST`/`GET /api/goals` and `GET /api/goals/{goalId}`. `PUT`/`DELETE` are not routed yet. |
+| Authentication | Session login, CSRF and `AppUserPrincipal` from ASP-12 (merged from `dev1`). |
+| Frontend | React + Vite with auth screens and a goals page/client from other branches; Vite proxies `/api` to the backend. |
 | Schema | `V1__initial_schema.sql` already defines `app_users`, `study_goals`, `study_tasks`, `plan_drafts`. |
 
 ## 2. Data model (from `V1__initial_schema.sql`)
@@ -168,18 +170,18 @@ ASP-9 only consumes a trusted current-user ID from ASP-12. Goal endpoints must n
 
 ## 9. Verification checklist
 
-Status values describe this document only; nothing here has been implemented yet.
+"Covered" means a test that passed against the ASP-23 code (including real PostgreSQL for create/list/detail). PUT and DELETE rows stay Pending until ASP-24 and ASP-26 expose them.
 
 | Check | Expected | Status |
 | --- | --- | --- |
-| Blank or whitespace-only `subject`/`topics` | 400 `required` | Pending |
-| Exam date in the past (goal timezone) | 400 `past_date` | Pending |
-| Exam date equal to or before start | 400 `not_after_start` | Pending |
-| 90 days accepted, 91 days rejected | 201 / 400 `over_90_days` | Pending |
-| 14 and 481 minutes rejected; 15 and 480 accepted | 400 / 201 | Pending |
-| Decimal, string or null minutes | 400 | Pending |
-| Another account's goal: get, update, delete | 404, nothing leaked | Pending (needs ASP-12) |
-| No session | 401 | Pending (needs ASP-12) |
+| Blank or whitespace-only `subject`/`topics` | 400 `required` | Covered (ASP-23) |
+| Exam date in the past (goal timezone) | 400 `past_date` | Covered (ASP-23) |
+| Exam date equal to or before start | 400 `not_after_start` | Covered (ASP-23) |
+| 90 days accepted, 91 days rejected | 201 / 400 `over_90_days` | Covered (ASP-23) |
+| 14 and 481 minutes rejected; 15 and 480 accepted | 400 / 201 | Covered (ASP-23) |
+| Decimal, string or null minutes | 400 | Covered (ASP-23) |
+| Another account's goal: get, update, delete | 404, nothing leaked | get Covered (ASP-23); update, delete Pending |
+| No session | 401 | Covered (ASP-23) |
 | Edit exam date to a day that has a task | 409 `goal_tasks_conflict`, nothing saved | Pending |
 | Edit budget below a day's task total | 409 `goal_tasks_conflict`, nothing saved | Pending |
 | Stale `version` on PUT | 409 `stale_goal_version` | Pending |
