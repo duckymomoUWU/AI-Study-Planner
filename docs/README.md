@@ -8,7 +8,8 @@
 - [Verification harness](../.agents/harness/README.md): maintained build/test commands, live checks and known verification gaps.
 - [Frontend guide](../frontend/README.md): frontend operation and proxy behavior.
 - [Initial schema](../backend/src/main/resources/db/migration/V1__initial_schema.sql): current database structure; not an implemented business API.
-- [ASP-9 Goal API contract](product/ASP-9-goals-api.md): proposed secure CRUD contract and mapping of user-facing rules to planned implementation. Not a deployed endpoint.
+- [ASP-9 Goal API contract](product/ASP-9-goals-api.md): Goal CRUD contract, errors, timezone rule and AC mapping; the endpoints are implemented on the development branch.
+- [ASP-9 verification evidence](product/ASP-9-verification.md): AC-to-test traceability with the results that were actually run and the limits not verified.
 
 ## Repository Harness
 
@@ -16,7 +17,6 @@
 - [Invariant encoding](patterns/encoding-invariants.md): optional native validation guidance.
 - [Decisions](decisions/README.md) and [plans](plans/README.md): optional durable records for accepted decisions and complex work.
 - `templates/`: optional decision, execution-plan, application-runbook and Harness-improvement templates.
-- [ASP-9 Goal API contract](product/ASP-9-goals-api.md): proposed CRUD contract, errors, timezone rule and AC mapping. Design only; the endpoints are not implemented.
 - [Product document guidance](product/README.md): generic guidance; requirements remain authoritative at the existing root document. Do not duplicate requirements or verification commands here.
 
 Harness status and doctor validate the Harness installation, not application behavior.

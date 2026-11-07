@@ -56,8 +56,8 @@ public record GoalRequest(JsonNode subject, JsonNode topics, JsonNode startDate,
     }
 
     private static LocalDate date(String field, JsonNode n, List<GoalPolicy.Violation> errors) {
-        if (n == null || n.isNull()) {
-            return null;
+        if (n == null || n.isNull() || (n.isTextual() && n.asText().isBlank())) {
+            return null; // a blank date is reported as "required" by the policy
         }
         if (n.isTextual()) {
             try {

@@ -281,4 +281,19 @@ class GoalControllerTest {
                 .andExpect(jsonPath("$.code").value("goal_not_found"));
         mvc.perform(asUser(delete("/api/goals/not-a-uuid"))).andExpect(status().isNotFound());
     }
+
+    @Test
+    void blankDatesAreReportedAsRequiredNotAsBadFormat() throws Exception {
+        String bad = "{\"subject\":\"\",\"topics\":\"   \",\"startDate\":\"\",\"examDate\":\"\",\"minutesPerDay\":90}";
+        // Blank text parses cleanly, so the real service applies GoalPolicy; mimic that here.
+        when(service.createGoal(eq(USER), any())).thenAnswer(invocation -> {
+            var input = (GoalPolicy.GoalInput) invocation.getArgument(1);
+            throw new GoalService.GoalValidationException(GoalPolicy.validate(input, LocalDate.of(2026, 11, 7)));
+        });
+        mvc.perform(asUser(post("/api/goals")).contentType(MediaType.APPLICATION_JSON).content(bad))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field=='startDate' && @.code=='required')]").exists())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field=='examDate' && @.code=='required')]").exists())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field=='startDate' && @.code=='invalid_date')]").doesNotExist());
+    }
 }
