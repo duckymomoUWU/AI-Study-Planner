@@ -13,7 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 class GeminiPlanServiceTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final GeminiPlanService service = new GeminiPlanService(objectMapper, "");
+    private final GeminiPlanService service = new GeminiPlanService(objectMapper, "", "gemini-3.8-flash");
 
     @Test
     void generatesValidFallbackProposalWithTasks() throws Exception {

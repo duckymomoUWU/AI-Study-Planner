@@ -6,12 +6,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,18 +24,20 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 public class GeminiPlanService {
 
     private static final Logger log = LoggerFactory.getLogger(GeminiPlanService.class);
-    private static final String DEFAULT_MODEL = "gemini-1.5-flash";
 
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
     private final String apiKey;
+    private final String modelName;
 
     public GeminiPlanService(
             ObjectMapper objectMapper,
-            @Value("${gemini.api-key:#{systemEnvironment['GEMINI_API_KEY'] ?: ''}}") String apiKey
+            @Value("${gemini.api-key:#{systemEnvironment['GEMINI_API_KEY'] ?: ''}}") String apiKey,
+            @Value("${gemini.model:gemini-3.8-flash}") String modelName
     ) {
         this.objectMapper = objectMapper;
         this.apiKey = apiKey != null ? apiKey.trim() : "";
+        this.modelName = (modelName != null && !modelName.isBlank()) ? modelName.trim() : "gemini-3.8-flash";
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
@@ -54,7 +53,7 @@ public class GeminiPlanService {
     ) {}
 
     /**
-     * Generates a study plan proposal JSON string using Gemini Flash, with resilient heuristic fallback.
+     * Generates a study plan proposal JSON string using Gemini Flash (gemini-3.8-flash), with resilient heuristic fallback.
      */
     public String generateProposalJson(GeneratePlanRequest req) {
         if (!apiKey.isBlank()) {
@@ -71,7 +70,7 @@ public class GeminiPlanService {
     }
 
     private String callGeminiApi(GeneratePlanRequest req) throws Exception {
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/" + DEFAULT_MODEL + ":generateContent?key=" + apiKey;
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/" + modelName + ":generateContent?key=" + apiKey;
 
         String prompt = """
                 You are an expert AI study planner. Create a repetitive weekly study plan for this student:
