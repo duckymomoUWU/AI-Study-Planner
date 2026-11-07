@@ -413,6 +413,7 @@
 .shadcn-badge--success {
   background-color: hsl(var(--shadcn-success) / 0.12);
   color: hsl(var(--shadcn-success));
+}
 
 /* Progress */
 .shadcn-progress {
