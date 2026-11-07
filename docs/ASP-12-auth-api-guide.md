@@ -388,6 +388,26 @@ export async function logout() {
 }
 ```
 
+### 4.3. Thư viện giao diện shadcn/ui & Màn hình AuthPage
+
+Dựa trên triết lý component composable của [shadcn/ui](https://github.com/shadcn-ui/ui), giao diện xác thực được thiết kế theo tiêu chuẩn accessible, sạch và có thể tùy biến mở rộng:
+
+#### Các component shadcn/ui được xây dựng (`frontend/src/components/ui/`):
+- **`Button` (`button.jsx`):** Nút bấm chuẩn với các variants (`default`, `secondary`, `outline`, `ghost`, `link`), hỗ trợ trạng thái `isLoading` kèm spinner SVG.
+- **`Card` (`card.jsx`):** Hệ thống thẻ `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter`.
+- **`Input` (`input.jsx`):** Ô nhập liệu chuẩn accessibility, focus ring và trạng thái viền đỏ khi có lỗi `hasError`.
+- **`Label` (`label.jsx`):** Nhãn liên kết chặt chẽ với ô nhập qua `htmlFor`.
+- **`Alert` (`alert.jsx`):** Thông báo lỗi (`variant="destructive"`) hoặc thành công (`variant="success"`) có icon tương ứng.
+- **`Tabs` (`tabs.jsx`):** Điều hướng tab giữa "Đăng nhập" và "Tạo tài khoản" với `role="tablist"` và `aria-selected`.
+- **`shadcn.css`:** Chứa toàn bộ Design Tokens theo hệ màu HSL của shadcn/ui.
+
+#### Màn hình `AuthPage.jsx` (`frontend/src/pages/AuthPage.jsx`):
+- Chuyển đổi tab linh hoạt giữa Đăng nhập và Đăng ký.
+- Kiểm tra tính hợp lệ của dữ liệu ngay tại client (email định dạng hợp lệ, mật khẩu >= 6 ký tự, mật khẩu xác nhận trùng khớp).
+- Hiển thị lỗi máy chủ chi tiết: `invalid_credentials`, `email_already_exists`, lỗi từng field (`fieldErrors`).
+- Tự động đăng nhập sau khi tạo tài khoản thành công.
+- Kết nối trực tiếp với `App.jsx`, lưu trữ phiên làm việc của sinh viên trong ứng dụng.
+
 ---
 
 ## 5. DEMO LUỒNG XÁC THỰC HOÀN CHỈNH BẰNG CURL
