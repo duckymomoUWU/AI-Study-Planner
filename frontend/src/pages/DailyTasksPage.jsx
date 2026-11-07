@@ -16,186 +16,332 @@ function addDays(baseDate, days) {
   return result
 }
 
-const STORAGE_KEY = 'ai_study_planner_calendar_tasks_v2'
+const STORAGE_KEY_MOCKUP = 'ai_study_planner_calendar_tasks_mockup_v4'
 
-// Initial seed calendar tasks matching the user's reference mockup
-function getInitialCalendarTasks() {
-  const today = new Date()
-  const d0 = toDateKey(today)
-  const d1 = toDateKey(addDays(today, 1))
-  const d2 = toDateKey(addDays(today, 2))
-
+// Exact reference mockup calendar tasks matching May 17-19, 2026 screenshot
+function getMockupCalendarTasks() {
   return [
-    // Ngày 1 (Hôm nay)
+    // ==========================================
+    // MON 17 MAY 2026
+    // ==========================================
     {
-      id: 'cal-task-1',
-      title: 'Học trên lớp: Kiến trúc máy tính',
+      id: 'mock-mon-1',
+      title: 'Học trên lớp: Kiến trúc máy tính & Vi xử lý',
+      overviewLabel: '', // Clean gray block in overview
       subject: 'Khoa học máy tính',
       type: 'other', // Gray block
-      date: d0,
-      startHour: 9,
-      durationHours: 2, // 9am - 11am
-      location: 'Phòng B204',
+      date: '2026-05-17',
+      startHour: 9.0,
+      durationHours: 1.85, // 9:00 - 10:51
       completed: false,
+      topics: 'Cấu trúc vi xử lý, pipeline instruction, bộ nhớ đệm cache L1/L2',
+      location: 'Giảng đường H2-301',
+      recurrence: 'weekly',
+      recurringDays: [1], // Mỗi Thứ Hai hàng tuần
     },
     {
-      id: 'cal-task-2',
-      title: 'Nghỉ trưa & Ăn trưa',
+      id: 'mock-mon-2',
+      title: 'Ăn uống & Sinh hoạt cá nhân',
+      overviewLabel: 'Sinh hoạt cá nhân',
       subject: 'Sinh hoạt cá nhân',
-      type: 'other', // Gray block
-      date: d0,
-      startHour: 11.5,
-      durationHours: 0.8, // 11:30am - 12:20pm
+      type: 'routine', // Warm yellow block (Personal routine)
+      date: '2026-05-17',
+      startHour: 11.0,
+      durationHours: 1.0, // 11:00 - 12:00
       completed: true,
+      topics: 'Ăn trưa, vệ sinh cá nhân và nghỉ ngơi nạp lại năng lượng',
+      recurrence: 'daily',
+      recurringDays: [0, 1, 2, 3, 4, 5, 6], // Lặp lại mỗi ngày
     },
     {
-      id: 'cal-task-3',
-      title: 'Tự học tiếng Anh',
-      subject: 'Ngoại ngữ',
+      id: 'mock-mon-3',
+      title: 'Tự học ngoại ngữ & Đọc tin tức công nghệ',
+      overviewLabel: '', // Clean gray block
+      subject: 'Ngoại ngữ & Kỹ năng',
       type: 'other',
-      date: d0,
-      startHour: 12.5,
-      durationHours: 1,
+      date: '2026-05-17',
+      startHour: 12.15,
+      durationHours: 0.75, // 12:09 - 12:54
       completed: false,
+      topics: 'Luyện 20 từ vựng chuyên ngành IT qua Anki flashcards',
     },
     {
-      id: 'cal-task-4',
-      title: 'Ôn tập Tích phân đường loại 1 & 2',
+      id: 'mock-mon-4',
+      title: 'Focus Time: Ôn tập Tích phân đường loại 1 & 2',
+      overviewLabel: 'Focus Time',
       subject: 'Giải tích 2',
-      type: 'app', // Blue block (from AI Study Planner)
-      date: d0,
-      startHour: 13.5,
-      durationHours: 2.5, // 1:30pm - 4:00pm
+      type: 'focus', // Vibrant green block (Web app generated)
+      date: '2026-05-17',
+      startHour: 13.0,
+      durationHours: 2.6, // 13:00 - 15:36
       completed: false,
-      topics: 'Định lý Green, công thức Stokes, giải 5 bài tập mẫu',
+      topics: 'Định lý Green, công thức Stokes, giải 5 bài tập mẫu đề thi cuối kỳ',
       source: 'ai',
     },
     {
-      id: 'cal-task-5',
-      title: 'Thể dục & Thư giãn',
-      subject: 'Sức khỏe',
+      id: 'mock-mon-5',
+      title: 'Chạy bộ & Rèn luyện thể lực',
+      overviewLabel: '', // Clean gray block
+      subject: 'Thể thao & Sức khỏe',
       type: 'other',
-      date: d0,
-      startHour: 16.5,
-      durationHours: 1,
+      date: '2026-05-17',
+      startHour: 16.05,
+      durationHours: 0.85, // 16:03 - 16:54
       completed: false,
+      topics: 'Chạy cự ly 3km quanh sân vận động trường',
     },
 
-    // Ngày 2 (Hôm sau)
+    // ==========================================
+    // TUE 18 MAY 2026
+    // ==========================================
     {
-      id: 'cal-task-6',
-      title: 'Làm việc nhóm & Đọc tài liệu',
-      subject: 'Kỹ năng mềm',
-      type: 'other', // Gray block
-      date: d1,
-      startHour: 9,
-      durationHours: 1, // 9am - 10am
+      id: 'mock-tue-1',
+      title: 'Làm việc nhóm & Chuẩn bị tài liệu môn học',
+      overviewLabel: '', // Clean gray block
+      subject: 'Kỹ năng làm việc nhóm',
+      type: 'other',
+      date: '2026-05-18',
+      startHour: 9.0,
+      durationHours: 0.85, // 9:00 - 9:51
       completed: true,
+      topics: 'Rà soát phân công công việc tuần 4 của nhóm',
     },
     {
-      id: 'cal-task-7',
-      title: 'Luyện đề SQL & Chuẩn hóa quan hệ BCNF',
+      id: 'mock-tue-2',
+      title: 'Focus Time: Luyện đề SQL & Chuẩn hóa quan hệ BCNF',
+      overviewLabel: 'Focus Time',
       subject: 'Cơ sở dữ liệu',
-      type: 'app', // Blue block (from AI Study Planner)
-      date: d1,
-      startHour: 10,
-      durationHours: 3, // 10am - 1pm
+      type: 'focus', // Vibrant green block (Web app generated)
+      date: '2026-05-18',
+      startHour: 10.0,
+      durationHours: 3.25, // 10:00 - 13:15
       completed: false,
-      topics: 'Thực hành chuẩn hóa 1NF - BCNF, giải đề thi giữa kỳ',
+      topics: 'Thực hành chuẩn hóa 1NF - BCNF, giải trọn vẹn đề thi giữa kỳ năm 2025',
       source: 'ai',
     },
     {
-      id: 'cal-task-8',
-      title: 'Nghỉ trưa & Cafe',
+      id: 'mock-tue-3',
+      title: 'Thư giãn & Cafe đầu giờ chiều',
+      overviewLabel: '', // Clean gray block
       subject: 'Sinh hoạt cá nhân',
       type: 'other',
-      date: d1,
-      startHour: 13.2,
-      durationHours: 0.8,
+      date: '2026-05-18',
+      startHour: 13.25,
+      durationHours: 0.65, // 13:15 - 13:54
       completed: false,
+      topics: 'Giải lao nạp năng lượng',
     },
     {
-      id: 'cal-task-9',
-      title: 'Họp cố vấn học tập',
-      subject: 'Công việc trường',
+      id: 'mock-tue-4',
+      title: 'Ăn uống & Sinh hoạt cá nhân',
+      overviewLabel: 'Sinh hoạt cá nhân',
+      subject: 'Sinh hoạt cá nhân',
+      type: 'routine',
+      date: '2026-05-18',
+      startHour: 14.0,
+      durationHours: 1.0, // 14:00 - 15:00
+      completed: true,
+      topics: 'Bữa trưa, vệ sinh cá nhân và thư giãn giải lao',
+      recurrence: 'daily',
+      recurringDays: [0, 1, 2, 3, 4, 5, 6],
+    },
+    {
+      id: 'mock-tue-5',
+      title: 'Trao đổi nhanh đồ án với bạn cùng nhóm',
+      overviewLabel: '', // Clean gray block
+      subject: 'Đồ án CNPM',
       type: 'other',
-      date: d1,
-      startHour: 14.5,
-      durationHours: 1.2,
+      date: '2026-05-18',
+      startHour: 15.6,
+      durationHours: 0.35, // 15:36 - 15:57
       completed: false,
+      topics: 'Đồng bộ API contract giữa Frontend và Backend',
     },
     {
-      id: 'cal-task-10',
-      title: 'Giải đề thi thử Phương trình vi phân',
-      subject: 'Giải tích 2',
-      type: 'app', // Blue block (from AI Study Planner)
-      date: d1,
-      startHour: 16,
-      durationHours: 1.5,
+      id: 'mock-tue-6',
+      title: 'Họp cố vấn học tập & Đăng ký môn học',
+      overviewLabel: '', // Clean gray block
+      subject: 'Công việc khoa viện',
+      type: 'other',
+      date: '2026-05-18',
+      startHour: 16.05,
+      durationHours: 0.85, // 16:03 - 16:54
       completed: false,
-      topics: 'Phương trình vi phân tuyến tính cấp 2 hệ số hằng',
-      source: 'manual',
+      topics: 'Nghe tư vấn lộ trình học kỳ chuyên ngành',
     },
 
-    // Ngày 3 (Hôm sau nữa)
+    // ==========================================
+    // WED 19 MAY 2026
+    // ==========================================
     {
-      id: 'cal-task-11',
-      title: 'Kiểm tra bài tập lớn',
-      subject: 'Mạng máy tính',
+      id: 'mock-wed-1',
+      title: 'Kiểm tra email & Lên danh sách việc cần làm',
+      overviewLabel: '', // Clean gray block
+      subject: 'Kế hoạch cá nhân',
       type: 'other',
-      date: d2,
-      startHour: 9,
-      durationHours: 0.8,
+      date: '2026-05-19',
+      startHour: 9.0,
+      durationHours: 0.5, // 9:00 - 9:30
       completed: true,
+      topics: 'Sắp xếp mức độ ưu tiên các việc trong ngày',
     },
     {
-      id: 'cal-task-12',
-      title: 'Thực hành Lab Hệ điều hành',
+      id: 'mock-wed-2',
+      title: 'Thực hành Lab Hệ điều hành & Shell Linux',
+      overviewLabel: '', // Clean gray block
       subject: 'Hệ điều hành',
       type: 'other',
-      date: d2,
-      startHour: 10,
-      durationHours: 2.5,
+      date: '2026-05-19',
+      startHour: 9.55,
+      durationHours: 2.7, // 9:33 - 12:15
       completed: false,
+      topics: 'Process scheduling, IPC pipes, shared memory bài lab 3',
+      location: 'Phòng thực hành C3-205',
     },
     {
-      id: 'cal-task-13',
-      title: 'Nghỉ trưa',
-      subject: 'Sinh hoạt',
-      type: 'other',
-      date: d2,
-      startHour: 12.8,
-      durationHours: 0.7,
+      id: 'mock-wed-3',
+      title: 'Ăn uống & Vệ sinh cá nhân',
+      overviewLabel: 'Sinh hoạt cá nhân',
+      subject: 'Sinh hoạt cá nhân',
+      type: 'routine',
+      date: '2026-05-19',
+      startHour: 12.35,
+      durationHours: 0.55, // 12:21 - 12:54
       completed: true,
+      topics: 'Ăn trưa nhẹ, rửa mặt, vệ sinh cá nhân chuẩn bị cho buổi học chiều',
+      recurrence: 'daily',
+      recurringDays: [0, 1, 2, 3, 4, 5, 6],
     },
     {
-      id: 'cal-task-14',
-      title: 'Ôn tập Transaction & Concurrency Control',
+      id: 'mock-wed-4',
+      title: 'Focus Time: Ôn tập Transaction & Concurrency Control',
+      overviewLabel: 'Focus Time',
       subject: 'Cơ sở dữ liệu',
-      type: 'app', // Blue block (from AI Study Planner)
-      date: d2,
-      startHour: 13.5,
-      durationHours: 2,
+      type: 'focus', // Vibrant green block (Web app generated)
+      date: '2026-05-19',
+      startHour: 13.05,
+      durationHours: 2.0, // 13:03 - 15:03
       completed: false,
-      topics: 'Khóa 2 pha 2PL, mức cô lập Read Committed / Serializable',
+      topics: 'Khóa 2 pha 2PL, kiểm tra mức cô lập Read Committed / Serializable',
       source: 'ai',
     },
     {
-      id: 'cal-task-15',
-      title: 'Họp nhóm Sprint Review Dự án',
-      subject: 'Đồ án CNPM',
-      type: 'app', // Blue block
-      date: d2,
-      startHour: 16,
-      durationHours: 1.2,
+      id: 'mock-wed-5',
+      title: 'Đọc tài liệu React Hooks & Vite Build',
+      overviewLabel: '', // Clean gray block
+      subject: 'Công nghệ Web',
+      type: 'other',
+      date: '2026-05-19',
+      startHour: 15.2,
+      durationHours: 0.65, // 15:12 - 15:51
       completed: false,
-      topics: 'Báo cáo tiến độ Sprint 2 và demo sản phẩm',
-      source: 'manual',
+      topics: 'Tìm hiểu useMemo, useCallback và tối ưu render cây component',
+    },
+    {
+      id: 'mock-wed-6',
+      title: 'Weekly Team Meeting',
+      overviewLabel: 'Weekly Team Meeting',
+      subject: 'Đồ án CNPM / Sprint Review',
+      type: 'meeting', // Indigo/Blue block with green checkmark
+      date: '2026-05-19',
+      startHour: 16.0,
+      durationHours: 0.9, // 16:00 - 16:54
+      completed: true,
+      topics: 'Báo cáo tiến độ Sprint 2, demo màn hình lịch học và mục tiêu với Product Owner',
+      location: 'Google Meet',
+      recurrence: 'weekly',
+      recurringDays: [3], // Mỗi Thứ Tư hàng tuần
     },
   ]
 }
 
-const HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+// Helper: Load tasks for a specific user from localStorage (clean empty default)
+function loadUserTasks(key) {
+  if (!key || typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem(key)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed)) {
+          return parsed.filter(t => !t.id?.startsWith('mock-') && !t.id?.startsWith('user-task-'))
+        }
+      }
+    } catch {
+      // fallback
+    }
+  }
+  return []
+}
+
+// Recurrence Helpers:
+function isTaskOnDate(task, dateObj) {
+  const dateStr = toDateKey(dateObj)
+  const dow = dateObj.getDay()
+
+  // 1. If not recurring, match exact date
+  if (!task.recurrence || task.recurrence === 'none') {
+    return task.date === dateStr
+  }
+
+  // 2. Date must be on or after task start date
+  const taskStartDate = task.startDate || task.date
+  if (taskStartDate && dateStr < taskStartDate) {
+    return false
+  }
+
+  // Check end date if specified
+  if (task.endDate && dateStr > task.endDate) {
+    return false
+  }
+
+  // 3. Match recurrence pattern
+  if (task.recurrence === 'daily') {
+    return true
+  }
+  if (task.recurrence === 'weekdays') {
+    return dow >= 1 && dow <= 5 // Mon - Fri
+  }
+  if (task.recurrence === 'weekly') {
+    if (Array.isArray(task.recurringDays) && task.recurringDays.length > 0) {
+      return task.recurringDays.includes(dow)
+    }
+    const originDow = new Date(`${taskStartDate}T12:00:00`).getDay()
+    return dow === originDow
+  }
+  if (task.recurrence === 'custom') {
+    return Array.isArray(task.recurringDays) && task.recurringDays.includes(dow)
+  }
+
+  return task.date === dateStr
+}
+
+function isTaskCompletedOnDate(task, dateStr) {
+  if (task.completedDates && Array.isArray(task.completedDates)) {
+    return task.completedDates.includes(dateStr)
+  }
+  return Boolean(task.completed)
+}
+
+function getRecurrenceLabel(task) {
+  if (!task.recurrence || task.recurrence === 'none') return null
+  if (task.recurrence === 'daily') return 'Lặp lại mỗi ngày'
+  if (task.recurrence === 'weekdays') return 'Lặp lại Thứ 2 – Thứ 6'
+  if (task.recurrence === 'weekly') {
+    const dow = Array.isArray(task.recurringDays) && task.recurringDays.length > 0
+      ? task.recurringDays[0]
+      : (task.startDate ? new Date(`${task.startDate}T12:00:00`).getDay() : 1)
+    const dayNames = { 0: 'Chủ Nhật', 1: 'Thứ Hai', 2: 'Thứ Ba', 3: 'Thứ Tư', 4: 'Thứ Năm', 5: 'Thứ Sáu', 6: 'Thứ Bảy' }
+    return `Lặp lại hàng tuần vào ${dayNames[dow] || 'ngày này'}`
+  }
+  if (task.recurrence === 'custom') {
+    const dayLabels = { 1: 'T2', 2: 'T3', 3: 'T4', 4: 'T5', 5: 'T6', 6: 'T7', 0: 'CN' }
+    const selected = (task.recurringDays || []).map(d => dayLabels[d]).filter(Boolean).join(', ')
+    return `Lặp lại vào: ${selected}`
+  }
+  return 'Lặp lại định kỳ'
+}
+
+const HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17]
 
 function formatHour(h) {
   if (h === 12) return '12pm'
@@ -220,44 +366,88 @@ function formatTimeRange(startHour, durationHours) {
   return `${fmt(startH, startM)} - ${fmt(endH, endM)} (${Math.round(durationHours * 60)} phút)`
 }
 
-export default function DailyTasksPage({ onBack }) {
-  const [baseDate, setBaseDate] = useState(() => new Date())
+export default function DailyTasksPage({ currentUser, onBack, onNavigateAuth }) {
+  // If not logged in, always view mockup; if logged in, allow manual toggle
+  const [userMockupOverride, setUserMockupOverride] = useState(false)
+  const isViewingMockup = !currentUser || userMockupOverride
+
+  // Separate date state for mockup vs real schedule
+  const [mockupBaseDate, setMockupBaseDate] = useState(() => new Date(2026, 4, 17, 12, 0, 0))
+  const [userBaseDate, setUserBaseDate] = useState(() => new Date())
+
+  const baseDate = isViewingMockup ? mockupBaseDate : userBaseDate
+  const setBaseDate = isViewingMockup ? setMockupBaseDate : setUserBaseDate
+
   const [todayKey] = useState(() => toDateKey(new Date()))
   const [viewDaysCount, setViewDaysCount] = useState(3) // 3 days (matches mockup) or 7 days
-  const [tasks, setTasks] = useState(() => {
+
+  // Separate task stores: Mockup tasks & User tasks
+  const [mockupTasks, setMockupTasks] = useState(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY)
+      const saved = localStorage.getItem(STORAGE_KEY_MOCKUP)
       if (saved) return JSON.parse(saved)
     } catch {
       // fallback
     }
-    return getInitialCalendarTasks()
+    return getMockupCalendarTasks()
   })
+
+  const userStorageKey = currentUser?.id
+    ? `ai_study_planner_user_tasks_${currentUser.id}`
+    : (currentUser?.email ? `ai_study_planner_user_tasks_${currentUser.email}` : null)
+
+  const [tasksByUser, setTasksByUser] = useState({})
+
+  const userTasks = userStorageKey
+    ? (tasksByUser[userStorageKey] ?? loadUserTasks(userStorageKey))
+    : []
+
+  function setUserTasks(updater) {
+    if (!userStorageKey) return
+    setTasksByUser(prev => {
+      const current = prev[userStorageKey] ?? loadUserTasks(userStorageKey)
+      const next = typeof updater === 'function' ? updater(current) : updater
+      try {
+        localStorage.setItem(userStorageKey, JSON.stringify(next))
+      } catch {
+        // ignore
+      }
+      return { ...prev, [userStorageKey]: next }
+    })
+  }
+
+  // Save mockup tasks to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_MOCKUP, JSON.stringify(mockupTasks))
+    } catch {
+      // ignore
+    }
+  }, [mockupTasks])
 
   // Selected task for detail popup
   const [selectedTask, setSelectedTask] = useState(null)
   const [goals, setGoals] = useState([])
   const [showAddModal, setShowAddModal] = useState(false)
-  const [addSlotData, setAddSlotData] = useState(() => ({ date: toDateKey(new Date()), startHour: 10 }))
+  const [addSlotData, setAddSlotData] = useState(() => ({
+    date: !currentUser ? '2026-05-17' : toDateKey(new Date()),
+    startHour: 10,
+  }))
 
   // New task form state
   const [newForm, setNewForm] = useState({
     title: '',
-    subject: 'Giải tích 2',
-    type: 'app', // 'app' (blue) or 'other' (gray)
+    subject: '',
+    type: 'focus', // 'focus', 'other', 'routine', 'meeting'
     startHour: 10,
     durationHours: 1.5,
     topics: '',
+    recurrence: 'none', // 'none' | 'daily' | 'weekdays' | 'weekly' | 'custom'
+    recurringDays: [1],
   })
 
-  // Save tasks to localStorage on change
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks))
-    } catch {
-      // ignore
-    }
-  }, [tasks])
+  // Active tasks based on mode
+  const activeTasks = isViewingMockup ? mockupTasks : userTasks
 
   // Load goals from API/storage for selector
   useEffect(() => {
@@ -270,22 +460,51 @@ export default function DailyTasksPage({ onBack }) {
     visibleDates.push(addDays(baseDate, i))
   }
 
-  // Header month-year title
-  const monthYearTitle = new Intl.DateTimeFormat('vi-VN', {
-    month: 'long',
-    year: 'numeric',
-  }).format(baseDate)
+  // Header month-year title: in Mockup mode format as "May 2026", else "Tháng M YYYY"
+  const monthYearTitle = isViewingMockup
+    ? new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(baseDate)
+    : new Intl.DateTimeFormat('vi-VN', { month: 'long', year: 'numeric' }).format(baseDate)
 
   function navigateDays(offset) {
     setBaseDate(prev => addDays(prev, offset))
   }
 
+  function handleDateJump(dateStr) {
+    if (!dateStr) return
+    const [y, m, d] = dateStr.split('-').map(Number)
+    if (y && m && d) {
+      setBaseDate(new Date(y, m - 1, d, 12, 0, 0))
+    }
+  }
+
+  function openDatePicker() {
+    const el = document.getElementById('cal-jump-date-input')
+    if (el?.showPicker) {
+      try {
+        el.showPicker()
+      } catch {
+        el.focus()
+      }
+    } else {
+      el?.focus()
+    }
+  }
+
+  function resetMockupData() {
+    const fresh = getMockupCalendarTasks()
+    setMockupTasks(fresh)
+    setMockupBaseDate(new Date(2026, 4, 17, 12, 0, 0))
+    setSelectedTask(null)
+  }
+
   function handleSlotClick(dateStr, hour) {
+    const dow = new Date(`${dateStr}T12:00:00`).getDay()
     setAddSlotData({ date: dateStr, startHour: hour })
     setNewForm(f => ({
       ...f,
       startHour: hour,
-      subject: goals[0]?.subject || 'Giải tích 2',
+      subject: goals[0]?.subject || (isViewingMockup ? 'Giải tích 2' : ''),
+      recurringDays: [dow],
     }))
     setShowAddModal(true)
   }
@@ -297,6 +516,7 @@ export default function DailyTasksPage({ onBack }) {
     const newTask = {
       id: `task-${Date.now()}`,
       title: newForm.title.trim(),
+      overviewLabel: newForm.type === 'other' && isViewingMockup ? '' : newForm.title.trim(),
       subject: newForm.subject,
       type: newForm.type,
       date: addSlotData.date,
@@ -304,54 +524,164 @@ export default function DailyTasksPage({ onBack }) {
       durationHours: Number(newForm.durationHours),
       topics: newForm.topics,
       completed: false,
-      source: newForm.type === 'app' ? 'ai' : 'manual',
+      completedDates: [],
+      recurrence: newForm.recurrence || 'none',
+      recurringDays: newForm.recurrence !== 'none' ? newForm.recurringDays : [],
+      startDate: addSlotData.date,
+      source: newForm.type === 'focus' ? 'ai' : 'manual',
     }
 
-    setTasks(prev => [...prev, newTask])
+    if (isViewingMockup) {
+      setMockupTasks(prev => [...prev, newTask])
+    } else {
+      setUserTasks(prev => [...prev, newTask])
+    }
+
     setShowAddModal(false)
     setNewForm({
       title: '',
-      subject: goals[0]?.subject || 'Giải tích 2',
-      type: 'app',
+      subject: goals[0]?.subject || (isViewingMockup ? 'Giải tích 2' : ''),
+      type: 'focus',
       startHour: 10,
       durationHours: 1.5,
       topics: '',
+      recurrence: 'none',
+      recurringDays: [1],
     })
   }
 
-  function toggleTaskComplete(taskId) {
-    setTasks(prev => prev.map(t => {
+  function toggleTaskComplete(taskId, targetDate) {
+    const updater = prev => prev.map(t => {
       if (t.id === taskId) {
-        const updated = { ...t, completed: !t.completed }
-        if (selectedTask?.id === taskId) {
-          setSelectedTask(updated)
+        if (t.recurrence && t.recurrence !== 'none') {
+          const completedDates = Array.isArray(t.completedDates) ? [...t.completedDates] : []
+          const dateKey = targetDate || selectedTask?.activeDate || t.date
+          const idx = completedDates.indexOf(dateKey)
+          let isNowCompleted = false
+          if (idx !== -1) {
+            completedDates.splice(idx, 1)
+            isNowCompleted = false
+          } else {
+            completedDates.push(dateKey)
+            isNowCompleted = true
+          }
+          const updated = {
+            ...t,
+            completedDates,
+            completed: isNowCompleted,
+          }
+          if (selectedTask?.id === taskId) {
+            setSelectedTask({
+              ...updated,
+              activeDate: dateKey,
+              isCompletedOnDate: isNowCompleted,
+            })
+          }
+          return updated
+        } else {
+          const updated = { ...t, completed: !t.completed }
+          if (selectedTask?.id === taskId) {
+            setSelectedTask(updated)
+          }
+          return updated
         }
-        return updated
       }
       return t
-    }))
+    })
+
+    if (isViewingMockup) {
+      setMockupTasks(updater)
+    } else {
+      setUserTasks(updater)
+    }
   }
 
   function deleteTask(taskId) {
     if (!window.confirm('Bạn có chắc muốn xóa công việc này khỏi lịch học?')) return
-    setTasks(prev => prev.filter(t => t.id !== taskId))
+    const filterer = prev => prev.filter(t => t.id !== taskId)
+    if (isViewingMockup) {
+      setMockupTasks(filterer)
+    } else {
+      setUserTasks(filterer)
+    }
     setSelectedTask(null)
   }
 
   return (
     <div className="cal-container" aria-labelledby="cal-title">
-      {/* Top Controls: Back, View Switcher & Actions */}
+      {/* Mockup Banner (Shown ONLY when not logged in or explicitly viewing mockup) */}
+      {!currentUser && (
+        <div className="cal-mockup-banner">
+          <div className="cal-mockup-banner-content">
+            <span className="cal-mockup-pill">MOCKUP DEMO</span>
+            <span className="cal-mockup-text">
+              <strong>Lịch mẫu tháng 5/2026:</strong> Đang hiển thị bản mô phỏng giao diện chuẩn theo thiết kế. Bấm vào từng ô để xem chi tiết hoặc thêm công việc thử nghiệm.
+            </span>
+          </div>
+          <div className="cal-mockup-banner-actions">
+            <button
+              type="button"
+              className="button button--secondary button--sm"
+              onClick={resetMockupData}
+              title="Khôi phục lại các ô mẫu ban đầu của tháng 5/2026"
+            >
+              Đặt lại mẫu
+            </button>
+            {onNavigateAuth && (
+              <button
+                type="button"
+                className="button button--primary button--sm"
+                onClick={onNavigateAuth}
+              >
+                Đăng nhập để dùng lịch riêng →
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {currentUser && userMockupOverride && (
+        <div className="cal-mockup-banner">
+          <div className="cal-mockup-banner-content">
+            <span className="cal-mockup-pill">MÔ PHỎNG</span>
+            <span className="cal-mockup-text">
+              <strong>Lịch mẫu thiết kế:</strong> Bạn đang xem trước bản mẫu tháng 5/2026.
+            </span>
+          </div>
+          <div className="cal-mockup-banner-actions">
+            <button
+              type="button"
+              className="button button--secondary button--sm"
+              onClick={() => setUserMockupOverride(false)}
+            >
+              Quay lại lịch của tôi
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Top Controls: Back, Mode Switcher & Actions */}
       <div className="cal-top-bar">
         <div className="cal-top-left">
           <button type="button" className="button button--secondary button--sm" onClick={onBack}>
             ← Tổng quan
           </button>
+
+          {/* Color Legend Matching the Mockup Design */}
           <div className="cal-legend">
-            <span className="legend-item">
-              <span className="legend-dot legend-dot--app" />
-              <span>AI Study Planner (Xanh dương)</span>
+            <span className="legend-item" title="Khối màu xanh lá: Nhiệm vụ ôn tập được gen từ hệ thống">
+              <span className="legend-dot legend-dot--focus" />
+              <span>Focus Time (Web app)</span>
             </span>
-            <span className="legend-item">
+            <span className="legend-item" title="Khối màu vàng: Sinh hoạt cá nhân như ăn uống, vệ sinh cá nhân, nghỉ ngơi">
+              <span className="legend-dot legend-dot--routine" />
+              <span>Sinh hoạt cá nhân (Vàng)</span>
+            </span>
+            <span className="legend-item" title="Khối màu tím/xanh dương: Họp nhóm hoặc sự kiện đã chốt">
+              <span className="legend-dot legend-dot--meeting" />
+              <span>Weekly Team Meeting</span>
+            </span>
+            <span className="legend-item" title="Khối màu xám: Tiết học trên lớp hoặc lịch trình cá nhân khác">
               <span className="legend-dot legend-dot--other" />
               <span>Lịch trình khác (Xám)</span>
             </span>
@@ -359,6 +689,19 @@ export default function DailyTasksPage({ onBack }) {
         </div>
 
         <div className="cal-top-right">
+          {/* Toggle between user schedule and mockup for logged in users */}
+          {currentUser && (
+            <button
+              type="button"
+              className="button button--secondary button--sm"
+              onClick={() => {
+                setUserMockupOverride(!userMockupOverride)
+              }}
+            >
+              {isViewingMockup ? '← Về lịch của tôi' : '✦ Xem lịch mẫu thiết kế'}
+            </button>
+          )}
+
           <div className="view-toggle-buttons">
             <button
               type="button"
@@ -375,11 +718,15 @@ export default function DailyTasksPage({ onBack }) {
               Cả tuần
             </button>
           </div>
+
           <button
             type="button"
             className="button button--primary button--sm"
             onClick={() => {
-              setAddSlotData({ date: toDateKey(new Date()), startHour: 10 })
+              setAddSlotData({
+                date: isViewingMockup ? '2026-05-17' : toDateKey(new Date()),
+                startHour: 10,
+              })
               setShowAddModal(true)
             }}
           >
@@ -409,20 +756,49 @@ export default function DailyTasksPage({ onBack }) {
           >
             →
           </button>
+
           <button
             type="button"
-            className="button button--secondary button--sm"
-            onClick={() => setBaseDate(new Date())}
+            className="cal-month-title-btn"
+            onClick={openDatePicker}
+            title="Bấm để chọn nhanh ngày cụ thể"
+            aria-label="Chọn ngày cụ thể"
           >
-            Hôm nay
+            <span id="cal-title">{monthYearTitle}</span>
+            <span className="cal-dropdown-arrow" aria-hidden="true">▾</span>
+            <input
+              type="date"
+              id="cal-jump-date-input"
+              className="cal-hidden-date-input"
+              value={toDateKey(baseDate)}
+              onChange={e => handleDateJump(e.target.value)}
+              tabIndex={-1}
+              aria-hidden="true"
+            />
           </button>
-          <h2 id="cal-title" className="cal-month-title">
-            {monthYearTitle} ▾
-          </h2>
+
+          {isViewingMockup ? (
+            <button
+              type="button"
+              className="button button--secondary button--sm"
+              onClick={() => setBaseDate(new Date(2026, 4, 17, 12, 0, 0))}
+              title="Về ngày mẫu 17-19 tháng 5/2026"
+            >
+              Về mốc 17/05/2026
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="button button--secondary button--sm"
+              onClick={() => setBaseDate(new Date())}
+            >
+              Hôm nay
+            </button>
+          )}
         </div>
 
         <div className="cal-hint-text">
-          <span>💡 Bấm vào ô bất kỳ để xem chi tiết hoặc thêm task.</span>
+          <span>💡 Bấm vào ô bất kỳ để xem chi tiết đầy đủ, hoặc bấm vào khoảng trống để thêm task.</span>
         </div>
       </div>
 
@@ -468,7 +844,7 @@ export default function DailyTasksPage({ onBack }) {
             {/* Day columns */}
             {visibleDates.map(date => {
               const dateStr = toDateKey(date)
-              const dayTasks = tasks.filter(t => t.date === dateStr)
+              const dayTasks = activeTasks.filter(t => isTaskOnDate(t, date))
 
               return (
                 <div key={dateStr} className="cal-day-column">
@@ -485,31 +861,65 @@ export default function DailyTasksPage({ onBack }) {
                   {/* Render Task Blocks inside day column */}
                   {dayTasks.map(task => {
                     const topOffset = (task.startHour - 9) * 64 // 64px per hour starting at 9am
-                    const blockHeight = Math.max(34, task.durationHours * 64 - 4)
-                    const isAppTask = task.type === 'app'
+                    const blockHeight = Math.max(28, task.durationHours * 64 - 4)
                     const isSelected = selectedTask?.id === task.id
+                    const isCompleted = isTaskCompletedOnDate(task, dateStr)
+
+                    // Styling class based on task type
+                    let blockClass = 'cal-task-block--other'
+                    if (task.type === 'routine' || task.type === 'lunch') {
+                      blockClass = 'cal-task-block--routine'
+                    } else if (task.type === 'meeting') {
+                      blockClass = 'cal-task-block--meeting'
+                    } else if (task.type === 'focus' || task.type === 'app') {
+                      blockClass = 'cal-task-block--focus'
+                    }
+
+                    // Display label in overview mode (unclicked)
+                    const displayLabel = task.overviewLabel !== undefined
+                      ? task.overviewLabel
+                      : (task.type === 'other' && isViewingMockup ? '' : task.title)
 
                     return (
                       <div
-                        key={task.id}
-                        className={`cal-task-block ${isAppTask ? 'cal-task-block--app' : 'cal-task-block--other'} ${isSelected ? 'cal-task-block--selected' : ''}`}
+                        key={`${task.id}-${dateStr}`}
+                        className={`cal-task-block ${blockClass} ${isSelected ? 'cal-task-block--selected' : ''}`}
                         style={{
                           top: `${topOffset}px`,
                           height: `${blockHeight}px`,
                         }}
                         onClick={(e) => {
                           e.stopPropagation()
-                          setSelectedTask(task)
+                          setSelectedTask({
+                            ...task,
+                            activeDate: dateStr,
+                            isCompletedOnDate: isCompleted,
+                          })
                         }}
                         role="button"
                         tabIndex={0}
-                        title={`Bấm để xem chi tiết: ${task.title}`}
+                        title={`${task.title}${task.recurrence && task.recurrence !== 'none' ? ` (${getRecurrenceLabel(task)})` : ''}`}
                       >
                         <div className="cal-task-content">
-                          <span className="cal-task-title">{task.title}</span>
-                          {task.completed && <span className="cal-task-check">✓</span>}
+                          {displayLabel ? (
+                            <span className="cal-task-title">{displayLabel}</span>
+                          ) : null}
+
+                          {task.recurrence && task.recurrence !== 'none' && (
+                            <span className="cal-task-repeat-badge" title={getRecurrenceLabel(task)}>🔁</span>
+                          )}
+
+                          {task.type === 'meeting' && (
+                            <span className="cal-task-check-circle" title="Đã xác nhận">✓</span>
+                          )}
+
+                          {task.type !== 'meeting' && isCompleted && displayLabel && (
+                            <span className="cal-task-check">✓</span>
+                          )}
                         </div>
-                        {blockHeight > 50 && (
+
+                        {/* If not in mockup or if block is tall enough, show time meta */}
+                        {!isViewingMockup && blockHeight > 54 && (
                           <span className="cal-task-meta">
                             {formatTimeRange(task.startHour, task.durationHours)}
                           </span>
@@ -530,10 +940,21 @@ export default function DailyTasksPage({ onBack }) {
           <div className="detail-modal-card" onClick={e => e.stopPropagation()}>
             <div className="detail-modal-header">
               <div className="detail-badge-group">
-                <span className={`detail-type-badge ${selectedTask.type === 'app' ? 'badge--app' : 'badge--other'}`}>
-                  {selectedTask.type === 'app' ? '✦ Task AI Study Planner' : 'Lịch trình cá nhân khác'}
+                <span className={`detail-type-badge badge--${selectedTask.type}`}>
+                  {selectedTask.type === 'focus' || selectedTask.type === 'app'
+                    ? '✦ Task AI Study Planner (Focus Time)'
+                    : selectedTask.type === 'routine' || selectedTask.type === 'lunch'
+                    ? '☕ Sinh hoạt cá nhân (Ăn uống, vệ sinh)'
+                    : selectedTask.type === 'meeting'
+                    ? '👥 Cuộc họp / Nhóm (Meeting)'
+                    : '📌 Lịch trình khác'}
                 </span>
-                {selectedTask.completed && (
+                {selectedTask.recurrence && selectedTask.recurrence !== 'none' && (
+                  <span className="detail-repeat-badge" title={getRecurrenceLabel(selectedTask)}>
+                    🔁 {getRecurrenceLabel(selectedTask)}
+                  </span>
+                )}
+                {(selectedTask.isCompletedOnDate ?? selectedTask.completed) && (
                   <span className="detail-status-badge">✓ Đã hoàn thành</span>
                 )}
               </div>
@@ -541,62 +962,77 @@ export default function DailyTasksPage({ onBack }) {
                 type="button"
                 className="detail-close-btn"
                 onClick={() => setSelectedTask(null)}
+                aria-label="Đóng popup chi tiết"
               >
                 ✕
               </button>
             </div>
 
-            <h3 className="detail-title">{selectedTask.title}</h3>
+            <div className="detail-body">
+              <h3 className="detail-title">{selectedTask.title}</h3>
 
-            <div className="detail-info-grid">
-              <div className="detail-info-item">
-                <span className="detail-label">Môn học / Phân loại</span>
-                <span className="detail-value">{selectedTask.subject || 'Mục tiêu ôn tập'}</span>
-              </div>
-              <div className="detail-info-item">
-                <span className="detail-label">Thời gian</span>
-                <span className="detail-value">
-                  📅 {selectedTask.date} · {formatTimeRange(selectedTask.startHour, selectedTask.durationHours)}
-                </span>
-              </div>
-              {selectedTask.topics && (
-                <div className="detail-info-item" style={{ gridColumn: 'span 2' }}>
-                  <span className="detail-label">Nội dung ôn tập</span>
-                  <span className="detail-value">{selectedTask.topics}</span>
-                </div>
-              )}
-              {selectedTask.location && (
+              <div className="detail-info-grid">
                 <div className="detail-info-item">
-                  <span className="detail-label">Địa điểm / Phòng học</span>
-                  <span className="detail-value">{selectedTask.location}</span>
+                  <span className="detail-label">Môn học / Phân loại</span>
+                  <span className="detail-value">{selectedTask.subject || 'Mục tiêu ôn tập'}</span>
                 </div>
-              )}
-            </div>
+                <div className="detail-info-item">
+                  <span className="detail-label">Thời gian</span>
+                  <span className="detail-value">
+                    📅 {selectedTask.activeDate || selectedTask.date} · {formatTimeRange(selectedTask.startHour, selectedTask.durationHours)}
+                  </span>
+                </div>
+                {selectedTask.recurrence && selectedTask.recurrence !== 'none' && (
+                  <div className="detail-info-item" style={{ gridColumn: 'span 2' }}>
+                    <span className="detail-label">Chu kỳ lặp lại</span>
+                    <span className="detail-value detail-value--repeat">
+                      🔁 {getRecurrenceLabel(selectedTask)}
+                    </span>
+                  </div>
+                )}
+                {selectedTask.topics && (
+                  <div className="detail-info-item" style={{ gridColumn: 'span 2' }}>
+                    <span className="detail-label">Nội dung ôn tập / Chi tiết</span>
+                    <span className="detail-value">{selectedTask.topics}</span>
+                  </div>
+                )}
+                {selectedTask.location && (
+                  <div className="detail-info-item">
+                    <span className="detail-label">Địa điểm / Nền tảng</span>
+                    <span className="detail-value">{selectedTask.location}</span>
+                  </div>
+                )}
+              </div>
 
-            <div className="detail-actions">
-              <button
-                type="button"
-                className={`button button--sm ${selectedTask.completed ? 'button--secondary' : 'button--primary'}`}
-                onClick={() => toggleTaskComplete(selectedTask.id)}
-              >
-                {selectedTask.completed ? 'Mở lại công việc' : '✓ Đánh dấu đã học xong'}
-              </button>
+              <div className="detail-actions">
+                <button
+                  type="button"
+                  className={`button button--sm ${(selectedTask.isCompletedOnDate ?? selectedTask.completed) ? 'button--secondary' : 'button--primary'}`}
+                  onClick={() => toggleTaskComplete(selectedTask.id, selectedTask.activeDate)}
+                >
+                  {(selectedTask.isCompletedOnDate ?? selectedTask.completed)
+                    ? 'Mở lại công việc'
+                    : selectedTask.recurrence && selectedTask.recurrence !== 'none'
+                    ? '✓ Đánh dấu đã xong hôm nay'
+                    : '✓ Đánh dấu đã học xong'}
+                </button>
 
-              <button
-                type="button"
-                className="button button--secondary button--sm button--danger"
-                onClick={() => deleteTask(selectedTask.id)}
-              >
-                Xóa task
-              </button>
+                <button
+                  type="button"
+                  className="button button--secondary button--sm button--danger"
+                  onClick={() => deleteTask(selectedTask.id)}
+                >
+                  Xóa task
+                </button>
 
-              <button
-                type="button"
-                className="button button--secondary button--sm"
-                onClick={() => setSelectedTask(null)}
-              >
-                Đóng
-              </button>
+                <button
+                  type="button"
+                  className="button button--secondary button--sm"
+                  onClick={() => setSelectedTask(null)}
+                >
+                  Đóng
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -604,112 +1040,320 @@ export default function DailyTasksPage({ onBack }) {
 
       {/* Quick Add Task Modal */}
       {showAddModal && (
-        <div className="detail-modal-overlay" onClick={() => setShowAddModal(false)}>
-          <div className="detail-modal-card" onClick={e => e.stopPropagation()}>
-            <div className="detail-modal-header">
-              <h3>Thêm lịch học vào thời gian biểu</h3>
+        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+          <div className="modal-card" onClick={e => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="modal-header">
+              <div>
+                <span className="modal-eyebrow">
+                  <span className="modal-eyebrow-icon">📅</span> LÊN LỊCH THEO GIỜ
+                </span>
+                <h3 className="modal-title">Thêm công việc vào thời gian biểu</h3>
+                <p className="modal-subtitle">
+                  Kế hoạch cho ngày <strong>{addSlotData.date}</strong>
+                  {isViewingMockup && <span className="modal-mockup-tag"> (Chế độ mô phỏng)</span>}
+                </p>
+              </div>
               <button
                 type="button"
-                className="detail-close-btn"
+                className="modal-close-btn"
                 onClick={() => setShowAddModal(false)}
+                aria-label="Đóng popup"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleCreateTask}>
-              <div className="modal-field">
-                <label>Loại công việc</label>
-                <div className="type-selector-group">
-                  <label className={`type-option ${newForm.type === 'app' ? 'type-option--active' : ''}`}>
-                    <input
-                      type="radio"
-                      name="taskType"
-                      value="app"
-                      checked={newForm.type === 'app'}
-                      onChange={() => setNewForm(f => ({ ...f, type: 'app' }))}
-                    />
-                    <span className="type-indicator type-indicator--app" />
-                    <span>Task AI Study Planner (Xanh dương)</span>
-                  </label>
-                  <label className={`type-option ${newForm.type === 'other' ? 'type-option--active' : ''}`}>
-                    <input
-                      type="radio"
-                      name="taskType"
-                      value="other"
-                      checked={newForm.type === 'other'}
-                      onChange={() => setNewForm(f => ({ ...f, type: 'other' }))}
-                    />
-                    <span className="type-indicator type-indicator--other" />
-                    <span>Lịch trình cá nhân khác (Xám)</span>
-                  </label>
+            <form onSubmit={handleCreateTask} className="modal-form">
+              {/* Task Type Switcher Cards */}
+              <div className="form-group">
+                <label className="form-label">Phân loại công việc</label>
+                <div className="type-cards-grid type-cards-grid--4">
+                  <button
+                    type="button"
+                    className={`type-card ${newForm.type === 'focus' ? 'type-card--focus-active' : ''}`}
+                    onClick={() => setNewForm(f => ({ ...f, type: 'focus' }))}
+                  >
+                    <div className="type-card-indicator type-card-indicator--focus" />
+                    <div className="type-card-text">
+                      <span className="type-card-title">Focus Time (AI)</span>
+                      <span className="type-card-desc">Khối xanh lá · Ôn tập trọng tâm</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`type-card ${newForm.type === 'other' ? 'type-card--other-active' : ''}`}
+                    onClick={() => setNewForm(f => ({ ...f, type: 'other' }))}
+                  >
+                    <div className="type-card-indicator type-card-indicator--other" />
+                    <div className="type-card-text">
+                      <span className="type-card-title">Lịch trình khác</span>
+                      <span className="type-card-desc">Khối màu xám · Tiết học, tự học</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`type-card ${newForm.type === 'routine' || newForm.type === 'lunch' ? 'type-card--routine-active' : ''}`}
+                    onClick={() => setNewForm(f => ({ ...f, type: 'routine' }))}
+                  >
+                    <div className="type-card-indicator type-card-indicator--routine" />
+                    <div className="type-card-text">
+                      <span className="type-card-title">Sinh hoạt cá nhân</span>
+                      <span className="type-card-desc">Khối màu vàng · Ăn uống, vệ sinh...</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`type-card ${newForm.type === 'meeting' ? 'type-card--meeting-active' : ''}`}
+                    onClick={() => setNewForm(f => ({ ...f, type: 'meeting' }))}
+                  >
+                    <div className="type-card-indicator type-card-indicator--meeting" />
+                    <div className="type-card-text">
+                      <span className="type-card-title">Họp nhóm (Meeting)</span>
+                      <span className="type-card-desc">Khối màu tím/xanh · Có checkmark</span>
+                    </div>
+                  </button>
                 </div>
               </div>
 
-              <div className="modal-field">
-                <label>Tên công việc / Môn học</label>
+              {/* Task Title */}
+              <div className="form-group">
+                <label className="form-label" htmlFor="task-title-input">
+                  Tên công việc <span className="required-star">*</span>
+                </label>
                 <input
-                  className="modal-input"
-                  placeholder="Ví dụ: Ôn tập Tích phân đường hoặc Học trên trường"
+                  id="task-title-input"
+                  className="form-input"
+                  placeholder="Ví dụ: Tiết học trên lớp, Ôn tập Giải tích 2, hoặc Ăn trưa"
                   required
                   value={newForm.title}
                   onChange={e => setNewForm(f => ({ ...f, title: e.target.value }))}
                 />
               </div>
 
-              <div className="modal-field">
-                <label>Môn học liên quan</label>
-                <input
-                  className="modal-input"
-                  placeholder="Ví dụ: Giải tích 2, Cơ sở dữ liệu..."
-                  value={newForm.subject}
-                  onChange={e => setNewForm(f => ({ ...f, subject: e.target.value }))}
-                />
+              {/* Subject with Goals Dropdown / Datalist */}
+              <div className="form-group">
+                <div className="form-label-row">
+                  <label className="form-label" htmlFor="task-subject-input">
+                    Môn học / Phân loại
+                  </label>
+                  {goals.length > 0 && (
+                    <span className="form-label-hint">
+                      (Đã đồng bộ {goals.length} môn từ mục tiêu US-01)
+                    </span>
+                  )}
+                </div>
+                <div className="subject-input-wrapper">
+                  <input
+                    id="task-subject-input"
+                    className="form-input"
+                    list="goals-datalist"
+                    placeholder="Ví dụ: Giải tích 2, Cơ sở dữ liệu, Sinh hoạt cá nhân..."
+                    value={newForm.subject}
+                    onChange={e => setNewForm(f => ({ ...f, subject: e.target.value }))}
+                  />
+                  {goals.length > 0 && (
+                    <datalist id="goals-datalist">
+                      {goals.map(g => (
+                        <option key={g.id} value={g.subject} />
+                      ))}
+                    </datalist>
+                  )}
+                </div>
               </div>
 
-              <div className="date-time-grid">
-                <div className="modal-field">
-                  <label>Giờ bắt đầu</label>
+              {/* Lặp lại định kỳ (Repetitive / Recurrence) */}
+              <div className="form-group recurrence-group">
+                <div className="form-label-row">
+                  <label className="form-label">
+                    <span className="recurrence-label-icon">🔁</span> Lặp lại định kỳ (Môn học cố định, sinh hoạt...)
+                  </label>
+                  <span className="form-label-hint">Lặp lại cùng giờ vào các ngày trong tuần</span>
+                </div>
+
+                <div className="recurrence-options-grid">
+                  <button
+                    type="button"
+                    className={`recurrence-chip ${newForm.recurrence === 'none' ? 'recurrence-chip--active' : ''}`}
+                    onClick={() => setNewForm(f => ({ ...f, recurrence: 'none' }))}
+                  >
+                    Không lặp lại
+                  </button>
+                  <button
+                    type="button"
+                    className={`recurrence-chip ${newForm.recurrence === 'weekly' ? 'recurrence-chip--active' : ''}`}
+                    onClick={() => {
+                      const dow = new Date(`${addSlotData.date}T12:00:00`).getDay()
+                      setNewForm(f => ({ ...f, recurrence: 'weekly', recurringDays: [dow] }))
+                    }}
+                  >
+                    Hàng tuần (Thứ {new Date(`${addSlotData.date}T12:00:00`).getDay() === 0 ? 'CN' : new Date(`${addSlotData.date}T12:00:00`).getDay() + 1})
+                  </button>
+                  <button
+                    type="button"
+                    className={`recurrence-chip ${newForm.recurrence === 'weekdays' ? 'recurrence-chip--active' : ''}`}
+                    onClick={() => setNewForm(f => ({ ...f, recurrence: 'weekdays', recurringDays: [1, 2, 3, 4, 5] }))}
+                  >
+                    T2 – T6 (Trong tuần)
+                  </button>
+                  <button
+                    type="button"
+                    className={`recurrence-chip ${newForm.recurrence === 'daily' ? 'recurrence-chip--active' : ''}`}
+                    onClick={() => setNewForm(f => ({ ...f, recurrence: 'daily', recurringDays: [0, 1, 2, 3, 4, 5, 6] }))}
+                  >
+                    Mỗi ngày (Cả tuần)
+                  </button>
+                  <button
+                    type="button"
+                    className={`recurrence-chip ${newForm.recurrence === 'custom' ? 'recurrence-chip--active' : ''}`}
+                    onClick={() => setNewForm(f => ({ ...f, recurrence: 'custom' }))}
+                  >
+                    Tùy chọn ngày…
+                  </button>
+                </div>
+
+                {/* Day-of-week pills for custom selection */}
+                {newForm.recurrence === 'custom' && (
+                  <div className="recurrence-days-pills">
+                    {[
+                      { dow: 1, label: 'T2' },
+                      { dow: 2, label: 'T3' },
+                      { dow: 3, label: 'T4' },
+                      { dow: 4, label: 'T5' },
+                      { dow: 5, label: 'T6' },
+                      { dow: 6, label: 'T7' },
+                      { dow: 0, label: 'CN' },
+                    ].map(({ dow, label }) => {
+                      const isSelected = newForm.recurringDays.includes(dow)
+                      return (
+                        <button
+                          key={dow}
+                          type="button"
+                          className={`day-pill ${isSelected ? 'day-pill--active' : ''}`}
+                          onClick={() => {
+                            setNewForm(f => {
+                              const days = isSelected
+                                ? f.recurringDays.filter(d => d !== dow)
+                                : [...f.recurringDays, dow]
+                              return { ...f, recurringDays: days.length > 0 ? days : [dow] }
+                            })
+                          }}
+                        >
+                          {label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Date, Start Hour & Duration Grid */}
+              <div className="form-row-grid">
+                <div className="form-group">
+                  <label className="form-label" htmlFor="task-date-input">
+                    Ngày bắt đầu
+                  </label>
+                  <input
+                    id="task-date-input"
+                    type="date"
+                    className="form-input"
+                    value={addSlotData.date}
+                    onChange={e => {
+                      const newDate = e.target.value
+                      setAddSlotData(prev => ({ ...prev, date: newDate }))
+                      if (newForm.recurrence === 'weekly') {
+                        const dow = new Date(`${newDate}T12:00:00`).getDay()
+                        setNewForm(f => ({ ...f, recurringDays: [dow] }))
+                      }
+                    }}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="task-hour-select">
+                    Giờ bắt đầu
+                  </label>
                   <select
-                    className="modal-input"
+                    id="task-hour-select"
+                    className="form-select"
                     value={newForm.startHour}
                     onChange={e => setNewForm(f => ({ ...f, startHour: Number(e.target.value) }))}
                   >
                     {HOURS.map(h => (
-                      <option key={h} value={h}>{formatHour(h)}</option>
+                      <option key={h} value={h}>{formatHour(h)} ({h}:00)</option>
                     ))}
                   </select>
                 </div>
-                <div className="modal-field">
-                  <label>Thời lượng (giờ)</label>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="task-duration-select">
+                    Thời lượng
+                  </label>
                   <select
-                    className="modal-input"
+                    id="task-duration-select"
+                    className="form-select"
                     value={newForm.durationHours}
                     onChange={e => setNewForm(f => ({ ...f, durationHours: Number(e.target.value) }))}
                   >
                     <option value={0.5}>30 phút (0.5h)</option>
-                    <option value={1}>1 giờ</option>
+                    <option value={1}>1 giờ (60 phút)</option>
                     <option value={1.5}>1.5 giờ (90 phút)</option>
-                    <option value={2}>2 giờ</option>
-                    <option value={2.5}>2.5 giờ</option>
-                    <option value={3}>3 giờ</option>
+                    <option value={2}>2 giờ (120 phút)</option>
+                    <option value={2.5}>2.5 giờ (150 phút)</option>
+                    <option value={3}>3 giờ (180 phút)</option>
                   </select>
                 </div>
               </div>
 
-              <div className="modal-actions">
+              {/* Time Range Preview Banner */}
+              <div className="time-preview-banner">
+                <span className="time-preview-icon">⏱</span>
+                <span>
+                  Khung giờ dự kiến: <strong>{formatTimeRange(newForm.startHour, newForm.durationHours)}</strong>
+                  {newForm.recurrence && newForm.recurrence !== 'none' ? (
+                    <span> · 🔁 <strong>{getRecurrenceLabel(newForm)}</strong></span>
+                  ) : (
+                    <span> ngày <strong>{addSlotData.date}</strong></span>
+                  )}
+                </span>
+              </div>
+
+              {/* Topics / Notes */}
+              <div className="form-group">
+                <label className="form-label" htmlFor="task-topics-input">
+                  Chủ đề / Ghi chú ôn tập (Tùy chọn)
+                </label>
+                <textarea
+                  id="task-topics-input"
+                  className="form-textarea"
+                  rows={2}
+                  placeholder="Ví dụ: Giảng đường H2-301, làm bài tập mẫu hoặc ăn uống giải lao..."
+                  value={newForm.topics}
+                  onChange={e => setNewForm(f => ({ ...f, topics: e.target.value }))}
+                />
+              </div>
+
+              {/* Modal Footer Actions */}
+              <div className="modal-actions-bar">
                 <button
                   type="button"
                   className="button button--secondary"
                   onClick={() => setShowAddModal(false)}
                 >
-                  Hủy
+                  Hủy bỏ
                 </button>
                 <button
                   type="submit"
                   className="button button--primary"
                 >
-                  Lưu vào lịch
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                  <span>{isViewingMockup ? 'Thêm vào lịch mô phỏng' : 'Lưu vào lịch học'}</span>
                 </button>
               </div>
             </form>

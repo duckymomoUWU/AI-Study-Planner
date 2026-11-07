@@ -6,6 +6,7 @@ import { Label } from '../components/ui/label.jsx'
 import { Alert, AlertTitle, AlertDescription } from '../components/ui/alert.jsx'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs.jsx'
 import { login, register, AuthApiError } from '../lib/auth.js'
+import { clearPlaceholderGoals } from '../lib/goals.js'
 import './AuthPage.css'
 
 export default function AuthPage({ onAuthSuccess, onBack, initialTab = 'login' }) {
@@ -99,6 +100,15 @@ export default function AuthPage({ onAuthSuccess, onBack, initialTab = 'login' }
     try {
       await register(email.trim(), password)
       setSuccessMessage('Đăng ký tài khoản thành công! Đang tự động đăng nhập...')
+
+      // New account creation: Ensure no mockup or leftover placeholder data exists
+      clearPlaceholderGoals()
+      try {
+        localStorage.removeItem('ai_study_planner_calendar_tasks_v2')
+        localStorage.removeItem('ai_study_planner_calendar_tasks_user_v2')
+      } catch {
+        // ignore
+      }
 
       // Auto-login after successful registration
       const user = await login(email.trim(), password)

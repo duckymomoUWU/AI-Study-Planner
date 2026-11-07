@@ -24,7 +24,17 @@ function getPageFromHash() {
 
 export default function App() {
   const [activePage, setActivePageState] = useState(getPageFromHash) // 'overview' | 'goals' | 'daily' | 'auth'
-  const [currentUser, setCurrentUser] = useState(null)
+  const [currentUser, setCurrentUser] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('ai_study_planner_user')
+        if (saved) return JSON.parse(saved)
+      } catch {
+        // fallback
+      }
+    }
+    return null
+  })
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -66,10 +76,16 @@ export default function App() {
         const user = await getCurrentUser()
         if (!ignore) {
           setCurrentUser(user)
+          if (user) {
+            localStorage.setItem('ai_study_planner_user', JSON.stringify(user))
+          } else {
+            localStorage.removeItem('ai_study_planner_user')
+          }
         }
       } catch {
         if (!ignore) {
           setCurrentUser(null)
+          localStorage.removeItem('ai_study_planner_user')
         }
       } finally {
         if (!ignore) {
@@ -89,12 +105,16 @@ export default function App() {
     } catch {
       // Ignored
     }
+    localStorage.removeItem('ai_study_planner_user')
     setCurrentUser(null)
     setShowUserMenu(false)
     setActivePage('overview')
   }
 
   function handleAuthSuccess(user) {
+    if (user) {
+      localStorage.setItem('ai_study_planner_user', JSON.stringify(user))
+    }
     setCurrentUser(user)
     setActivePage('goals')
   }
@@ -301,13 +321,17 @@ export default function App() {
               />
             ) : activePage === 'goals' ? (
               <GoalsPage
+                currentUser={currentUser}
                 onBack={() => setActivePage('overview')}
                 onNavigateDaily={() => setActivePage('daily')}
+                onNavigateAuth={() => setActivePage('auth')}
               />
             ) : activePage === 'daily' ? (
               <DailyTasksPage
+                currentUser={currentUser}
                 onBack={() => setActivePage('overview')}
                 onNavigateGoals={() => setActivePage('goals')}
+                onNavigateAuth={() => setActivePage('auth')}
               />
             ) : (
               <>

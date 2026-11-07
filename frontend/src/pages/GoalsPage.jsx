@@ -43,6 +43,9 @@ function apiMessage(error) {
   if (error instanceof GoalApiError && error.status === 404) {
     return 'API mục tiêu chưa khả dụng hoặc mục tiêu không còn tồn tại. Backend Goal CRUD vẫn đang được hoàn thiện.'
   }
+  if (error instanceof GoalApiError && (error.status === 502 || error.status === 503 || error.status === 504)) {
+    return 'Máy chủ backend chưa khởi động (HTTP 502 Bad Gateway). Giao diện đang hoạt động với dữ liệu mô phỏng (Placeholder).'
+  }
   if (error instanceof GoalApiError && error.status === 409) {
     return 'Mục tiêu vừa được cập nhật ở nơi khác. Hãy tải lại danh sách trước khi sửa tiếp.'
   }
@@ -53,7 +56,7 @@ function mapFieldErrors(error) {
   return Object.fromEntries((error?.fieldErrors || []).map(item => [item.field, item.message]))
 }
 
-export default function GoalsPage({ onBack, onNavigateDaily }) {
+export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavigateAuth }) {
   const [goals, setGoals] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -245,7 +248,7 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
       )}
 
       {/* Unauthenticated Alert */}
-      {isUnauthenticated && (
+      {!currentUser && isUnauthenticated && (
         <div className="goal-alert goal-alert--info" role="alert">
           <div>
             <strong>Chưa xác thực:</strong> Bạn cần đăng nhập để lưu trữ mục tiêu cá nhân.
@@ -253,7 +256,7 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
           <button
             type="button"
             className="button button--primary button--sm"
-            onClick={() => { window.location.hash = '#login' }}
+            onClick={onNavigateAuth || (() => { window.location.hash = '#login' })}
           >
             Đăng nhập ngay →
           </button>

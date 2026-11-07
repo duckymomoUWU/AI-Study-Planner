@@ -10,31 +10,56 @@ export class GoalApiError extends Error {
   }
 }
 
-// In-memory placeholder goals when backend Goal API (Dev 2) is pending
-let placeholderGoals = [
-  {
-    id: 'placeholder-goal-1',
-    subject: 'Giải tích 2',
-    topics: 'Tích phân đường, mặt; phương trình vi phân cấp 2',
-    startDate: '2026-11-09',
-    examDate: '2026-12-05',
-    minutesPerDay: 90,
-    timezone: 'Asia/Ho_Chi_Minh',
-    version: 0,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'placeholder-goal-2',
-    subject: 'Cơ sở dữ liệu',
-    topics: 'Mô hình ER, SQL, chuẩn hóa 1NF - BCNF, transaction',
-    startDate: '2026-11-10',
-    examDate: '2026-12-20',
-    minutesPerDay: 60,
-    timezone: 'Asia/Ho_Chi_Minh',
-    version: 0,
-    createdAt: new Date().toISOString(),
-  },
-]
+const STORAGE_KEY = 'ai_study_planner_placeholder_goals'
+
+// Initial seed goals: Clean empty state for registered users (no mockup data)
+function getInitialPlaceholderGoals() {
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed)) {
+          // Exclude any legacy placeholder/mock goals
+          return parsed.filter(g => !g.id.startsWith('placeholder-goal-'))
+        }
+      }
+    } catch {
+      // fallback
+    }
+  }
+  return []
+}
+
+let placeholderGoals = getInitialPlaceholderGoals()
+
+export function clearPlaceholderGoals() {
+  placeholderGoals = []
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.removeItem(STORAGE_KEY)
+    } catch {
+      // ignore
+    }
+  }
+}
+
+function savePlaceholderGoals() {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(placeholderGoals))
+    } catch {
+      // ignore
+    }
+  }
+}
+
+const isBackendPending = (error) =>
+  typeof window !== 'undefined' &&
+  (
+    (error instanceof GoalApiError && [404, 502, 503, 504].includes(error.status)) ||
+    error instanceof TypeError
+  )
 
 async function request(path, { method = 'GET', body, signal, csrfToken } = {}) {
   const headers = { Accept: 'application/json' }
@@ -91,8 +116,8 @@ export async function listGoals({ signal } = {}) {
     if (error instanceof GoalApiError && error.status === 401) {
       throw error
     }
-    // Fallback to placeholder goals when backend is not yet available
-    if (typeof window !== 'undefined' && error instanceof GoalApiError && error.status === 404) {
+    // Fallback to placeholder goals when backend is not yet available (404 / 502 proxy ECONNREFUSED)
+    if (isBackendPending(error)) {
       return [...placeholderGoals]
     }
     throw error
@@ -106,7 +131,7 @@ export async function createGoal(input, { signal } = {}) {
     if (error instanceof GoalApiError && error.status === 401) {
       throw error
     }
-    if (typeof window !== 'undefined' && error instanceof GoalApiError && error.status === 404) {
+    if (isBackendPending(error)) {
       const newGoal = {
         id: `goal-local-${Date.now()}`,
         ...input,
@@ -115,6 +140,7 @@ export async function createGoal(input, { signal } = {}) {
         createdAt: new Date().toISOString(),
       }
       placeholderGoals.push(newGoal)
+      savePlaceholderGoals()
       return newGoal
     }
     throw error
@@ -132,7 +158,7 @@ export async function updateGoal(goalId, input, { signal } = {}) {
     if (error instanceof GoalApiError && error.status === 401) {
       throw error
     }
-    if (typeof window !== 'undefined' && error instanceof GoalApiError && error.status === 404) {
+    if (isBackendPending(error)) {
       const index = placeholderGoals.findIndex(g => g.id === goalId)
       if (index !== -1) {
         placeholderGoals[index] = {
@@ -140,6 +166,7 @@ export async function updateGoal(goalId, input, { signal } = {}) {
           ...input,
           version: (placeholderGoals[index].version || 0) + 1,
         }
+        savePlaceholderGoals()
         return placeholderGoals[index]
       }
     }
@@ -157,8 +184,9 @@ export async function deleteGoal(goalId, { signal } = {}) {
     if (error instanceof GoalApiError && error.status === 401) {
       throw error
     }
-    if (typeof window !== 'undefined' && error instanceof GoalApiError && error.status === 404) {
+    if (isBackendPending(error)) {
       placeholderGoals = placeholderGoals.filter(g => g.id !== goalId)
+      savePlaceholderGoals()
       return null
     }
     throw error
