@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import BackendStatus from './components/BackendStatus.jsx'
 import GoalsPage from './pages/GoalsPage.jsx'
+import DailyTasksPage from './pages/DailyTasksPage.jsx'
 import AuthPage from './pages/AuthPage.jsx'
 import { getCurrentUser, logout } from './lib/auth.js'
 import './App.css'
@@ -17,11 +18,12 @@ function getPageFromHash() {
   const hash = window.location.hash.toLowerCase()
   if (hash === '#auth' || hash === '#login' || hash === '#register') return 'auth'
   if (hash === '#goals') return 'goals'
+  if (hash === '#daily' || hash === '#tasks') return 'daily'
   return 'overview'
 }
 
 export default function App() {
-  const [activePage, setActivePageState] = useState(getPageFromHash) // 'overview' | 'goals' | 'auth'
+  const [activePage, setActivePageState] = useState(getPageFromHash) // 'overview' | 'goals' | 'daily' | 'auth'
   const [currentUser, setCurrentUser] = useState(null)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
 
@@ -103,7 +105,14 @@ export default function App() {
               className={`nav-link ${activePage === 'goals' ? 'nav-link--active' : ''}`}
               onClick={() => setActivePage('goals')}
             >
-              <span aria-hidden="true">◎</span> Mục tiêu
+              <span aria-hidden="true">◎</span> Mục tiêu (US-01)
+            </button>
+            <button
+              type="button"
+              className={`nav-link ${activePage === 'daily' ? 'nav-link--active' : ''}`}
+              onClick={() => setActivePage('daily')}
+            >
+              <span aria-hidden="true">📅</span> Lịch học hôm nay (US-03)
             </button>
             {!currentUser && (
               <button
@@ -127,7 +136,8 @@ export default function App() {
         <div className="workspace">
           <header className="topbar">
             <span>
-              {activePage === 'goals' && 'Quản lý mục tiêu'}
+              {activePage === 'goals' && 'Quản lý mục tiêu (US-01)'}
+              {activePage === 'daily' && 'Lịch học theo ngày (US-03)'}
               {activePage === 'overview' && 'Không gian học tập'}
               {activePage === 'auth' && 'Xác thực tài khoản'}
             </span>
@@ -158,7 +168,7 @@ export default function App() {
                   </button>
                 )
               )}
-              <span className="version">Bản khởi tạo · MVP</span>
+              <span className="version">Sprint 2 · UI Demo</span>
             </div>
           </header>
 
@@ -170,7 +180,15 @@ export default function App() {
                 onBack={() => setActivePage('overview')}
               />
             ) : activePage === 'goals' ? (
-              <GoalsPage onBack={() => setActivePage('overview')} />
+              <GoalsPage
+                onBack={() => setActivePage('overview')}
+                onNavigateDaily={() => setActivePage('daily')}
+              />
+            ) : activePage === 'daily' ? (
+              <DailyTasksPage
+                onBack={() => setActivePage('overview')}
+                onNavigateGoals={() => setActivePage('goals')}
+              />
             ) : (
               <>
                 <div className="page-heading">
@@ -181,12 +199,15 @@ export default function App() {
 
                 <section className="hero-card" aria-labelledby="hero-title">
                   <div>
-                    <span className="hero-label">TỪ MỤC TIÊU ĐẾN HÀNH ĐỘNG</span>
-                    <h2 id="hero-title">Bắt đầu từ một<br />kế hoạch rõ ràng.</h2>
-                    <p>Nhập nội dung, thời hạn và quỹ thời gian.<br />Cùng xây dựng một hành trình ôn tập phù hợp.</p>
+                    <span className="hero-label">SPRINT 2 GIAO DIỆN MỚI</span>
+                    <h2 id="hero-title">Bắt đầu từ mục tiêu<br />và việc làm mỗi ngày.</h2>
+                    <p>Thiết lập môn học cần ôn thi và theo dõi sát sao từng việc cần hoàn thành trong hôm nay.</p>
                     <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                       <button className="button button--primary" type="button" onClick={() => setActivePage('goals')}>
-                        Quản lý mục tiêu <span aria-hidden="true">→</span>
+                        Quản lý mục tiêu (US-01) <span aria-hidden="true">→</span>
+                      </button>
+                      <button className="button button--secondary" type="button" onClick={() => setActivePage('daily')}>
+                        Lịch học hôm nay (US-03) <span aria-hidden="true">→</span>
                       </button>
                       {!currentUser && (
                         <button className="button button--secondary" type="button" onClick={() => setActivePage('auth')}>
@@ -226,7 +247,7 @@ export default function App() {
                       </div>
                       <h3>{stage.title}</h3>
                       <p>{stage.text}</p>
-                      <span className="planned">Dự kiến phát triển</span>
+                      <span className="planned">Sprint 2 Đang triển khai</span>
                     </article>
                   ))}
                 </div>
@@ -234,9 +255,9 @@ export default function App() {
                 <div className="bottom-grid">
                   <BackendStatus />
                   <section className="scope-card" aria-labelledby="scope-title">
-                    <span className="eyebrow">BƯỚC KHỞI ĐẦU</span>
-                    <h2 id="scope-title">Nền tảng đã sẵn sàng để phát triển.</h2>
-                    <p>Đăng nhập/đăng ký đã được kết nối với backend Spring Security session cookie. Mục tiêu và đề xuất AI sẽ được lưu trữ an toàn theo từng tài khoản.</p>
+                    <span className="eyebrow">TIẾN ĐỘ SPRINT 2</span>
+                    <h2 id="scope-title">Giao diện US-01 & US-03 đã sẵn sàng.</h2>
+                    <p>Giao diện Quản lý mục tiêu (US-01) và Lịch học theo ngày (US-03) đã được hiện thực hoàn chỉnh trên branch <code>dev4-sprint2-UI</code> với các endpoint placeholder.</p>
                     <a className="text-link" href={`${repository}/wiki/Project-Overview`}>Xem phạm vi và kiến trúc <span aria-hidden="true">→</span></a>
                   </section>
                 </div>
