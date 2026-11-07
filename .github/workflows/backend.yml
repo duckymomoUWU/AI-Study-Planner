@@ -43,4 +43,4 @@ jobs:
           cache: maven
           cache-dependency-path: backend/pom.xml
       - name: Maven unit and PostgreSQL integration tests
-        run: mvn -B -ntp -f backend/pom.xml -Dgoal.integration=true verify
+        run: mvn -B -ntp -f backend/pom.xml -Dgoal.integration=true -Dauth.integration=true verify
