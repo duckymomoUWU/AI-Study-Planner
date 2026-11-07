@@ -83,3 +83,55 @@ AC 1–4 are met for the Goal CRUD and ownership scope, with real PostgreSQL evi
 - `mvn clean verify -Dgoal.integration=true -Dauth.integration=true` (disposable `postgres:17`): 111 tests, 0 failures, 0 skipped. `npm test` 32 tests, `npm run lint` and `npm run build` clean.
 - Live HTTP against the running app (curl, throwaway account, deleted afterwards): `/api/v1/auth/csrf`, register (201), duplicate register (409 `EMAIL_ALREADY_EXISTS`), wrong password (401 `INVALID_CREDENTIALS`), login, `/api/v1/me`, `POST` (201, trimmed subject), `POST` with `userId` and 481 minutes (400, `unknown_field` and `out_of_range`), paged list with `meta`, `PATCH` (200, version 1), stale `PATCH` (409 `GOAL_VERSION_CONFLICT`), `DELETE` (204), logout (204), `/api/v1/me` afterwards (401 `UNAUTHORIZED`); the old path `/api/goals` no longer serves data.
 - Browser (new frontend, new throwaway account): register with automatic login, server error under minutes (481), create (subject trimmed, listed), edit rejected by existing tasks with the task/day message, valid edit to version 1, detail panel, delete with the confirmation stubbed to accept (goal and tasks gone from the database). Limits L1–L7 above still apply.
+
+## 9. Kiểm chứng ASP-67 → ASP-70 (xem tiến độ) và đối chiếu Definition of Done (ASP-113)
+
+Ngày chạy 2026-11-07, nhánh `dev4-sprint3`. Mô tả tính năng: [goal-progress.md](goal-progress.md).
+
+### 9.1 Lệnh và kết quả
+
+| Kiểm tra | Lệnh | Kết quả |
+| --- | --- | --- |
+| Backend, gồm test PostgreSQL | `mvn -f backend/pom.xml -Dgoal.integration=true -Dauth.integration=true clean verify` (container `postgres:17` dùng một lần, cổng 55433) | **Đạt**: 130 test, 0 lỗi, 0 bỏ qua (có `ProgressApiPostgresIntegrationTest` 5 ca, `ProgressControllerTest` 6, `ProgressServiceTest` 5, `ProgressJdbcRepositoryTest` 3) |
+| Frontend test | `npm test` | **Đạt**: 38 test (có `progress.test.js` 6 ca) |
+| Frontend lint, build | `npm run lint`, `npm run build` | **Đạt** |
+| Trình duyệt trên stack thật | Vite dev, `spring-boot:run`, tài khoản thử mới | **Đạt**, các bước ở 9.3 |
+| CI trên GitHub | Actions | **Chưa chạy** |
+
+### 9.2 Đối chiếu Definition of Done
+
+| Mục | Trạng thái | Ghi chú |
+| --- | --- | --- |
+| Xem số hoàn thành, còn lại, tổng và tỷ lệ của mục tiêu qua API và giao diện | Đạt | Test API+DB; demo trình duyệt |
+| Chưa có việc hiển thị 0/0, không chia cho 0 | Đạt | Test backend, test client, demo |
+| Tính trên toàn bộ công việc, không theo trang | Đạt | Test 25 công việc |
+| Bản nháp không được đếm | Đạt | Test PostgreSQL và test SQL |
+| Kiểm tra quyền sở hữu ở server | Đạt | Tài khoản khác nhận 404; không có phiên 401 |
+| Không đánh giá mức độ hiểu bài | Đạt | Chỉ hiển thị số đếm và phần trăm |
+| Lỗi rõ ràng, không báo giả | Đạt | 401, 404, lỗi khác có thông báo riêng từng mục tiêu |
+| Không ghi mật khẩu, API key, nội dung học vào log | Chưa kiểm | Chỉ rà mã: endpoint chỉ đọc, bộ xử lý lỗi chỉ ghi tên lớp lỗi; chưa kiểm log của server đang chạy |
+| Review bởi Developer khác | **Chưa làm** | Mới có tự rà soát ở 9.4 |
+| Merge vào `main`, CI | **Chưa làm** | Chưa tạo PR; CI chưa chạy |
+| Có thể demo | Đạt | 9.3 |
+
+Không khai báo story là Done: thiếu review độc lập, merge và CI.
+
+### 9.3 Demo trình duyệt (đã chạy)
+
+1. Đăng ký tài khoản thử; tạo hai mục tiêu; chèn 5 công việc cho mục tiêu thứ nhất bằng SQL (2 đã hoàn thành). Chưa có API đổi trạng thái trên nhánh này.
+2. Trang Mục tiêu: mục tiêu có việc hiện "2/5 việc", thanh 40%, "2 hoàn thành · 3 còn lại"; mục tiêu chưa có việc hiện "0/0 việc", thanh 0%, "Chưa có công việc."
+3. Khung "Chi tiết" hiện cùng số liệu.
+4. Đặt cả 5 công việc là hoàn thành trong DB rồi tải lại trang: "5/5 việc", thanh 100%, "0 còn lại".
+5. Nút ở đầu trang Mục tiêu từng lệch hàng do `margin-top` toàn cục của `.button--primary`; đã sửa và đo lại cùng vị trí, cùng chiều cao.
+
+### 9.4 Tự rà soát mã (chưa thay cho review của người khác)
+
+- Truy vấn tiến độ nối `study_goals` và lọc `user_id` trong cùng một câu lệnh, không ghép chuỗi người dùng vào SQL.
+- Endpoint chỉ đọc; không khóa, không đổi version (có test kiểm version giữ nguyên sau khi đọc).
+- Đã biết, chưa xử lý: mỗi mục tiêu gọi một yêu cầu riêng; danh sách rất dài sẽ phát sinh nhiều yêu cầu. Chưa có API gộp; không có trong đặc tả.
+
+### 9.5 Giới hạn chưa kiểm chứng
+
+- Trên nhánh này trạng thái hoàn thành chỉ đặt được bằng SQL; chưa kiểm chuỗi "bấm checkbox → tiến độ đổi" vì tính năng đó nằm ở nhánh `dev2-sprint3`. Cần kiểm lại sau khi gộp hai nhánh.
+- Chưa có test component React; giao diện kiểm bằng test logic thuần và demo thủ công.
+- Chưa kiểm bằng trình duyệt thứ hai cho tài khoản khác; truy cập chéo chỉ kiểm bằng test API+DB.
