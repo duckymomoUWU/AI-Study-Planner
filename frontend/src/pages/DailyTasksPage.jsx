@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react'
 import { listGoals } from '../lib/goals.js'
+import {
+  listTasksByDate,
+  createTask as apiCreateTask,
+  toggleTaskComplete as apiToggleTaskComplete,
+  deleteTask as apiDeleteTask,
+  listOverdueTasks,
+  TaskApiError,
+} from '../lib/tasks.js'
 import './DailyTasksPage.css'
 
 // Helper: Format date YYYY-MM-DD
@@ -429,6 +437,10 @@ export default function DailyTasksPage({ currentUser, onBack, onNavigateAuth }) 
   const [selectedTask, setSelectedTask] = useState(null)
   const [goals, setGoals] = useState([])
   const [showAddModal, setShowAddModal] = useState(false)
+  const [apiTasks, setApiTasks] = useState([])
+  const [apiError, setApiError] = useState(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [overdueTasks, setOverdueTasks] = useState([])
   const [addSlotData, setAddSlotData] = useState(() => ({
     date: !currentUser ? '2026-05-17' : toDateKey(new Date()),
     startHour: 10,
@@ -446,19 +458,79 @@ export default function DailyTasksPage({ currentUser, onBack, onNavigateAuth }) 
     recurringDays: [1],
   })
 
-  // Active tasks based on mode
-  const activeTasks = isViewingMockup ? mockupTasks : userTasks
-
-  // Load goals from API/storage for selector
-  useEffect(() => {
-    listGoals().then(res => setGoals(res)).catch(() => {})
-  }, [])
-
   // Calculate visible columns (dates)
   const visibleDates = []
   for (let i = 0; i < viewDaysCount; i++) {
     visibleDates.push(addDays(baseDate, i))
   }
+
+  // Load tasks from API when logged in
+  useEffect(() => {
+    if (!currentUser || isViewingMockup) return
+    let isCancelled = false
+
+    const datesToFetch = []
+    for (let i = 0; i < viewDaysCount; i++) {
+      datesToFetch.push(toDateKey(addDays(baseDate, i)))
+    }
+    Promise.all(datesToFetch.map(dateStr => listTasksByDate(dateStr).catch(() => null)))
+      .then(results => {
+        if (isCancelled) return
+        const fetchedItems = []
+        results.forEach(res => {
+          if (res && Array.isArray(res.items)) {
+            res.items.forEach(item => {
+              fetchedItems.push({
+                id: String(item.id),
+                goalId: item.goalId,
+                title: item.title,
+                overviewLabel: item.title,
+                subject: item.subject || item.goalSubject || 'Môn học',
+                type: item.type || (item.source === 'ai' ? 'focus' : 'other'),
+                date: item.date || item.scheduledDate,
+                scheduledDate: item.scheduledDate || item.date,
+                startHour: Number(item.startHour ?? 10.0),
+                durationHours: Number(item.durationHours ?? Math.round(((item.estimatedMinutes || 60) / 60) * 10) / 10),
+                estimatedMinutes: item.estimatedMinutes || 60,
+                completed: Boolean(item.completed),
+                topics: item.topics || '',
+                source: item.source || 'manual',
+              })
+            })
+          }
+        })
+        setApiTasks(fetchedItems)
+      })
+      .catch(() => {})
+
+    listOverdueTasks()
+      .then(items => {
+        if (!isCancelled && Array.isArray(items)) {
+          setOverdueTasks(items)
+        }
+      })
+      .catch(() => {})
+
+    return () => {
+      isCancelled = true
+    }
+  }, [currentUser, isViewingMockup, baseDate, viewDaysCount])
+
+  // Merge API tasks with local user tasks
+  function getMergedUserTasks() {
+    const map = new Map()
+    userTasks.forEach(t => map.set(String(t.id), t))
+    apiTasks.forEach(t => map.set(String(t.id), t))
+    return Array.from(map.values())
+  }
+
+  // Active tasks based on mode
+  const activeTasks = isViewingMockup ? mockupTasks : getMergedUserTasks()
+
+  // Load goals from API/storage for selector
+  useEffect(() => {
+    listGoals().then(res => setGoals(res)).catch(() => {})
+  }, [])
 
   // Header month-year title: in Mockup mode format as "May 2026", else "Tháng M YYYY"
   const monthYearTitle = isViewingMockup
@@ -499,6 +571,7 @@ export default function DailyTasksPage({ currentUser, onBack, onNavigateAuth }) 
 
   function handleSlotClick(dateStr, hour) {
     const dow = new Date(`${dateStr}T12:00:00`).getDay()
+    setApiError(null)
     setAddSlotData({ date: dateStr, startHour: hour })
     setNewForm(f => ({
       ...f,
@@ -509,9 +582,79 @@ export default function DailyTasksPage({ currentUser, onBack, onNavigateAuth }) 
     setShowAddModal(true)
   }
 
-  function handleCreateTask(e) {
+  async function handleCreateTask(e) {
     e.preventDefault()
     if (!newForm.title.trim()) return
+    setApiError(null)
+
+    const scheduledDate = addSlotData.date
+    const durationHours = Number(newForm.durationHours) || 1.0
+    const estimatedMinutes = Math.max(1, Math.round(durationHours * 60))
+
+    if (currentUser && !isViewingMockup) {
+      const matchedGoal = goals.find(g =>
+        g.subject?.trim().toLowerCase() === newForm.subject?.trim().toLowerCase()
+      ) || goals[0]
+
+      if (matchedGoal) {
+        setIsSubmitting(true)
+        try {
+          const created = await apiCreateTask(matchedGoal.id, {
+            title: newForm.title.trim(),
+            scheduledDate,
+            estimatedMinutes,
+          })
+
+          const taskForUi = {
+            id: String(created.id),
+            goalId: matchedGoal.id,
+            title: created.title,
+            overviewLabel: newForm.type === 'other' && isViewingMockup ? '' : created.title,
+            subject: created.subject || created.goalSubject || matchedGoal.subject,
+            type: newForm.type,
+            date: created.date || scheduledDate,
+            scheduledDate,
+            startHour: Number(created.startHour ?? newForm.startHour ?? 10),
+            durationHours: Number(created.durationHours ?? durationHours),
+            topics: created.topics || newForm.topics,
+            completed: false,
+            completedDates: [],
+            recurrence: newForm.recurrence || 'none',
+            recurringDays: newForm.recurrence !== 'none' ? newForm.recurringDays : [],
+            startDate: scheduledDate,
+            source: newForm.type === 'focus' ? 'ai' : 'manual',
+          }
+
+          setApiTasks(prev => [...prev.filter(t => t.id !== taskForUi.id), taskForUi])
+          setUserTasks(prev => [...prev.filter(t => t.id !== taskForUi.id), taskForUi])
+          setShowAddModal(false)
+          setNewForm({
+            title: '',
+            subject: goals[0]?.subject || '',
+            type: 'focus',
+            startHour: 10,
+            durationHours: 1.5,
+            topics: '',
+            recurrence: 'none',
+            recurringDays: [1],
+          })
+          return
+        } catch (err) {
+          if (err instanceof TaskApiError) {
+            let errorMsg = err.message
+            if (err.code === 'DAILY_BUDGET_EXCEEDED') {
+              errorMsg = '⚠️ Công việc vượt ngân sách học mỗi ngày của mục tiêu này. Vui lòng giảm thời lượng hoặc chọn ngày khác.'
+            } else if (err.code === 'VALIDATION_ERROR') {
+              errorMsg = `⚠️ Không thể lưu công việc: ${err.message}`
+            }
+            setApiError(errorMsg)
+            return
+          }
+        } finally {
+          setIsSubmitting(false)
+        }
+      }
+    }
 
     const newTask = {
       id: `task-${Date.now()}`,
@@ -551,6 +694,12 @@ export default function DailyTasksPage({ currentUser, onBack, onNavigateAuth }) 
   }
 
   function toggleTaskComplete(taskId, targetDate) {
+    if (currentUser && !isViewingMockup && !String(taskId).startsWith('mock-')) {
+      const existing = activeTasks.find(t => t.id === taskId)
+      const nextCompleted = existing ? !existing.completed : true
+      apiToggleTaskComplete(taskId, nextCompleted).catch(() => {})
+    }
+
     const updater = prev => prev.map(t => {
       if (t.id === taskId) {
         if (t.recurrence && t.recurrence !== 'none') {
@@ -592,12 +741,17 @@ export default function DailyTasksPage({ currentUser, onBack, onNavigateAuth }) 
     if (isViewingMockup) {
       setMockupTasks(updater)
     } else {
+      setApiTasks(updater)
       setUserTasks(updater)
     }
   }
 
   function deleteTask(taskId) {
     if (!window.confirm('Bạn có chắc muốn xóa công việc này khỏi lịch học?')) return
+    if (currentUser && !isViewingMockup && !String(taskId).startsWith('mock-')) {
+      apiDeleteTask(taskId).catch(() => {})
+      setApiTasks(prev => prev.filter(t => t.id !== taskId))
+    }
     const filterer = prev => prev.filter(t => t.id !== taskId)
     if (isViewingMockup) {
       setMockupTasks(filterer)
@@ -734,6 +888,30 @@ export default function DailyTasksPage({ currentUser, onBack, onNavigateAuth }) 
           </button>
         </div>
       </div>
+
+      {/* Overdue Tasks Notice */}
+      {currentUser && !isViewingMockup && overdueTasks.length > 0 && (
+        <div
+          className="cal-overdue-banner"
+          style={{
+            background: '#fffbeb',
+            border: '1px solid #fcd34d',
+            color: '#92400e',
+            padding: '10px 16px',
+            borderRadius: '8px',
+            margin: '10px 0',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontSize: '13.5px',
+          }}
+        >
+          <span>⚠️</span>
+          <span>
+            Bạn đang có <strong>{overdueTasks.length} bài học trễ hạn</strong> từ những ngày trước. Hãy mở lại lịch để hoàn thành nhé!
+          </span>
+        </div>
+      )}
 
       {/* Calendar Header with Navigation Arrows and Month Display */}
       <div className="cal-nav-header">
@@ -1065,6 +1243,23 @@ export default function DailyTasksPage({ currentUser, onBack, onNavigateAuth }) 
             </div>
 
             <form onSubmit={handleCreateTask} className="modal-form">
+              {apiError && (
+                <div
+                  className="cal-api-error-alert"
+                  style={{
+                    background: '#fef2f2',
+                    border: '1px solid #f87171',
+                    color: '#991b1b',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    marginBottom: '16px',
+                    fontSize: '13px',
+                    lineHeight: '1.4',
+                  }}
+                >
+                  {apiError}
+                </div>
+              )}
               {/* Task Type Switcher Cards */}
               <div className="form-group">
                 <label className="form-label">Phân loại công việc</label>
@@ -1348,12 +1543,17 @@ export default function DailyTasksPage({ currentUser, onBack, onNavigateAuth }) 
                 <button
                   type="submit"
                   className="button button--primary"
+                  disabled={isSubmitting}
                 >
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="12" y1="5" x2="12" y2="19"/>
                     <line x1="5" y1="12" x2="19" y2="12"/>
                   </svg>
-                  <span>{isViewingMockup ? 'Thêm vào lịch mô phỏng' : 'Lưu vào lịch học'}</span>
+                  <span>
+                    {isSubmitting
+                      ? 'Đang lưu vào lịch...'
+                      : (isViewingMockup ? 'Thêm vào lịch mô phỏng' : 'Lưu vào lịch học')}
+                  </span>
                 </button>
               </div>
             </form>
