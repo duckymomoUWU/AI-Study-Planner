@@ -1,51 +1,58 @@
 # AI Study Planner
 
-Bộ khởi tạo dự án: requirements, backend Spring Boot, database và frontend React.
+Ứng dụng lập kế hoạch học tập hỗ trợ bởi AI: biến nội dung ôn tập thành kế hoạch học theo từng ngày, phù hợp với ngày thi và thời gian học mỗi ngày.
 
-- **Java 21 + Spring Boot 3.5.16 + Maven 3.9+**.
+- **Java 21 + Spring Boot 3.5.16 + Spring Security 6 + Maven 3.9+**.
 - **PostgreSQL 17**, chạy bằng Docker Compose.
-- **Flyway** tự tạo/cập nhật schema khi ứng dụng khởi động.
-- **React + Vite + JavaScript + CSS**, frontend trong `frontend/`.
-- Kiến trúc ban đầu: một backend; chia controller/service/repository khi phát triển tính năng.
+- **Flyway** tự động quản lý schema cơ sở dữ liệu (`V1__initial_schema.sql`).
+- **React + Vite + JavaScript + CSS**, giao diện tại `frontend/`.
+- **shadcn/ui** components cho màn hình Đăng nhập / Tạo tài khoản.
+- Quản lý phiên bảo mật: Session cookie `JSESSIONID` (`HttpOnly`, `SameSite=Lax`), `BCryptPasswordEncoder(12)`, và CSRF protection (`X-CSRF-TOKEN`).
 
-## Nội dung
+## Tài liệu dự án
 
-- [requirements.md](requirements.md): chức năng, quy tắc nghiệp vụ và phạm vi.
-- [setup.md](setup.md): cài đặt, chạy, kiểm tra và dừng môi trường.
-- [frontend/README.md](frontend/README.md): chạy frontend và kết nối backend.
-- [Migration DB](backend/src/main/resources/db/migration/V1__initial_schema.sql): users, goals, tasks, drafts.
+- [requirements.md](requirements.md): Chức năng, quy tắc nghiệp vụ và phạm vi MVP.
+- [setup.md](setup.md): Cài đặt môi trường, chạy PostgreSQL, backend và frontend.
+- [docs/ASP-12-auth-api-guide.md](docs/ASP-12-auth-api-guide.md): Đặc tả API xác thực (JSON contract), hướng dẫn tích hợp cho backend (Dev 2) và frontend (Dev 3/4).
+- [docs/product/ASP-9-goals-api.md](docs/product/ASP-9-goals-api.md): Hợp đồng API quản lý mục tiêu (Goal CRUD).
+- [frontend/README.md](frontend/README.md): Hướng dẫn chạy frontend, cấu hình proxy và thư viện UI shadcn/ui.
 
-Hiện có bộ khung Spring Boot, cấu hình kết nối DB, migration, health endpoint và giao diện React khởi đầu có kiểm tra kết nối backend. Chưa có đăng nhập, API nghiệp vụ hoặc tích hợp AI. Không dùng cho dữ liệu thật trước khi triển khai auth và kiểm tra ownership.
+## Chạy dự án
 
-Tài liệu/Epic/User Stories và demo Next.js trước đó đã được đóng gói riêng trong file ZIP bàn giao; vẫn có thể xem lịch sử Git ở commit `ef2afef`.
+### 1. Khởi động cơ sở dữ liệu (PostgreSQL)
+```bash
+docker compose up -d --wait
+```
 
-## Chạy frontend
+### 2. Khởi động Backend (Spring Boot)
+Thiết lập mật khẩu DB trong PowerShell và khởi chạy:
+```powershell
+$env:DB_PASSWORD = "mat_khau_db_cua_ban"
+mvn -f backend/pom.xml spring-boot:run
+```
 
-Cài Node.js 22.12+ (khuyến nghị Node 24 LTS), mở terminal tại root repository:
-
+### 3. Khởi động Frontend (React + Vite)
 ```bash
 cd frontend
 npm ci
 npm run dev
 ```
-
-Mở http://localhost:5173. Chạy backend/DB theo `setup.md` để thẻ kết nối kiểm tra được trạng thái thật.
+Mở trình duyệt tại **http://localhost:5173**.
 
 ## Cấu trúc repository
 
 ```text
-frontend/                 React + Vite
-backend/                  Spring Boot: pom.xml, src/main/ (chưa có src/test/)
+frontend/                 React + Vite, giao diện shadcn/ui trong src/components/ui/
+backend/                  Spring Boot: pom.xml, src/main/ và test suites trong src/test/
+docs/                     Tài liệu đặc tả API, quyết định kiến trúc và hướng dẫn tích hợp
 AGENTS.md                 Quy ước chung cho coding agent
-.agents/skills/           Skill dự án: <ten-skill>/SKILL.md
 .agents/harness/README.md Hướng dẫn chạy và kiểm chứng
-.github/workflows/        CI hiện có cho frontend
+.github/workflows/        CI tự động cho frontend và backend (PostgreSQL integration test)
 compose.yml               PostgreSQL dùng chung, chạy từ root
-.env.example              Mẫu cấu hình local, không chứa mật khẩu thật
 ```
 
-Backend dùng Maven cài trên máy (chưa có Maven Wrapper). Từ root, chạy
-`mvn -f backend/pom.xml verify` để build và `mvn -f backend/pom.xml spring-boot:run`
-để khởi động với môi trường DB theo [setup.md](setup.md).
-JAR được tạo trong `backend/target/`.
-Quy ước agent: [AGENTS.md](AGENTS.md); kiểm chứng: [harness](.agents/harness/README.md).
+## Trạng thái triển khai
+
+- **Backend Auth (ASP-12 - Dev 1):** Hoàn thành bộ API JSON xác thực (`/api/v1/auth/csrf`, `/register`, `/login`, `/logout` và `/api/v1/me`), BCrypt băm mật khẩu, session cookie `HttpOnly`, phòng vệ CSRF và nhận diện user từ máy chủ. Đạt 100% qua bộ test 32 ca kiểm thử tự động.
+- **Frontend Auth (shadcn/ui - Dev 3):** Hoàn thành màn hình Đăng nhập / Tạo tài khoản (`AuthPage.jsx`) sử dụng bộ component shadcn/ui composable (`Card`, `Button`, `Input`, `Label`, `Alert`, `Tabs`). Đồng bộ trạng thái đăng nhập, xử lý 401 và hiển thị email người dùng.
+- **Goal API Foundation (ASP-9/ASP-23/24 - Dev 2):** Đã có `GoalPolicy`, `GoalJdbcRepository`, `GoalService` và test suite. Sẵn sàng kết nối `GoalController` với Auth Principal.

@@ -29,8 +29,15 @@ Requires JDK 21 and Maven 3.9+. No Maven Wrapper exists.
 mvn -f backend/pom.xml verify
 ```
 
-Output is `backend/target/`. There is currently no `src/test/`, backend test suite,
-or backend CI workflow. Maven verification alone does not demonstrate database connectivity.
+Output is `backend/target/`. The **ASP-22/ASP-24 development branch** adds
+`backend/src/test/java/com/studyplanner/goals/GoalPolicyTest.java`,
+`backend/src/test/java/com/studyplanner/goals/GoalJdbcRepositoryTest.java`,
+`spring-boot-starter-test` and
+[backend workflow](../../.github/workflows/backend.yml).
+`mvn -f backend/pom.xml verify` should execute these JUnit tests and build the JAR.
+These tests verify pure goal policy and **mocked JDBC statement construction only**; Maven success does not demonstrate
+authentication, business API endpoints, persistence, database connectivity or browser interactions.
+Do not mark ASP-9 Done on unit-test results alone.
 To start with the shared PostgreSQL service, from root:
 
 ```powershell
@@ -47,8 +54,10 @@ Do not change applied migrations or delete database volumes to make checks pass.
 ## Changes affecting both sides
 
 1. Review backend handlers and configuration together with `frontend/src/lib/api.js`
-   and `frontend/src/lib/api.test.js`. Currently only `/actuator/health` exists;
-   `/api` is reserved for future business endpoints, and no OpenAPI specification exists.
+   and `frontend/src/lib/api.test.js`. Currently only `/actuator/health` exists as an endpoint;
+   `/api` is reserved for future business endpoints.
+   A **proposed** ASP-9 API contract exists in
+   [ASP-9 goals API](../../docs/product/ASP-9-goals-api.md), but no such HTTP endpoint exists.
 2. Run both sets of checks above. Extend relevant tests for changed behavior.
 3. Start database, backend, and Vite (`npm run dev` from `frontend/`) in separate terminals.
 4. From another PowerShell terminal, compare:
@@ -68,7 +77,8 @@ Vite preview has no backend proxy; production requires a separate reverse proxy.
 
 ## Verification status
 
-The repository has frontend checks and mocked API tests, but no backend tests or end-to-end suite.
+The ASP-22 development branch adds backend **policy unit tests** and a backend CI workflow in addition to existing frontend mocked API checks.
+There are still no goal HTTP/DB integration tests or browser end-to-end tests.
 Builds, live database checks, and browser smoke checks must be recorded separately;
 documentation of a command is not evidence that it passed.
 Verified on Windows / PowerShell during restructuring (2026-11-05):
@@ -82,3 +92,9 @@ Verified on Windows / PowerShell during restructuring (2026-11-05):
   with no backend build context to change. No tracked Dockerfile, custom script, or VS Code configuration exists.
 - Live database startup, direct/proxied health requests, and browser smoke checks were not run.
   These remain unverified; frontend API tests use mocks.
+
+## ASP-22 local verification notes
+
+- The domain rules class `GoalPolicy.java` is dependency-free. Java 21's `javac` successfully compiled it, and five local boundary probes passed (2026-11-06); these were **not** the JUnit/Maven test suite.
+- JUnit tests are authored in `GoalPolicyTest.java` and scheduled for validation by GitHub Actions backend workflow; report CI results separately from local probes.
+- The API contract describes future behavior only; ASP-12 authentication/ownership must exist before any Goal CRUD endpoint is exposed.

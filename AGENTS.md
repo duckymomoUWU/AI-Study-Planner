@@ -11,3 +11,4 @@
 - Validation instructions and known gaps: [.agents/harness/README.md](.agents/harness/README.md).
 - Project skills belong at `.agents/skills/<skill-name>/SKILL.md`. Do not install external skills without a request.
 - Repository Harness navigation: [docs/README.md](docs/README.md); project requirements and verification remain in their existing documents.
+- Backend code must follow [docs/backend-api-rules.md](docs/backend-api-rules.md) (paths, envelope, error codes, ownership, concurrency).

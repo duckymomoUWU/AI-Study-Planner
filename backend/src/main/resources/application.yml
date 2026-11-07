@@ -9,6 +9,12 @@ spring:
     enabled: true
 server:
   port: ${PORT:8080}
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax
+        secure: ${SESSION_COOKIE_SECURE:false}
 management:
   endpoints:
     web:
