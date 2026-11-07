@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { createGoal, deleteGoal, GoalApiError, listGoals, updateGoal } from '../lib/goals.js'
+import { createGoal, deleteGoal, GoalApiError, getGoal, listGoals, updateGoal } from '../lib/goals.js'
+import { describeGoalError } from '../lib/goalErrors.js'
 import './GoalsPage.css'
 
 const emptyForm = {
@@ -36,21 +37,15 @@ function displayDate(value) {
   return new Intl.DateTimeFormat('vi-VN').format(new Date(`${value}T12:00:00`))
 }
 
-function apiMessage(error) {
-  if (error instanceof GoalApiError && error.status === 401) {
-    return 'Bạn cần đăng nhập để quản lý mục tiêu cá nhân.'
-  }
-  if (error instanceof GoalApiError && error.status === 404) {
-    return 'API mục tiêu chưa khả dụng hoặc mục tiêu không còn tồn tại. Backend Goal CRUD vẫn đang được hoàn thiện.'
-  }
-  if (error instanceof GoalApiError && error.status === 409) {
-    return 'Mục tiêu vừa được cập nhật ở nơi khác. Hãy tải lại danh sách trước khi sửa tiếp.'
-  }
-  return error?.message || 'Đã xảy ra lỗi. Vui lòng thử lại.'
+function fieldMessages(formErrors, name) {
+  const value = formErrors[name]
+  if (!value) return []
+  return Array.isArray(value) ? value : [value]
 }
 
-function mapFieldErrors(error) {
-  return Object.fromEntries((error?.fieldErrors || []).map(item => [item.field, item.message]))
+function FieldError({ formErrors, name }) {
+  const messages = fieldMessages(formErrors, name)
+  return messages.map(message => <small className="field-error" key={message}>{message}</small>)
 }
 
 export default function GoalsPage({ onBack, onNavigateDaily }) {
@@ -64,6 +59,9 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
   const [form, setForm] = useState(emptyForm)
   const [successMessage, setSuccessMessage] = useState('')
   const [isUnauthenticated, setIsUnauthenticated] = useState(false)
+  const [conflicts, setConflicts] = useState([])
+  const [detail, setDetail] = useState(null)
+  const [detailLoading, setDetailLoading] = useState(false)
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -76,7 +74,7 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
       if (error instanceof GoalApiError && error.status === 401) {
         setIsUnauthenticated(true)
       } else {
-        setPageError(apiMessage(error))
+        setPageError(describeGoalError(error).message)
       }
     } finally {
       setLoading(false)
@@ -94,7 +92,7 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
           if (error instanceof GoalApiError && error.status === 401) {
             setIsUnauthenticated(true)
           } else {
-            setPageError(apiMessage(error))
+            setPageError(describeGoalError(error).message)
           }
         }
       })
@@ -120,6 +118,7 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
       minutesPerDay: String(goal.minutesPerDay ?? 90),
     })
     setFormErrors({})
+    setConflicts([])
     setPageError('')
     setSuccessMessage('')
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -129,6 +128,22 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
     setEditing(null)
     setForm(emptyForm)
     setFormErrors({})
+    setConflicts([])
+  }
+
+  async function showDetail(goal) {
+    setDetailLoading(true)
+    setPageError('')
+    try {
+      setDetail(await getGoal(goal.id))
+    } catch (error) {
+      setDetail(null)
+      const described = describeGoalError(error)
+      if (error instanceof GoalApiError && error.status === 401) setIsUnauthenticated(true)
+      setPageError(described.message)
+    } finally {
+      setDetailLoading(false)
+    }
   }
 
   async function submitForm(event) {
@@ -137,6 +152,7 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
     setPageError('')
     setSuccessMessage('')
     setFormErrors({})
+    setConflicts([])
 
     // Client-side 90 days guard
     if (form.startDate && form.examDate) {
@@ -161,7 +177,8 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
 
     try {
       if (editing) {
-        await updateGoal(editing.id, payload)
+        const updated = await updateGoal(editing.id, payload)
+        if (detail?.id === updated.id) setDetail(updated)
         setSuccessMessage('Đã cập nhật mục tiêu thành công!')
       } else {
         await createGoal(payload)
@@ -171,10 +188,10 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
       resetForm()
       await refresh()
     } catch (error) {
-      if (error instanceof GoalApiError && error.fieldErrors.length) {
-        setFormErrors(mapFieldErrors(error))
-      }
-      setPageError(apiMessage(error))
+      const described = describeGoalError(error)
+      setFormErrors(described.fieldErrors)
+      setConflicts(described.conflicts)
+      setPageError(described.message)
     } finally {
       setSaving(false)
     }
@@ -194,9 +211,10 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
       setSuccessMessage(`Đã xóa mục tiêu "${goal.subject}".`)
       setTimeout(() => setSuccessMessage(''), 3000)
       if (editing?.id === goal.id) resetForm()
+      if (detail?.id === goal.id) setDetail(null)
       await refresh()
     } catch (error) {
-      setPageError(apiMessage(error))
+      setPageError(describeGoalError(error).message)
     } finally {
       setDeletingId(null)
     }
@@ -211,7 +229,7 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
     <section className="goals-page" aria-labelledby="goals-title">
       <div className="goals-heading">
         <div>
-          <p className="eyebrow">SPRINT 2 · US-01</p>
+          <p className="eyebrow">Mục tiêu</p>
           <h1 id="goals-title">Mục tiêu ôn tập</h1>
           <p>Tạo mục tiêu rõ ràng để giới hạn thời gian và chuẩn bị cho kỳ thi.</p>
         </div>
@@ -221,25 +239,6 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
             <button className="button button--primary" type="button" onClick={onNavigateDaily}>Xem lịch học hôm nay →</button>
           )}
         </div>
-      </div>
-
-      {/* Notice Banner */}
-      <div style={{
-        background: '#f0fdf4',
-        border: '1px solid #bbf7d0',
-        color: '#166534',
-        padding: '0.75rem 1rem',
-        borderRadius: '8px',
-        fontSize: '0.875rem',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.75rem',
-      }}>
-        <span>✦</span>
-        <span>
-          <strong>Giao diện US-01:</strong> Đang kết nối API chuẩn <code>/api/goals</code>.
-          Giao diện hỗ trợ đầy đủ tạo, sửa (kiểm soát version), xóa và ràng buộc tối đa 90 ngày.
-        </span>
       </div>
 
       {/* Feedback Alert */}
@@ -281,41 +280,50 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
         </div>
       )}
 
-      {pageError && <div className="goal-alert" role="alert">{pageError}</div>}
+      {pageError && (
+        <div className="goal-alert" role="alert">
+          {pageError}
+          {conflicts.length > 0 && (
+            <ul className="goal-conflicts">
+              {conflicts.map(message => <li key={message}>{message}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
 
       <div className="goals-layout">
         <section className="goal-form-card" aria-labelledby="goal-form-title">
           <div className="goal-card-heading">
             <h2 id="goal-form-title">{editing ? 'Chỉnh sửa mục tiêu' : 'Tạo mục tiêu mới'}</h2>
-            <span>{editing ? `Phiên bản v${editing.version}` : 'US-01 Form'}</span>
+            <span>{editing ? `Phiên bản v${editing.version}` : 'Mục tiêu mới'}</span>
           </div>
           <form onSubmit={submitForm} noValidate>
             <div className="goal-field">
               <label htmlFor="goal-subject">Môn học</label>
               <input id="goal-subject" name="subject" value={form.subject} onChange={changeField}
                 maxLength={100} placeholder="Ví dụ: Cơ sở dữ liệu" required aria-invalid={Boolean(formErrors.subject)} />
-              {formErrors.subject && <small className="field-error">{formErrors.subject}</small>}
+              <FieldError formErrors={formErrors} name="subject" />
             </div>
             <div className="goal-field">
               <label htmlFor="goal-topics">Chủ đề cần ôn tập</label>
               <textarea id="goal-topics" name="topics" value={form.topics} onChange={changeField}
                 rows={3} placeholder="Ví dụ: SQL, chuẩn hóa, transaction..." required
                 aria-invalid={Boolean(formErrors.topics)} />
-              {formErrors.topics && <small className="field-error">{formErrors.topics}</small>}
+              <FieldError formErrors={formErrors} name="topics" />
             </div>
             <div className="goal-date-grid">
               <div className="goal-field">
                 <label htmlFor="goal-start">Ngày bắt đầu</label>
                 <input id="goal-start" type="date" name="startDate" value={form.startDate}
                   onChange={changeField} required aria-invalid={Boolean(formErrors.startDate)} />
-                {formErrors.startDate && <small className="field-error">{formErrors.startDate}</small>}
+                <FieldError formErrors={formErrors} name="startDate" />
               </div>
               <div className="goal-field">
                 <label htmlFor="goal-exam">Ngày thi</label>
                 <input id="goal-exam" type="date" name="examDate" value={form.examDate}
                   min={examMin} max={examMax || undefined} onChange={changeField} required aria-invalid={Boolean(formErrors.examDate)} />
                 <small className="field-hint">Tối đa 90 ngày kể từ ngày bắt đầu.</small>
-                {formErrors.examDate && <small className="field-error">{formErrors.examDate}</small>}
+                <FieldError formErrors={formErrors} name="examDate" />
               </div>
             </div>
             <div className="goal-field">
@@ -327,7 +335,7 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
                 <span>phút / ngày</span>
               </div>
               <small className="field-hint">Cho phép từ 15 đến 480 phút mỗi ngày.</small>
-              {formErrors.minutesPerDay && <small className="field-error">{formErrors.minutesPerDay}</small>}
+              <FieldError formErrors={formErrors} name="minutesPerDay" />
             </div>
             <div className="goal-form-actions">
               <button className="button button--primary" type="submit" disabled={saving}>
@@ -343,6 +351,22 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
             <h2 id="goal-list-title">Mục tiêu của tôi</h2>
             <span>{goals.length} mục tiêu</span>
           </div>
+          {detail && (
+            <section className="goal-detail" aria-label="Chi tiết mục tiêu">
+              <div className="goal-item-top">
+                <h3>{detail.subject}</h3>
+                <button type="button" onClick={() => setDetail(null)}>Đóng</button>
+              </div>
+              <dl>
+                <dt>Chủ đề</dt><dd>{detail.topics}</dd>
+                <dt>Ngày bắt đầu</dt><dd>{displayDate(detail.startDate)}</dd>
+                <dt>Ngày thi</dt><dd>{displayDate(detail.examDate)}</dd>
+                <dt>Thời gian mỗi ngày</dt><dd>{detail.minutesPerDay} phút</dd>
+                <dt>Múi giờ</dt><dd>{detail.timezone}</dd>
+                <dt>Phiên bản</dt><dd>v{detail.version}</dd>
+              </dl>
+            </section>
+          )}
           {loading ? (
             <p className="goal-empty" role="status">Đang tải mục tiêu…</p>
           ) : goals.length === 0 ? (
@@ -362,6 +386,7 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
                   <p className="goal-topics">{goal.topics}</p>
                   <p className="goal-dates">Bắt đầu {displayDate(goal.startDate)} · Thi {displayDate(goal.examDate)}</p>
                   <div className="goal-item-actions">
+                    <button type="button" onClick={() => showDetail(goal)} disabled={detailLoading}>Chi tiết</button>
                     <button type="button" onClick={() => startEditing(goal)}>Chỉnh sửa</button>
                     <button type="button" className="goal-delete" onClick={() => removeGoal(goal)}
                       disabled={deletingId === goal.id}>
@@ -374,7 +399,7 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
           )}
         </section>
       </div>
-      <p className="goal-page-note">Dữ liệu chỉ hiển thị từ API của tài khoản đang đăng nhập. Máy chủ phải kiểm tra quyền sở hữu; giao diện không tự quyết định quyền truy cập.</p>
+      <p className="goal-page-note">Dữ liệu lấy từ máy chủ cho tài khoản đang đăng nhập; máy chủ kiểm tra quyền sở hữu.</p>
     </section>
   )
 }
