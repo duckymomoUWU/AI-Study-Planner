@@ -18,10 +18,13 @@ Rules marked **(future)** describe features that are not implemented yet (tasks,
    | GET | `/api/v1/me` | 200 |
    | POST / GET | `/api/v1/goals` | 201 / 200 (paginated) |
    | GET / PATCH / DELETE | `/api/v1/goals/{goalId}` | 200 / 200 / 204 |
+   | GET | `/api/v1/tasks?date=` | 200 (paginated, `date` required) |
+   | GET | `/api/v1/goals/{goalId}/tasks` (optional `date`, `completed`) | 200 (paginated) |
+   | GET / PATCH | `/api/v1/goals/{goalId}/tasks/{taskId}` | 200 (PATCH body is only `{"completed": true\|false}`) |
 
 3. Partial update uses `PATCH`, never `PUT`. Create returns 201, read and update 200, delete and logout 204 with no body.
 4. Nested resources must check that the child belongs to the `goalId` in the URL.
-5. **(future)** Tasks, drafts and progress routes follow spec section 7 (`/goals/{goalId}/tasks`, `/tasks?date=`, `/goals/{goalId}/plan-drafts`, `.../confirm`, `/goals/{goalId}/progress`). Completing a task is `PATCH {"completed": true|false}`, never a toggle.
+5. Task reads and marking a task done or re-opening it are implemented (see [task completion](product/task-completion.md)); completing is `PATCH {"completed": true|false}`, never a toggle. **(future)** Task create/edit/delete (`POST`, `DELETE`, other `PATCH` fields), drafts (`/goals/{goalId}/plan-drafts`, `.../confirm`) and `/goals/{goalId}/progress` follow spec section 7.
 
 ## 2. JSON conventions
 
@@ -65,7 +68,7 @@ Rules marked **(future)** describe features that are not implemented yet (tasks,
   | **(future)** 422 | `INSUFFICIENT_TIME`, `DAILY_BUDGET_EXCEEDED` | With `requiredMinutes`, `availableMinutes`, `shortfallMinutes`, or per-day `budgetMinutes`, `scheduledMinutes`, `excessMinutes` |
   | **(future)** 502/503/504 | `AI_INVALID_RESPONSE`, `AI_UNAVAILABLE`, `AI_TIMEOUT` | AI adapter |
 
-- `issue` values for goals: `required`, `invalid_type`, `invalid_date`, `invalid_timezone`, `unknown_field`, `must_not_be_in_past`, `must_be_after_start_date`, `exceeds_90_days`, `out_of_range`, `empty_patch`, `malformed_json`, `invalid_email`, `invalid_length`, `task_on_or_after_exam_date`, `daily_budget_exceeded`, `invalid_existing_task`.
+- `issue` values for goals: `required`, `invalid_type`, `invalid_date`, `invalid_timezone`, `unknown_field`, `must_not_be_in_past`, `must_be_after_start_date`, `exceeds_90_days`, `out_of_range`, `not_supported`, `empty_patch`, `malformed_json`, `invalid_email`, `invalid_length`, `task_on_or_after_exam_date`, `daily_budget_exceeded`, `invalid_existing_task`.
 - If an input is invalid and tasks also conflict, answer 400 (input errors win); use 409 only when every problem comes from existing tasks.
 
 ## 5. Authentication, session and CSRF
@@ -102,7 +105,7 @@ Rules marked **(future)** describe features that are not implemented yet (tasks,
 ## 9. Versioning and concurrency
 
 - `study_goals.version` is the optimistic lock. A patch must send `expectedVersion`; a mismatch is `GOAL_VERSION_CONFLICT`. A successful change increments the version once.
-- **(future)** Every real mutation of the goal or of its tasks increments the goal version once in its transaction; setting `completed` to the value it already has does not.
+- Every real mutation of the goal or of its tasks increments the goal version once in its transaction; setting `completed` to the value it already has does not. Implemented for goal edits and for marking a task done or re-opening it; create/edit/delete of tasks (ASP-10) must follow the same rule.
 - Every write that depends on the budget locks the goal row (`SELECT ... FOR UPDATE`) in the same transaction as its check. Reading the total and writing in two transactions is not allowed.
 - No migration edits: `V1__initial_schema.sql` is applied. Schema changes go into a new `V<n>__*.sql`.
 
@@ -132,6 +135,7 @@ Rules marked **(future)** describe features that are not implemented yet (tasks,
 | --- | --- |
 | Auth, `/me`, CSRF | Implemented under `/api/v1` |
 | Goals create, list, detail, patch, delete | Implemented under `/api/v1` |
-| Tasks (manual, by day), progress | Not implemented (ASP-10, ASP-11, ASP-16/17) |
+| Tasks: read by day or goal, mark done / re-open | Implemented under `/api/v1` ([task completion](product/task-completion.md)) |
+| Tasks: create, edit, delete; overdue; progress | Not implemented (ASP-10, ASP-11, ASP-16/17) |
 | AI drafts, confirm, idempotency | Not implemented (ASP-13, ASP-14); needs a new migration |
 | Rate limits, session store and TTL, password policy | Open decisions (spec section 14) |
