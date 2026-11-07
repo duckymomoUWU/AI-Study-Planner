@@ -2,7 +2,7 @@
 
 Mandatory rules for code under `backend/`. They come from the *Backend API Spec — AI Study Planner* (draft of 2026-11-07) and are the standard that reviews and tests check against. [requirements.md](../requirements.md) still owns product scope; if a rule here conflicts with it, requirements win and this file is fixed.
 
-Rules marked **(future)** describe features that are not implemented yet (tasks, AI drafts, confirm, progress). New code for those features must follow them; there is nothing to retrofit today.
+Rules marked **(future)** describe features that are not implemented yet (tasks, AI drafts, confirm). New code for those features must follow them; there is nothing to retrofit today.
 
 ## 1. Paths and methods
 
@@ -21,7 +21,7 @@ Rules marked **(future)** describe features that are not implemented yet (tasks,
 
 3. Partial update uses `PATCH`, never `PUT`. Create returns 201, read and update 200, delete and logout 204 with no body.
 4. Nested resources must check that the child belongs to the `goalId` in the URL.
-5. **(future)** Tasks, drafts and progress routes follow spec section 7 (`/goals/{goalId}/tasks`, `/tasks?date=`, `/goals/{goalId}/plan-drafts`, `.../confirm`, `/goals/{goalId}/progress`). Completing a task is `PATCH {"completed": true|false}`, never a toggle.
+5. `GET /api/v1/goals/{goalId}/progress` is implemented (see [goal progress](product/goal-progress.md)). **(future)** Task, draft and confirm routes follow spec section 7 (`/goals/{goalId}/tasks`, `/tasks?date=`, `/goals/{goalId}/plan-drafts`, `.../confirm`). Completing a task is `PATCH {"completed": true|false}`, never a toggle.
 
 ## 2. JSON conventions
 
@@ -132,6 +132,7 @@ Rules marked **(future)** describe features that are not implemented yet (tasks,
 | --- | --- |
 | Auth, `/me`, CSRF | Implemented under `/api/v1` |
 | Goals create, list, detail, patch, delete | Implemented under `/api/v1` |
-| Tasks (manual, by day), progress | Not implemented (ASP-10, ASP-11, ASP-16/17) |
+| Goal progress (`GET /goals/{id}/progress`) | Implemented under `/api/v1` ([goal progress](product/goal-progress.md)) |
+| Tasks (manual, by day) | Not implemented (ASP-10, ASP-11) |
 | AI drafts, confirm, idempotency | Not implemented (ASP-13, ASP-14); needs a new migration |
 | Rate limits, session store and TTL, password policy | Open decisions (spec section 14) |

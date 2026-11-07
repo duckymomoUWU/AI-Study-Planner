@@ -30,4 +30,15 @@ Giúp sinh viên tạo kế hoạch ôn tập theo môn học, nội dung, ngày
 Đọc PDF, kết nối LMS, đồng bộ lịch, thanh toán và tự động đánh giá kiến thức.
 
 ## Trạng thái
-Đây là yêu cầu cần phát triển. Repo tối giản chỉ khởi tạo môi trường và cấu trúc DB; chưa hiện thực các chức năng trên.
+Cập nhật 2026-11-07 (nhánh `dev4-sprint3`; chưa gộp vào `main`). Chi tiết hợp đồng API: [docs/backend-api-rules.md](docs/backend-api-rules.md).
+
+| Chức năng | Tình trạng |
+| --- | --- |
+| 1. Đăng ký, đăng nhập, đăng xuất, chỉ truy cập dữ liệu của mình | Đã hiện thực (session, CSRF, ownership) |
+| 2. Tạo, sửa, xóa mục tiêu | Đã hiện thực, có giao diện |
+| 3. Tạo, sửa, xóa công việc thủ công; xem công việc theo ngày | Chưa hiện thực trên nhánh này |
+| 4. AI đề xuất bản nháp | Chưa hiện thực |
+| 5. Chỉ lưu kế hoạch sau khi xác nhận | Chưa hiện thực |
+| 6. Đánh dấu hoàn thành/mở lại; số công việc hoàn thành và còn lại | Phần "số hoàn thành và còn lại" (tiến độ theo mục tiêu, 0/0 khi chưa có việc) đã hiện thực, có giao diện; đánh dấu hoàn thành/mở lại nằm ở nhánh `dev2-sprint3` |
+
+Các quy tắc nghiệp vụ ở trên không đổi. Mô tả tiến độ: [docs/product/goal-progress.md](docs/product/goal-progress.md).

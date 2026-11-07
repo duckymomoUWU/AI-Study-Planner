@@ -10,6 +10,7 @@
 - [Initial schema](../backend/src/main/resources/db/migration/V1__initial_schema.sql): current database structure; not an implemented business API.
 - [Backend API rules](backend-api-rules.md): mandatory rules for backend code (`/api/v1`, response envelope, error codes, ownership, concurrency).
 - [ASP-9 Goal API contract](product/ASP-9-goals-api.md): Goal CRUD contract, errors, timezone rule and AC mapping; the endpoints are implemented on the development branch.
+- [Goal progress](product/goal-progress.md): view completed and remaining tasks of a goal (API, UI, 0/0 rule).
 - [ASP-9 verification evidence](product/ASP-9-verification.md): AC-to-test traceability with the results that were actually run and the limits not verified.
 
 ## Repository Harness
