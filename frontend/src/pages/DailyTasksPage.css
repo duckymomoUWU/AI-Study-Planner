@@ -1015,3 +1015,123 @@
   color: #ffffff;
   box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
 }
+
+/* ==========================================================================
+   7. AI DRAFT REVIEW MODE & DRAG-AND-DROP (US-06)
+   ========================================================================== */
+
+.cal-review-banner {
+  background: linear-gradient(135deg, #eff6ff 0%, #f5f3ff 50%, #f0fdf4 100%);
+  border: 1.5px solid #818cf8;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  animation: review-banner-appear 0.3s ease;
+}
+
+@keyframes review-banner-appear {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.cal-review-banner-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.cal-review-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.cal-review-title h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1e1b4b;
+}
+
+.cal-review-badge {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #ffffff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.25);
+}
+
+.cal-review-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex-shrink: 0;
+}
+
+.button--confirm-plan {
+  background: #16a34a !important;
+  color: #ffffff !important;
+  border: none !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.3);
+}
+
+.button--confirm-plan:hover {
+  background: #15803d !important;
+  transform: translateY(-1px);
+}
+
+.cal-review-instructions {
+  font-size: 0.8125rem;
+  color: #4338ca;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  border: 1px dashed #c7d2fe;
+  line-height: 1.5;
+}
+
+/* Drag and Drop Visual Feedback */
+.cal-time-cell--drag-over {
+  background: #e0e7ff !important;
+  outline: 2px dashed #6366f1 !important;
+  outline-offset: -2px;
+}
+
+.cal-task-block--draft {
+  border: 2px dashed #818cf8 !important;
+  box-shadow: 0 3px 8px rgba(99, 102, 241, 0.25);
+  cursor: grab !important;
+  position: relative;
+}
+
+.cal-task-block--draft:active {
+  cursor: grabbing !important;
+}
+
+.cal-task-block--dragging {
+  opacity: 0.5;
+  transform: scale(0.98);
+}
+
+.draft-pill-tag {
+  display: inline-block;
+  background: #ffffff;
+  color: #4f46e5;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 4px;
+  margin-right: 4px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createGoal, deleteGoal, GoalApiError, listGoals, updateGoal } from '../lib/goals.js'
+import { generatePlanDraft, getGoalDraftStatus, setGoalDraftStatus } from '../lib/ai-planner.js'
 import './GoalsPage.css'
 
 const emptyForm = {
@@ -56,7 +57,7 @@ function mapFieldErrors(error) {
   return Object.fromEntries((error?.fieldErrors || []).map(item => [item.field, item.message]))
 }
 
-export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavigateAuth }) {
+export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavigateAuth, onReviewDraft }) {
   const [goals, setGoals] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -67,6 +68,35 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
   const [form, setForm] = useState(emptyForm)
   const [successMessage, setSuccessMessage] = useState('')
   const [isUnauthenticated, setIsUnauthenticated] = useState(false)
+  const [draftStatuses, setDraftStatuses] = useState({})
+
+  function getStatus(goalId) {
+    return draftStatuses[goalId] ?? getGoalDraftStatus(goalId)
+  }
+
+  const updateGoalStatus = useCallback((goalId, statusObj) => {
+    setGoalDraftStatus(goalId, statusObj)
+    setDraftStatuses(prev => ({ ...prev, [goalId]: statusObj }))
+  }, [])
+
+  const generateAiPlan = useCallback(async (goal) => {
+    if (!goal?.id) return
+    updateGoalStatus(goal.id, { status: 'generating' })
+    try {
+      const draft = await generatePlanDraft(goal)
+      updateGoalStatus(goal.id, {
+        status: 'ready',
+        draftId: draft.draftId,
+        taskCount: draft.tasks?.length || 0,
+        draft,
+      })
+    } catch (err) {
+      updateGoalStatus(goal.id, {
+        status: 'error',
+        message: err.message || 'Lỗi khi gọi AI Gemini Flash',
+      })
+    }
+  }, [updateGoalStatus])
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -167,8 +197,11 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
         await updateGoal(editing.id, payload)
         setSuccessMessage('Đã cập nhật mục tiêu thành công!')
       } else {
-        await createGoal(payload)
-        setSuccessMessage('Đã tạo mục tiêu ôn tập thành công!')
+        const created = await createGoal(payload)
+        setSuccessMessage('Đã tạo mục tiêu ôn tập thành công! Đang dùng AI (Gemini Flash) sinh lịch học...')
+        if (created?.id) {
+          generateAiPlan(created)
+        }
       }
       setTimeout(() => setSuccessMessage(''), 4000)
       resetForm()
@@ -399,10 +432,88 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
                   </div>
                   <p className="goal-topics">{goal.topics}</p>
                   <p className="goal-dates">Bắt đầu {displayDate(goal.startDate)} · Thi {displayDate(goal.examDate)}</p>
+
+                  {/* US-06 Gemini Flash Plan Status Banner */}
+                  {getStatus(goal.id)?.status === 'generating' && (
+                    <div className="goal-ai-banner goal-ai-banner--generating" role="status">
+                      <div className="goal-ai-banner-text">
+                        <span className="ai-spin-icon">⏳</span>
+                        <span>Đang dùng <strong>Gemini Flash</strong> phân tích chủ đề và sinh lịch ôn tập...</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {getStatus(goal.id)?.status === 'ready' && (
+                    <div
+                      className="goal-ai-banner goal-ai-banner--ready"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => {
+                        if (onReviewDraft) onReviewDraft(getStatus(goal.id).draft)
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          if (onReviewDraft) onReviewDraft(getStatus(goal.id).draft)
+                        }
+                      }}
+                      title="Bấm để xem trước và tùy chỉnh trên lịch học"
+                    >
+                      <div className="goal-ai-banner-text">
+                        <span className="ai-sparkle-icon">✨</span>
+                        <span><strong>Đã sinh lịch nháp AI!</strong> Bấm để xem & tùy chỉnh trên lịch học →</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="button button--primary button--sm"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (onReviewDraft) onReviewDraft(getStatus(goal.id).draft)
+                        }}
+                      >
+                        Xem lịch nháp →
+                      </button>
+                    </div>
+                  )}
+
+                  {getStatus(goal.id)?.status === 'confirmed' && (
+                    <div className="goal-ai-banner goal-ai-banner--confirmed" role="status">
+                      <div className="goal-ai-banner-text">
+                        <span className="ai-check-icon">✓</span>
+                        <span><strong>Đã thêm vào lịch học</strong> · Lịch ôn tập định kỳ đang kích hoạt</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {getStatus(goal.id)?.status === 'error' && (
+                    <div className="goal-ai-banner goal-ai-banner--error" role="alert">
+                      <div className="goal-ai-banner-text">
+                        <span>⚠ {getStatus(goal.id).message || 'Lỗi khi sinh lịch.'}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="button button--secondary button--sm"
+                        onClick={() => generateAiPlan(goal)}
+                      >
+                        Thử lại
+                      </button>
+                    </div>
+                  )}
+
                   <div className="goal-item-actions">
                     <button type="button" className="button button--secondary button--sm" onClick={() => startEditing(goal)}>
                       Chỉnh sửa
                     </button>
+                    {!getStatus(goal.id) && (
+                      <button
+                        type="button"
+                        className="button button--secondary button--sm button--ai"
+                        onClick={() => generateAiPlan(goal)}
+                        title="Tạo lịch học tự động bằng Gemini Flash"
+                      >
+                        ✨ Sinh lịch AI
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="button button--danger button--sm"

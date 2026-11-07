@@ -403,3 +403,92 @@
     align-self: flex-start;
   }
 }
+
+/* ==========================================================================
+   8. AI (GEMINI FLASH) PLAN DRAFT STATUS BANNERS (US-06)
+   ========================================================================== */
+
+.goal-ai-banner {
+  margin: 0.625rem 0 0.25rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.goal-ai-banner--generating {
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+  color: #6d28d9;
+}
+
+.ai-spin-icon {
+  display: inline-block;
+  animation: ai-pulse 1.4s infinite ease-in-out;
+}
+
+@keyframes ai-pulse {
+  0% { transform: scale(1); opacity: 0.7; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.7; }
+}
+
+.goal-ai-banner--ready {
+  background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
+  border: 1px solid #93c5fd;
+  color: #1e40af;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.08);
+}
+
+.goal-ai-banner--ready:hover {
+  background: linear-gradient(135deg, #dbeafe 0%, #dcfce7 100%);
+  border-color: #3b82f6;
+  transform: translateY(-1px);
+}
+
+.goal-ai-banner-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+.ai-sparkle-icon {
+  font-size: 14px;
+}
+
+.goal-ai-banner--confirmed {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  color: #166534;
+}
+
+.ai-check-icon {
+  font-weight: 700;
+  color: #15803d;
+  font-size: 13px;
+}
+
+.goal-ai-banner--error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.button--ai {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #ffffff;
+  border: none;
+  font-weight: 600;
+}
+
+.button--ai:hover {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  color: #ffffff;
+}
+

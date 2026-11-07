@@ -24,6 +24,7 @@ function getPageFromHash() {
 
 export default function App() {
   const [activePage, setActivePageState] = useState(getPageFromHash) // 'overview' | 'goals' | 'daily' | 'auth'
+  const [reviewDraft, setReviewDraft] = useState(null)
   const [currentUser, setCurrentUser] = useState(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -117,6 +118,18 @@ export default function App() {
     }
     setCurrentUser(user)
     setActivePage('goals')
+  }
+
+  function handleReviewDraft(draft) {
+    setReviewDraft(draft)
+    setActivePage('daily')
+  }
+
+  function handleFinishReview(result) {
+    setReviewDraft(null)
+    if (!result?.success) {
+      setActivePage('goals')
+    }
   }
 
   return (
@@ -325,6 +338,7 @@ export default function App() {
                 onBack={() => setActivePage('overview')}
                 onNavigateDaily={() => setActivePage('daily')}
                 onNavigateAuth={() => setActivePage('auth')}
+                onReviewDraft={handleReviewDraft}
               />
             ) : activePage === 'daily' ? (
               <DailyTasksPage
@@ -332,6 +346,8 @@ export default function App() {
                 onBack={() => setActivePage('overview')}
                 onNavigateGoals={() => setActivePage('goals')}
                 onNavigateAuth={() => setActivePage('auth')}
+                reviewDraft={reviewDraft}
+                onFinishReview={handleFinishReview}
               />
             ) : (
               <>

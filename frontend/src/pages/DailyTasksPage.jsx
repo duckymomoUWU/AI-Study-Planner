@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { listGoals } from '../lib/goals.js'
+import { confirmPlanDraft } from '../lib/ai-planner.js'
 import './DailyTasksPage.css'
 
 // Helper: Format date YYYY-MM-DD
@@ -366,14 +367,39 @@ function formatTimeRange(startHour, durationHours) {
   return `${fmt(startH, startM)} - ${fmt(endH, endM)} (${Math.round(durationHours * 60)} phút)`
 }
 
-export default function DailyTasksPage({ currentUser, onBack, onNavigateAuth }) {
-  // If not logged in, always view mockup; if logged in, allow manual toggle
+export default function DailyTasksPage({
+  currentUser,
+  onBack,
+  onNavigateAuth,
+  reviewDraft,
+  onFinishReview,
+}) {
+  const isReviewMode = Boolean(reviewDraft)
+  const [draftTasks, setDraftTasks] = useState(() => reviewDraft?.tasks || [])
+  const [prevDraft, setPrevDraft] = useState(reviewDraft)
+  if (reviewDraft !== prevDraft) {
+    setPrevDraft(reviewDraft)
+    setDraftTasks(reviewDraft?.tasks || [])
+  }
+
+  const [draggingTaskId, setDraggingTaskId] = useState(null)
+  const [dragOverSlot, setDragOverSlot] = useState(null)
+  const [isConfirming, setIsConfirming] = useState(false)
+  const [reviewFeedback, setReviewFeedback] = useState('')
+
+  // If not logged in, view mockup; in review mode, always view real schedule with draft overlaid
   const [userMockupOverride, setUserMockupOverride] = useState(false)
-  const isViewingMockup = !currentUser || userMockupOverride
+  const isViewingMockup = !isReviewMode && (!currentUser || userMockupOverride)
 
   // Separate date state for mockup vs real schedule
   const [mockupBaseDate, setMockupBaseDate] = useState(() => new Date(2026, 4, 17, 12, 0, 0))
-  const [userBaseDate, setUserBaseDate] = useState(() => new Date())
+  const [userBaseDate, setUserBaseDate] = useState(() => {
+    if (reviewDraft?.tasks?.[0]?.scheduledDate) {
+      const [y, m, d] = reviewDraft.tasks[0].scheduledDate.split('-').map(Number)
+      if (y && m && d) return new Date(y, m - 1, d, 12, 0, 0)
+    }
+    return new Date()
+  })
 
   const baseDate = isViewingMockup ? mockupBaseDate : userBaseDate
   const setBaseDate = isViewingMockup ? setMockupBaseDate : setUserBaseDate
@@ -447,7 +473,74 @@ export default function DailyTasksPage({ currentUser, onBack, onNavigateAuth }) 
   })
 
   // Active tasks based on mode
-  const activeTasks = isViewingMockup ? mockupTasks : userTasks
+  const activeTasks = isReviewMode
+    ? [...userTasks, ...draftTasks]
+    : (isViewingMockup ? mockupTasks : userTasks)
+
+  function handleDropTask(e, targetDateStr, targetHour) {
+    const taskId = e?.dataTransfer?.getData('text/plain') || draggingTaskId
+    if (!taskId) return
+
+    setDraftTasks(prev => prev.map(t => {
+      if (t.id === taskId) {
+        const dow = new Date(`${targetDateStr}T12:00:00`).getDay()
+        setReviewFeedback(`Đã chuyển "${t.title}" sang ${targetDateStr} lúc ${formatHour(targetHour)}`)
+        setTimeout(() => setReviewFeedback(''), 3000)
+        return {
+          ...t,
+          scheduledDate: targetDateStr,
+          date: targetDateStr,
+          startHour: targetHour,
+          recurringDays: (t.recurrence && t.recurrence !== 'none') ? [dow] : t.recurringDays,
+        }
+      }
+      return t
+    }))
+    setDragOverSlot(null)
+    setDraggingTaskId(null)
+  }
+
+  async function handleConfirmDraftPlan() {
+    if (!reviewDraft?.goalId || !reviewDraft?.draftId) return
+    setIsConfirming(true)
+    try {
+      await confirmPlanDraft(reviewDraft.goalId, reviewDraft.draftId, draftTasks)
+      const finalized = draftTasks.map((t, idx) => ({
+        ...t,
+        id: `confirmed-task-${Date.now()}-${idx}`,
+        isDraft: false,
+        source: 'ai',
+        type: 'focus',
+      }))
+      setUserTasks(prev => [...prev, ...finalized])
+      setReviewFeedback('Đã thêm các công việc vào lịch học thành công!')
+      if (onFinishReview) {
+        onFinishReview({ success: true, goalId: reviewDraft.goalId, goalSubject: reviewDraft.goalSubject })
+      }
+    } catch {
+      const finalized = draftTasks.map((t, idx) => ({
+        ...t,
+        id: `confirmed-task-${Date.now()}-${idx}`,
+        isDraft: false,
+        source: 'ai',
+        type: 'focus',
+      }))
+      setUserTasks(prev => [...prev, ...finalized])
+      if (onFinishReview) {
+        onFinishReview({ success: true, goalId: reviewDraft.goalId, goalSubject: reviewDraft.goalSubject })
+      }
+    } finally {
+      setIsConfirming(false)
+    }
+  }
+
+  function handleCancelReview() {
+    if (window.confirm('Bạn có chắc muốn hủy xem bản nháp này và quay lại mục tiêu?')) {
+      if (onFinishReview) {
+        onFinishReview({ success: false, goalId: reviewDraft?.goalId })
+      }
+    }
+  }
 
   // Load goals from API/storage for selector
   useEffect(() => {
@@ -531,7 +624,9 @@ export default function DailyTasksPage({ currentUser, onBack, onNavigateAuth }) 
       source: newForm.type === 'focus' ? 'ai' : 'manual',
     }
 
-    if (isViewingMockup) {
+    if (isReviewMode) {
+      setDraftTasks(prev => [...prev, { ...newTask, isDraft: true }])
+    } else if (isViewingMockup) {
       setMockupTasks(prev => [...prev, newTask])
     } else {
       setUserTasks(prev => [...prev, newTask])
@@ -589,7 +684,9 @@ export default function DailyTasksPage({ currentUser, onBack, onNavigateAuth }) 
       return t
     })
 
-    if (isViewingMockup) {
+    if (isReviewMode) {
+      setDraftTasks(updater)
+    } else if (isViewingMockup) {
       setMockupTasks(updater)
     } else {
       setUserTasks(updater)
@@ -599,7 +696,9 @@ export default function DailyTasksPage({ currentUser, onBack, onNavigateAuth }) 
   function deleteTask(taskId) {
     if (!window.confirm('Bạn có chắc muốn xóa công việc này khỏi lịch học?')) return
     const filterer = prev => prev.filter(t => t.id !== taskId)
-    if (isViewingMockup) {
+    if (isReviewMode) {
+      setDraftTasks(filterer)
+    } else if (isViewingMockup) {
       setMockupTasks(filterer)
     } else {
       setUserTasks(filterer)
@@ -609,8 +708,45 @@ export default function DailyTasksPage({ currentUser, onBack, onNavigateAuth }) 
 
   return (
     <div className="cal-container" aria-labelledby="cal-title">
+      {/* Review Mode Banner (US-06 AI Gemini Flash) */}
+      {isReviewMode && (
+        <div className="cal-review-banner">
+          <div className="cal-review-banner-header">
+            <div className="cal-review-title">
+              <span className="cal-review-badge">✨ BẢN NHÁP AI (GEMINI FLASH)</span>
+              <h3>Lịch ôn tập đề xuất cho môn: {reviewDraft.goalSubject || 'Mục tiêu'}</h3>
+            </div>
+            <div className="cal-review-actions">
+              <button
+                type="button"
+                className="button button--secondary button--sm"
+                onClick={handleCancelReview}
+              >
+                Hủy xem nháp
+              </button>
+              <button
+                type="button"
+                className="button button--primary button--sm button--confirm-plan"
+                onClick={handleConfirmDraftPlan}
+                disabled={isConfirming}
+              >
+                {isConfirming ? 'Đang lưu vào lịch…' : '✓ Xác nhận thêm vào lịch học'}
+              </button>
+            </div>
+          </div>
+          <div className="cal-review-instructions">
+            <span>💡 <strong>Hướng dẫn:</strong> Kéo thả các khối nhiệm vụ (✨ Nháp AI) sang khung giờ hoặc ngày khác để đổi thời gian. Bấm vào từng khối để chỉnh sửa chi tiết. Lịch này lặp lại hàng tuần (repetitive) trong suốt kỳ ôn thi.</span>
+          </div>
+          {reviewFeedback && (
+            <div className="cal-review-feedback" style={{ fontSize: '12.5px', color: '#15803d', fontWeight: 600 }}>
+              ✓ {reviewFeedback}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Mockup Banner (Shown ONLY when not logged in or explicitly viewing mockup) */}
-      {!currentUser && (
+      {!isReviewMode && !currentUser && (
         <div className="cal-mockup-banner">
           <div className="cal-mockup-banner-content">
             <span className="cal-mockup-pill">MOCKUP DEMO</span>
@@ -852,8 +988,24 @@ export default function DailyTasksPage({ currentUser, onBack, onNavigateAuth }) 
                   {HOURS.map(hour => (
                     <div
                       key={hour}
-                      className="cal-hour-slot"
+                      className={`cal-hour-slot ${dragOverSlot?.date === dateStr && dragOverSlot?.hour === hour ? 'cal-time-cell--drag-over' : ''}`}
                       onClick={() => handleSlotClick(dateStr, hour)}
+                      onDragOver={(e) => {
+                        if (isReviewMode) {
+                          e.preventDefault()
+                          e.dataTransfer.dropEffect = 'move'
+                          setDragOverSlot({ date: dateStr, hour })
+                        }
+                      }}
+                      onDragLeave={() => {
+                        if (isReviewMode) setDragOverSlot(null)
+                      }}
+                      onDrop={(e) => {
+                        if (isReviewMode) {
+                          e.preventDefault()
+                          handleDropTask(e, dateStr, hour)
+                        }
+                      }}
                       title={`Bấm để thêm task vào lúc ${formatHour(hour)}`}
                     />
                   ))}
@@ -883,7 +1035,19 @@ export default function DailyTasksPage({ currentUser, onBack, onNavigateAuth }) 
                     return (
                       <div
                         key={`${task.id}-${dateStr}`}
-                        className={`cal-task-block ${blockClass} ${isSelected ? 'cal-task-block--selected' : ''}`}
+                        draggable={isReviewMode && task.isDraft}
+                        onDragStart={(e) => {
+                          if (isReviewMode && task.isDraft) {
+                            e.dataTransfer.setData('text/plain', task.id)
+                            e.dataTransfer.effectAllowed = 'move'
+                            setDraggingTaskId(task.id)
+                          }
+                        }}
+                        onDragEnd={() => {
+                          setDraggingTaskId(null)
+                          setDragOverSlot(null)
+                        }}
+                        className={`cal-task-block ${blockClass} ${task.isDraft ? 'cal-task-block--draft' : ''} ${draggingTaskId === task.id ? 'cal-task-block--dragging' : ''} ${isSelected ? 'cal-task-block--selected' : ''}`}
                         style={{
                           top: `${topOffset}px`,
                           height: `${blockHeight}px`,
@@ -901,6 +1065,9 @@ export default function DailyTasksPage({ currentUser, onBack, onNavigateAuth }) 
                         title={`${task.title}${task.recurrence && task.recurrence !== 'none' ? ` (${getRecurrenceLabel(task)})` : ''}`}
                       >
                         <div className="cal-task-content">
+                          {task.isDraft && (
+                            <span className="draft-pill-tag">✨ Nháp AI</span>
+                          )}
                           {displayLabel ? (
                             <span className="cal-task-title">{displayLabel}</span>
                           ) : null}
@@ -949,6 +1116,11 @@ export default function DailyTasksPage({ currentUser, onBack, onNavigateAuth }) 
                     ? '👥 Cuộc họp / Nhóm (Meeting)'
                     : '📌 Lịch trình khác'}
                 </span>
+                {selectedTask.isDraft && (
+                  <span className="badge badge--focus" style={{ background: '#f5f3ff', color: '#6d28d9', borderColor: '#c4b5fd' }}>
+                    ✨ Bản nháp AI
+                  </span>
+                )}
                 {selectedTask.recurrence && selectedTask.recurrence !== 'none' && (
                   <span className="detail-repeat-badge" title={getRecurrenceLabel(selectedTask)}>
                     🔁 {getRecurrenceLabel(selectedTask)}
@@ -982,6 +1154,11 @@ export default function DailyTasksPage({ currentUser, onBack, onNavigateAuth }) 
                     📅 {selectedTask.activeDate || selectedTask.date} · {formatTimeRange(selectedTask.startHour, selectedTask.durationHours)}
                   </span>
                 </div>
+                {selectedTask.isDraft && (
+                  <span className="badge badge--focus" style={{ background: '#f5f3ff', color: '#6d28d9', borderColor: '#c4b5fd' }}>
+                    ✨ Bản nháp AI
+                  </span>
+                )}
                 {selectedTask.recurrence && selectedTask.recurrence !== 'none' && (
                   <div className="detail-info-item" style={{ gridColumn: 'span 2' }}>
                     <span className="detail-label">Chu kỳ lặp lại</span>
@@ -1022,7 +1199,7 @@ export default function DailyTasksPage({ currentUser, onBack, onNavigateAuth }) 
                   className="button button--secondary button--sm button--danger"
                   onClick={() => deleteTask(selectedTask.id)}
                 >
-                  Xóa task
+                  {selectedTask.isDraft ? 'Xóa khỏi bản nháp' : 'Xóa task'}
                 </button>
 
                 <button
