@@ -11,7 +11,10 @@
   <artifactId>ai-study-planner</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <name>AI Study Planner</name>
-  <properties><java.version>21</java.version></properties>
+  <properties>
+    <java.version>21</java.version>
+    <argLine>-javaagent:C:/Users/ADMIN/.m2/repository/net/bytebuddy/byte-buddy-agent/1.17.8/byte-buddy-agent-1.17.8.jar -XX:+EnableDynamicAgentLoading</argLine>
+  </properties>
   <dependencies>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-jdbc</artifactId></dependency>

@@ -1,8 +1,6 @@
 package com.studyplanner.goals;
 
-import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -10,76 +8,54 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.studyplanner.auth.AppUserPrincipal;
+import com.studyplanner.goals.dto.CreateGoalRequest;
+import com.studyplanner.goals.dto.GoalListResponse;
+import com.studyplanner.goals.dto.GoalResponse;
+import com.studyplanner.goals.dto.UpdateGoalRequest;
+import com.studyplanner.tasks.dto.PaginationMeta;
+import com.studyplanner.tasks.dto.TaskErrorResponse;
+
+import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/goals")
 public class GoalController {
-
     private final GoalService goalService;
 
     public GoalController(GoalService goalService) {
-        this.goalService = Objects.requireNonNull(goalService, "goalService must not be null");
+        this.goalService = Objects.requireNonNull(goalService, "goalService");
     }
 
-    public record GoalResponse(UUID id, String subject, String topics, LocalDate startDate,
-                              LocalDate examDate, int minutesPerDay, String timezone, int version) {
-        public static GoalResponse from(GoalJdbcRepository.StoredGoal stored) {
-            return new GoalResponse(
-                    stored.id(),
-                    stored.subject(),
-                    stored.topics(),
-                    stored.startDate(),
-                    stored.examDate(),
-                    stored.minutesPerDay(),
-                    stored.timezone(),
-                    stored.version()
-            );
-        }
+    private static GoalResponse toResponse(GoalJdbcRepository.StoredGoal g) {
+        return GoalResponse.of(
+                g.id(),
+                g.subject(),
+                g.topics(),
+                g.startDate(),
+                g.examDate(),
+                g.minutesPerDay(),
+                g.timezone(),
+                g.version()
+        );
     }
 
-    public record CreateGoalRequest(String subject, String topics, LocalDate startDate,
-                                   LocalDate examDate, Integer minutesPerDay) {}
-
-    public record UpdateGoalRequest(String subject, String topics, LocalDate startDate,
-                                   LocalDate examDate, Integer minutesPerDay, Integer version) {}
-
-    @GetMapping
-    public ResponseEntity<?> listGoals(@AuthenticationPrincipal AppUserPrincipal principal) {
+    @PostMapping({"/api/goals", "/api/v1/goals"})
+    public ResponseEntity<?> createGoal(
+            @AuthenticationPrincipal AppUserPrincipal principal,
+            @Valid @RequestBody CreateGoalRequest request) {
         if (principal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            return unauthenticated();
         }
-        List<GoalResponse> list = goalService.listGoals(principal.id()).stream()
-                .map(GoalResponse::from)
-                .toList();
-        return ResponseEntity.ok(Map.of("items", list));
-    }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<?> getGoal(@AuthenticationPrincipal AppUserPrincipal principal,
-                                    @PathVariable("id") UUID id) {
-        if (principal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        var goal = goalService.getGoal(principal.id(), id);
-        return ResponseEntity.ok(GoalResponse.from(goal));
-    }
-
-    @PostMapping
-    public ResponseEntity<?> createGoal(@AuthenticationPrincipal AppUserPrincipal principal,
-                                       @RequestBody CreateGoalRequest request) {
-        if (principal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
         GoalPolicy.GoalInput input = new GoalPolicy.GoalInput(
                 request.subject(),
                 request.topics(),
@@ -87,61 +63,91 @@ public class GoalController {
                 request.examDate(),
                 request.minutesPerDay()
         );
-        var created = goalService.createGoal(principal.id(), input);
-        return ResponseEntity.status(HttpStatus.CREATED).body(GoalResponse.from(created));
+
+        GoalJdbcRepository.StoredGoal created = goalService.createGoal(principal.id(), input);
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(created));
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<?> updateGoal(@AuthenticationPrincipal AppUserPrincipal principal,
-                                       @PathVariable("id") UUID id,
-                                       @RequestBody UpdateGoalRequest request) {
+    @GetMapping({"/api/goals", "/api/v1/goals"})
+    public ResponseEntity<?> listGoals(
+            @AuthenticationPrincipal AppUserPrincipal principal,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int limit) {
         if (principal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            return unauthenticated();
         }
-        GoalPolicy.GoalInput input = new GoalPolicy.GoalInput(
-                request.subject(),
-                request.topics(),
-                request.startDate(),
-                request.examDate(),
-                request.minutesPerDay()
-        );
-        int version = request.version() == null ? 0 : request.version();
-        var updated = goalService.updateGoal(principal.id(), id, input, version);
-        return ResponseEntity.ok(GoalResponse.from(updated));
+
+        List<GoalJdbcRepository.StoredGoal> storedList = goalService.listGoals(principal.id());
+        List<GoalResponse> responses = storedList.stream().map(GoalController::toResponse).toList();
+
+        return ResponseEntity.ok(GoalListResponse.of(
+                responses,
+                PaginationMeta.of(page, limit, responses.size())
+        ));
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteGoal(@AuthenticationPrincipal AppUserPrincipal principal,
-                                       @PathVariable("id") UUID id) {
+    @GetMapping({"/api/goals/{goalId}", "/api/v1/goals/{goalId}"})
+    public ResponseEntity<?> getGoal(
+            @AuthenticationPrincipal AppUserPrincipal principal,
+            @PathVariable UUID goalId) {
         if (principal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            return unauthenticated();
         }
-        goalService.deleteGoal(principal.id(), id);
+
+        GoalJdbcRepository.StoredGoal stored = goalService.getGoal(principal.id(), goalId);
+        return ResponseEntity.ok(toResponse(stored));
+    }
+
+    @PutMapping({"/api/goals/{goalId}", "/api/v1/goals/{goalId}"})
+    public ResponseEntity<?> putGoal(
+            @AuthenticationPrincipal AppUserPrincipal principal,
+            @PathVariable UUID goalId,
+            @Valid @RequestBody UpdateGoalRequest request) {
+        return handleUpdate(principal, goalId, request);
+    }
+
+    @PatchMapping({"/api/goals/{goalId}", "/api/v1/goals/{goalId}"})
+    public ResponseEntity<?> patchGoal(
+            @AuthenticationPrincipal AppUserPrincipal principal,
+            @PathVariable UUID goalId,
+            @Valid @RequestBody UpdateGoalRequest request) {
+        return handleUpdate(principal, goalId, request);
+    }
+
+    private ResponseEntity<?> handleUpdate(AppUserPrincipal principal, UUID goalId, UpdateGoalRequest request) {
+        if (principal == null) {
+            return unauthenticated();
+        }
+
+        GoalJdbcRepository.StoredGoal current = goalService.getGoal(principal.id(), goalId);
+        int expectedVersion = request.resolveExpectedVersion(current.version());
+
+        String subject = request.subject() != null ? request.subject() : current.subject();
+        String topics = request.topics() != null ? request.topics() : current.topics();
+        var startDate = request.startDate() != null ? request.startDate() : current.startDate();
+        var examDate = request.examDate() != null ? request.examDate() : current.examDate();
+        int minutesPerDay = request.minutesPerDay() != null ? request.minutesPerDay() : current.minutesPerDay();
+
+        GoalPolicy.GoalInput input = new GoalPolicy.GoalInput(subject, topics, startDate, examDate, minutesPerDay);
+        GoalJdbcRepository.StoredGoal updated = goalService.updateGoal(principal.id(), goalId, input, expectedVersion);
+
+        return ResponseEntity.ok(toResponse(updated));
+    }
+
+    @DeleteMapping({"/api/goals/{goalId}", "/api/v1/goals/{goalId}"})
+    public ResponseEntity<?> deleteGoal(
+            @AuthenticationPrincipal AppUserPrincipal principal,
+            @PathVariable UUID goalId) {
+        if (principal == null) {
+            return unauthenticated();
+        }
+
+        goalService.deleteGoal(principal.id(), goalId);
         return ResponseEntity.noContent().build();
     }
 
-    @ExceptionHandler(GoalService.GoalValidationException.class)
-    public ResponseEntity<?> handleValidation(GoalService.GoalValidationException e) {
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(Map.of(
-                "code", "validation_failed",
-                "message", "Dữ liệu mục tiêu không hợp lệ.",
-                "fieldErrors", e.violations()
-        ));
-    }
-
-    @ExceptionHandler(GoalService.GoalNotFoundException.class)
-    public ResponseEntity<?> handleNotFound(GoalService.GoalNotFoundException e) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
-                "code", "goal_not_found",
-                "message", "Mục tiêu không tồn tại hoặc đã bị xóa."
-        ));
-    }
-
-    @ExceptionHandler(GoalService.GoalConflictException.class)
-    public ResponseEntity<?> handleConflict(GoalService.GoalConflictException e) {
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
-                "code", "stale_goal_version",
-                "message", "Mục tiêu vừa được cập nhật ở nơi khác. Vui lòng tải lại trước khi tiếp tục."
-        ));
+    private static ResponseEntity<TaskErrorResponse> unauthenticated() {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(TaskErrorResponse.of("unauthenticated", "Báº¡n cáº§n Ä‘Äƒng nháº­p."));
     }
 }
