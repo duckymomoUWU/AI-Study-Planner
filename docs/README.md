@@ -15,6 +15,7 @@
 - [Invariant encoding](patterns/encoding-invariants.md): optional native validation guidance.
 - [Decisions](decisions/README.md) and [plans](plans/README.md): optional durable records for accepted decisions and complex work.
 - `templates/`: optional decision, execution-plan, application-runbook and Harness-improvement templates.
+- [ASP-9 Goal API contract](product/ASP-9-goals-api.md): proposed CRUD contract, errors, timezone rule and AC mapping. Design only; the endpoints are not implemented.
 - [Product document guidance](product/README.md): generic guidance; requirements remain authoritative at the existing root document. Do not duplicate requirements or verification commands here.
 
 Harness status and doctor validate the Harness installation, not application behavior.
