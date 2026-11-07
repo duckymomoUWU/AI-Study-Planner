@@ -135,4 +135,18 @@ class GoalJdbcRepositoryTest {
         assertEquals(ownerId, params.getValue().getValue("ownerId"));
         assertEquals("Asia/Ho_Chi_Minh", params.getValue().getValue("timezone"));
     }
+
+    @Test
+    void bumpVersionIsScopedToOwnerAndGoal() {
+        when(jdbc.update(anyString(), any(SqlParameterSource.class))).thenReturn(1);
+        assertTrue(repository.bumpVersion(ownerId, goalId));
+
+        var sql = ArgumentCaptor.forClass(String.class);
+        var params = ArgumentCaptor.forClass(SqlParameterSource.class);
+        verify(jdbc).update(sql.capture(), params.capture());
+        assertTrue(sql.getValue().contains("SET version = version + 1 WHERE user_id = :ownerId AND id = :goalId"));
+        assertEquals(ownerId, params.getValue().getValue("ownerId"));
+        assertEquals(goalId, params.getValue().getValue("goalId"));
+        assertThrows(NullPointerException.class, () -> repository.bumpVersion(null, goalId));
+    }
 }
