@@ -25,7 +25,7 @@ public class GoalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(TaskErrorResponse.of(
                         "validation_failed",
-                        "Dá»¯ liá»‡u má»¥c tiÃªu khÃ´ng há»£p lá»‡.",
+                        "Dữ liệu mục tiêu không hợp lệ.",
                         fieldErrors
                 ));
     }
@@ -35,7 +35,7 @@ public class GoalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(TaskErrorResponse.of(
                         "NOT_FOUND",
-                        "KhÃ´ng tÃ¬m tháº¥y má»¥c tiÃªu hoáº·c báº¡n khÃ´ng cÃ³ quyá»n truy cáº­p."
+                        "Không tìm thấy mục tiêu hoặc bạn không có quyền truy cập."
                 ));
     }
 
@@ -44,7 +44,7 @@ public class GoalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(TaskErrorResponse.of(
                         "GOAL_VERSION_CONFLICT",
-                        "Má»¥c tiÃªu Ä‘Ã£ Ä‘Æ°á»£c cáº­p nháº­t bá»Ÿi má»™t phiÃªn lÃ m viá»‡c khÃ¡c."
+                        "Mục tiêu đã được cập nhật bởi một phiên làm việc khác."
                 ));
     }
 

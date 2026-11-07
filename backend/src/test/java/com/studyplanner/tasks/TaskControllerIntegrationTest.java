@@ -73,7 +73,7 @@ class TaskControllerIntegrationTest {
 
     private TaskResponse sampleTask() {
         return new TaskResponse(
-                taskId, goalId, "CÆ¡ sá»Ÿ dá»¯ liá»‡u", "Ã”n SQL JOIN",
+                taskId, goalId, "Cơ sở dữ liệu", "Ôn SQL JOIN",
                 LocalDate.of(2026, 11, 10), 45, false, "manual", Instant.now()
         );
     }
@@ -81,7 +81,7 @@ class TaskControllerIntegrationTest {
     @Test
     @DisplayName("POST /api/goals/{goalId}/tasks creates task and returns 201 with both top-level and data envelope")
     void createTaskSucceeds() throws Exception {
-        var req = new CreateTaskRequest("Ã”n SQL JOIN", LocalDate.of(2026, 11, 10), 45);
+        var req = new CreateTaskRequest("Ôn SQL JOIN", LocalDate.of(2026, 11, 10), 45);
         when(taskService.createTask(eq(userId), eq(goalId), any(CreateTaskRequest.class)))
                 .thenReturn(SingleTaskResponse.of(sampleTask()));
 
@@ -92,17 +92,17 @@ class TaskControllerIntegrationTest {
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(taskId.toString()))
-                .andExpect(jsonPath("$.title").value("Ã”n SQL JOIN"))
+                .andExpect(jsonPath("$.title").value("Ôn SQL JOIN"))
                 .andExpect(jsonPath("$.estimatedMinutes").value(45))
                 .andExpect(jsonPath("$.completed").value(false))
                 .andExpect(jsonPath("$.data.id").value(taskId.toString()))
-                .andExpect(jsonPath("$.data.title").value("Ã”n SQL JOIN"));
+                .andExpect(jsonPath("$.data.title").value("Ôn SQL JOIN"));
     }
 
     @Test
     @DisplayName("POST /api/goals/{goalId}/tasks returns 422 DAILY_BUDGET_EXCEEDED when daily minutes exceed budget")
     void createTaskDailyBudgetExceeded() throws Exception {
-        var req = new CreateTaskRequest("Ã”n SQL JOIN", LocalDate.of(2026, 11, 10), 90);
+        var req = new CreateTaskRequest("Ôn SQL JOIN", LocalDate.of(2026, 11, 10), 90);
         when(taskService.createTask(eq(userId), eq(goalId), any(CreateTaskRequest.class)))
                 .thenThrow(new DailyBudgetExceededException(LocalDate.of(2026, 11, 10), 60, 90, 30));
 

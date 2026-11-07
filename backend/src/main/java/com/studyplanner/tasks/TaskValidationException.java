@@ -8,7 +8,7 @@ public class TaskValidationException extends RuntimeException {
     private final List<FieldViolation> violations;
 
     public TaskValidationException(List<FieldViolation> violations) {
-        super(violations.isEmpty() ? "Dá»¯ liá»‡u cÃ´ng viá»‡c khÃ´ng há»£p lá»‡." : violations.get(0).message());
+        super(violations.isEmpty() ? "Dữ liệu công việc không hợp lệ." : violations.get(0).message());
         this.violations = List.copyOf(violations);
     }
 

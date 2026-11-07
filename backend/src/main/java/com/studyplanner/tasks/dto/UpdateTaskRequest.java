@@ -6,13 +6,13 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 
 public record UpdateTaskRequest(
-        @Size(max = 200, message = "TiÃªu Ä‘á» tá»‘i Ä‘a 200 kÃ½ tá»±.")
+        @Size(max = 200, message = "Tiêu đề tối đa 200 ký tự.")
         String title,
 
         LocalDate scheduledDate,
 
-        @Min(value = 1, message = "Thá»i lÆ°á»£ng tá»‘i thiá»ƒu lÃ  1 phÃºt.")
-        @Max(value = 480, message = "Thá»i lÆ°á»£ng tá»‘i Ä‘a lÃ  480 phÃºt.")
+        @Min(value = 1, message = "Thời lượng tối thiểu là 1 phút.")
+        @Max(value = 480, message = "Thời lượng tối đa là 480 phút.")
         Integer estimatedMinutes,
 
         Boolean completed

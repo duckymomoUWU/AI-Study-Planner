@@ -42,7 +42,7 @@ public class TaskController {
 
     private static UUID getUserId(AppUserPrincipal principal) {
         if (principal == null) {
-            throw new TaskNotFoundException("ChÆ°a Ä‘Äƒng nháº­p.");
+            throw new TaskNotFoundException("Chưa đăng nhập.");
         }
         return principal.id();
     }
@@ -116,7 +116,7 @@ public class TaskController {
         return ResponseEntity.noContent().build();
     }
 
-    // --- Daily Tasks across goals (Lá»‹ch há»c theo ngÃ y) ---
+    // --- Daily Tasks across goals (Lịch học theo ngày) ---
     @GetMapping({"/api/tasks", "/api/v1/tasks"})
     public ResponseEntity<?> listTasksByDate(
             @AuthenticationPrincipal AppUserPrincipal principal,
@@ -196,6 +196,6 @@ public class TaskController {
 
     private static ResponseEntity<TaskErrorResponse> unauthenticated() {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(TaskErrorResponse.of("UNAUTHORIZED", "Báº¡n cáº§n Ä‘Äƒng nháº­p."));
+                .body(TaskErrorResponse.of("UNAUTHORIZED", "Bạn cần đăng nhập."));
     }
 }

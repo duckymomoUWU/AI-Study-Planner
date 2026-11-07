@@ -148,6 +148,6 @@ public class GoalController {
 
     private static ResponseEntity<TaskErrorResponse> unauthenticated() {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(TaskErrorResponse.of("unauthenticated", "Báº¡n cáº§n Ä‘Äƒng nháº­p."));
+                .body(TaskErrorResponse.of("unauthenticated", "Bạn cần đăng nhập."));
     }
 }

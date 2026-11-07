@@ -64,7 +64,7 @@ class GoalControllerIntegrationTest {
 
     private GoalJdbcRepository.StoredGoal sampleGoal(int version) {
         return new GoalJdbcRepository.StoredGoal(
-                goalId, userId, "Giáº£i tÃ­ch 2", "TÃ­ch phÃ¢n Ä‘Æ°á»ng",
+                goalId, userId, "Giải tích 2", "Tích phân đường",
                 LocalDate.of(2026, 11, 9), LocalDate.of(2026, 12, 5),
                 90, "Asia/Ho_Chi_Minh", version
         );
@@ -79,14 +79,14 @@ class GoalControllerIntegrationTest {
                         .with(user(principal)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].id").value(goalId.toString()))
-                .andExpect(jsonPath("$.items[0].subject").value("Giáº£i tÃ­ch 2"))
+                .andExpect(jsonPath("$.items[0].subject").value("Giải tích 2"))
                 .andExpect(jsonPath("$.data[0].id").value(goalId.toString()));
     }
 
     @Test
     @DisplayName("POST /api/goals creates goal and returns 201")
     void createGoalSucceeds() throws Exception {
-        var req = new CreateGoalRequest("Giáº£i tÃ­ch 2", "TÃ­ch phÃ¢n Ä‘Æ°á»ng",
+        var req = new CreateGoalRequest("Giải tích 2", "Tích phân đường",
                 LocalDate.of(2026, 11, 9), LocalDate.of(2026, 12, 5), 90, null);
 
         when(goalService.createGoal(eq(userId), any(GoalPolicy.GoalInput.class)))
@@ -99,14 +99,14 @@ class GoalControllerIntegrationTest {
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(goalId.toString()))
-                .andExpect(jsonPath("$.subject").value("Giáº£i tÃ­ch 2"))
+                .andExpect(jsonPath("$.subject").value("Giải tích 2"))
                 .andExpect(jsonPath("$.minutesPerDay").value(90));
     }
 
     @Test
     @DisplayName("PUT /api/goals/{goalId} updates goal and increments version")
     void updateGoalSucceeds() throws Exception {
-        var req = new UpdateGoalRequest("Giáº£i tÃ­ch 2", "TÃ­ch phÃ¢n Ä‘Æ°á»ng",
+        var req = new UpdateGoalRequest("Giải tích 2", "Tích phân đường",
                 LocalDate.of(2026, 11, 9), LocalDate.of(2026, 12, 5), 90, 0, null);
 
         when(goalService.getGoal(userId, goalId)).thenReturn(sampleGoal(0));

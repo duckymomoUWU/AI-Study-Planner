@@ -56,14 +56,14 @@ class TaskServiceTest {
 
     private GoalJdbcRepository.StoredGoal mockGoal(int version, int minutesPerDay) {
         return new GoalJdbcRepository.StoredGoal(
-                GOAL_ID, USER_ID, "CÆ¡ sá»Ÿ dá»¯ liá»‡u", "SQL, BCNF",
+                GOAL_ID, USER_ID, "Cơ sở dữ liệu", "SQL, BCNF",
                 START, EXAM, minutesPerDay, "Asia/Ho_Chi_Minh", version
         );
     }
 
     private TaskJdbcRepository.StoredTask mockTask(int minutes, boolean completed) {
         return new TaskJdbcRepository.StoredTask(
-                TASK_ID, GOAL_ID, "CÆ¡ sá»Ÿ dá»¯ liá»‡u", "Ã”n SQL JOIN",
+                TASK_ID, GOAL_ID, "Cơ sở dữ liệu", "Ôn SQL JOIN",
                 LocalDate.of(2026, 11, 10), minutes, completed, "manual", Instant.now()
         );
     }
@@ -75,20 +75,20 @@ class TaskServiceTest {
         when(taskRepository.getDailyUsedMinutes(GOAL_ID, LocalDate.of(2026, 11, 10), null)).thenReturn(20);
 
         var stored = mockTask(30, false);
-        when(taskRepository.insertTask(eq(GOAL_ID), eq("Ã”n SQL JOIN"), eq(LocalDate.of(2026, 11, 10)), eq(30), eq("manual"), eq("CÆ¡ sá»Ÿ dá»¯ liá»‡u")))
+        when(taskRepository.insertTask(eq(GOAL_ID), eq("Ôn SQL JOIN"), eq(LocalDate.of(2026, 11, 10)), eq(30), eq("manual"), eq("Cơ sở dữ liệu")))
                 .thenReturn(stored);
 
-        var request = new CreateTaskRequest("  Ã”n SQL JOIN  ", LocalDate.of(2026, 11, 10), 30);
+        var request = new CreateTaskRequest("  Ôn SQL JOIN  ", LocalDate.of(2026, 11, 10), 30);
         SingleTaskResponse res = service.createTask(USER_ID, GOAL_ID, request);
 
         assertNotNull(res);
-        assertEquals("Ã”n SQL JOIN", res.title());
+        assertEquals("Ôn SQL JOIN", res.title());
         assertEquals(30, res.estimatedMinutes());
         assertFalse(res.completed());
         assertEquals("manual", res.source());
 
         verify(goalRepository).lockOwned(USER_ID, GOAL_ID);
-        verify(taskRepository).insertTask(GOAL_ID, "Ã”n SQL JOIN", LocalDate.of(2026, 11, 10), 30, "manual", "CÆ¡ sá»Ÿ dá»¯ liá»‡u");
+        verify(taskRepository).insertTask(GOAL_ID, "Ôn SQL JOIN", LocalDate.of(2026, 11, 10), 30, "manual", "Cơ sở dữ liệu");
         verify(taskRepository).incrementGoalVersion(USER_ID, GOAL_ID);
     }
 
@@ -98,7 +98,7 @@ class TaskServiceTest {
         when(goalRepository.lockOwned(USER_ID, GOAL_ID)).thenReturn(Optional.of(goal));
         when(taskRepository.getDailyUsedMinutes(GOAL_ID, LocalDate.of(2026, 11, 10), null)).thenReturn(40);
 
-        var request = new CreateTaskRequest("BÃ i táº­p lá»›n", LocalDate.of(2026, 11, 10), 30);
+        var request = new CreateTaskRequest("Bài tập lớn", LocalDate.of(2026, 11, 10), 30);
         var ex = assertThrows(DailyBudgetExceededException.class, () -> service.createTask(USER_ID, GOAL_ID, request));
 
         assertEquals(60, ex.getBudgetMinutes());
@@ -118,7 +118,7 @@ class TaskServiceTest {
         assertThrows(TaskValidationException.class, () -> service.createTask(USER_ID, GOAL_ID, onExam));
 
         // Date before start date (2026-11-08)
-        var beforeStart = new CreateTaskRequest("Sá»›m", START.minusDays(1), 30);
+        var beforeStart = new CreateTaskRequest("Sớm", START.minusDays(1), 30);
         assertThrows(TaskValidationException.class, () -> service.createTask(USER_ID, GOAL_ID, beforeStart));
 
         verify(taskRepository, never()).insertTask(any(), any(), any(), anyInt(), any(), any());
@@ -128,7 +128,7 @@ class TaskServiceTest {
     void createTaskFailsIfGoalNotFoundOrNotOwned() {
         when(goalRepository.lockOwned(USER_ID, GOAL_ID)).thenReturn(Optional.empty());
 
-        var request = new CreateTaskRequest("Há»c bÃ i", LocalDate.of(2026, 11, 10), 30);
+        var request = new CreateTaskRequest("Học bài", LocalDate.of(2026, 11, 10), 30);
         assertThrows(TaskNotFoundException.class, () -> service.createTask(USER_ID, GOAL_ID, request));
     }
 
@@ -143,21 +143,21 @@ class TaskServiceTest {
         when(taskRepository.getDailyUsedMinutes(GOAL_ID, LocalDate.of(2026, 11, 10), TASK_ID)).thenReturn(10);
 
         var updatedStored = new TaskJdbcRepository.StoredTask(
-                TASK_ID, GOAL_ID, "CÆ¡ sá»Ÿ dá»¯ liá»‡u", "Ã”n SQL JOIN nÃ¢ng cao",
+                TASK_ID, GOAL_ID, "Cơ sở dữ liệu", "Ôn SQL JOIN nâng cao",
                 LocalDate.of(2026, 11, 10), 45, true, "manual", Instant.now()
         );
         when(taskRepository.findTaskInGoalOwned(USER_ID, GOAL_ID, TASK_ID))
                 .thenReturn(Optional.of(existing))
                 .thenReturn(Optional.of(updatedStored));
 
-        var updateReq = new UpdateTaskRequest("Ã”n SQL JOIN nÃ¢ng cao", null, 45, true);
+        var updateReq = new UpdateTaskRequest("Ôn SQL JOIN nâng cao", null, 45, true);
         SingleTaskResponse res = service.updateTask(USER_ID, GOAL_ID, TASK_ID, updateReq);
 
-        assertEquals("Ã”n SQL JOIN nÃ¢ng cao", res.title());
+        assertEquals("Ôn SQL JOIN nâng cao", res.title());
         assertEquals(45, res.estimatedMinutes());
         assertTrue(res.completed());
 
-        verify(taskRepository).updateTask(TASK_ID, GOAL_ID, "Ã”n SQL JOIN nÃ¢ng cao", LocalDate.of(2026, 11, 10), 45, true);
+        verify(taskRepository).updateTask(TASK_ID, GOAL_ID, "Ôn SQL JOIN nâng cao", LocalDate.of(2026, 11, 10), 45, true);
         verify(taskRepository).incrementGoalVersion(USER_ID, GOAL_ID);
     }
 
@@ -191,7 +191,7 @@ class TaskServiceTest {
     void listTasksByDateCalculatesSummaryCorrectly() {
         var task1 = mockTask(30, true);
         var task2 = new TaskJdbcRepository.StoredTask(
-                UUID.randomUUID(), GOAL_ID, "CÆ¡ sá»Ÿ dá»¯ liá»‡u", "Task 2",
+                UUID.randomUUID(), GOAL_ID, "Cơ sở dữ liệu", "Task 2",
                 LocalDate.of(2026, 11, 10), 45, false, "manual", Instant.now()
         );
 

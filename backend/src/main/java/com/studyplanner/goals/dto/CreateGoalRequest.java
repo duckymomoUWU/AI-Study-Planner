@@ -8,22 +8,22 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record CreateGoalRequest(
-        @NotBlank(message = "MÃ´n há»c khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng.")
-        @Size(max = 100, message = "TÃªn mÃ´n há»c tá»‘i Ä‘a 100 kÃ½ tá»±.")
+        @NotBlank(message = "Môn học không được để trống.")
+        @Size(max = 100, message = "Tên môn học tối đa 100 ký tự.")
         String subject,
 
-        @NotBlank(message = "Chá»§ Ä‘á» khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng.")
+        @NotBlank(message = "Chủ đề không được để trống.")
         String topics,
 
-        @NotNull(message = "NgÃ y báº¯t Ä‘áº§u lÃ  báº¯t buá»™c.")
+        @NotNull(message = "Ngày bắt đầu là bắt buộc.")
         LocalDate startDate,
 
-        @NotNull(message = "NgÃ y thi lÃ  báº¯t buá»™c.")
+        @NotNull(message = "Ngày thi là bắt buộc.")
         LocalDate examDate,
 
-        @NotNull(message = "Sá»‘ phÃºt má»—i ngÃ y lÃ  báº¯t buá»™c.")
-        @Min(value = 15, message = "Sá»‘ phÃºt má»—i ngÃ y tá»‘i thiá»ƒu lÃ  15.")
-        @Max(value = 480, message = "Sá»‘ phÃºt má»—i ngÃ y tá»‘i Ä‘a lÃ  480.")
+        @NotNull(message = "Số phút mỗi ngày là bắt buộc.")
+        @Min(value = 15, message = "Số phút mỗi ngày tối thiểu là 15.")
+        @Max(value = 480, message = "Số phút mỗi ngày tối đa là 480.")
         Integer minutesPerDay,
 
         String timezone

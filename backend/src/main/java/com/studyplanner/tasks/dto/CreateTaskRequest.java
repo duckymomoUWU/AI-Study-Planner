@@ -5,7 +5,7 @@ import java.util.UUID;
 import jakarta.validation.constraints.Size;
 
 public record CreateTaskRequest(
-        @Size(max = 200, message = "TiÃªu Ä‘á» tá»‘i Ä‘a 200 kÃ½ tá»±.")
+        @Size(max = 200, message = "Tiêu đề tối đa 200 ký tự.")
         String title,
 
         LocalDate scheduledDate,

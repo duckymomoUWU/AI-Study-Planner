@@ -42,8 +42,8 @@ import com.studyplanner.tasks.dto.CreateTaskRequest;
 import com.studyplanner.tasks.dto.UpdateTaskRequest;
 
 /**
- * Bá»™ kiá»ƒm thá»­ tÃ­ch há»£p (Integration Test) kiá»ƒm tra toÃ n bá»™ cÃ¡c quy táº¯c láº­p lá»‹ch,
- * ngÃ¢n sÃ¡ch thá»i gian, báº£o máº­t cÃ´ láº­p dá»¯ liá»‡u vÃ  tÃ­nh nguyÃªn tá»­ theo Ä‘áº·c táº£ Backend API Spec.
+ * Bộ kiểm thử tích hợp (Integration Test) kiểm tra toàn bộ các quy tắc lập lịch,
+ * ngân sách thời gian, bảo mật cô lập dữ liệu và tính nguyên tử theo đặc tả Backend API Spec.
  */
 @WebMvcTest(controllers = TaskController.class)
 @Import({TaskService.class, SecurityConfig.class, TaskExceptionHandler.class, GoalTimeConfiguration.class})
@@ -64,14 +64,14 @@ class TaskScheduleIntegrationTest {
     @MockBean
     private UserDetailsService userDetailsService;
 
-    // User A & User B Ä‘á»ƒ kiá»ƒm thá»­ Data Isolation
+    // User A & User B để kiểm thử Data Isolation
     private final UUID userAId = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private final UUID userBId = UUID.fromString("22222222-2222-2222-2222-222222222222");
 
     private final UUID goalId = UUID.fromString("33333333-3333-3333-3333-333333333333");
     private final UUID taskId = UUID.fromString("44444444-4444-4444-4444-444444444444");
 
-    // Má»¥c tiÃªu há»c táº­p tá»« ngÃ y 09/11/2026 Ä‘áº¿n ngÃ y thi 12/11/2026 (ngÃ¢n sÃ¡ch 60 phÃºt/ngÃ y)
+    // Mục tiêu học tập từ ngày 09/11/2026 đến ngày thi 12/11/2026 (ngân sách 60 phút/ngày)
     private final LocalDate startDate = LocalDate.of(2026, 11, 9);
     private final LocalDate examDate = LocalDate.of(2026, 11, 12);
     private final int minutesPerDay = 60;
@@ -84,32 +84,32 @@ class TaskScheduleIntegrationTest {
         principalA = new AppUserPrincipal(userAId, "studentA@example.com", "hashA");
         principalB = new AppUserPrincipal(userBId, "studentB@example.com", "hashB");
 
-        // Cáº¥u hÃ¬nh mock Goal thuá»™c quyá»n sá»Ÿ há»¯u cá»§a User A
+        // Cấu hình mock Goal thuộc quyền sở hữu của User A
         var storedGoal = new GoalJdbcRepository.StoredGoal(
-                goalId, userAId, "CÆ¡ sá»Ÿ dá»¯ liá»‡u", "SQL JOIN, Chuáº©n hÃ³a",
+                goalId, userAId, "Cơ sở dữ liệu", "SQL JOIN, Chuẩn hóa",
                 startDate, examDate, minutesPerDay, "Asia/Ho_Chi_Minh", 0
         );
 
         when(goalRepository.lockOwned(userAId, goalId)).thenReturn(Optional.of(storedGoal));
         when(goalRepository.findOwned(userAId, goalId)).thenReturn(Optional.of(storedGoal));
 
-        // User B khÃ´ng sá»Ÿ há»¯u goal nÃ y
+        // User B không sở hữu goal này
         when(goalRepository.lockOwned(userBId, goalId)).thenReturn(Optional.empty());
         when(goalRepository.findOwned(userBId, goalId)).thenReturn(Optional.empty());
     }
 
     private TaskJdbcRepository.StoredTask createMockStoredTask(LocalDate date, int minutes, boolean completed) {
         return new TaskJdbcRepository.StoredTask(
-                taskId, goalId, "CÆ¡ sá»Ÿ dá»¯ liá»‡u", "Ã”n táº­p SQL",
+                taskId, goalId, "Cơ sở dữ liệu", "Ôn tập SQL",
                 date, minutes, completed, "manual", Instant.now()
         );
     }
 
     // =========================================================================
-    // 1. testCreateTask_OnStartDate_Success: Xáº¿p task vÃ o Ä‘Ãºng startDate -> 201
+    // 1. testCreateTask_OnStartDate_Success: Xếp task vào đúng startDate -> 201
     // =========================================================================
     @Test
-    @DisplayName("1. testCreateTask_OnStartDate_Success: Xáº¿p task vÃ o Ä‘Ãºng ngÃ y startDate -> 201 Created")
+    @DisplayName("1. testCreateTask_OnStartDate_Success: Xếp task vào đúng ngày startDate -> 201 Created")
     void testCreateTask_OnStartDate_Success() throws Exception {
         LocalDate taskDate = startDate; // 2026-11-09
         int estimatedMinutes = 45;
@@ -118,7 +118,7 @@ class TaskScheduleIntegrationTest {
         when(taskRepository.insertTask(eq(goalId), anyString(), eq(taskDate), eq(estimatedMinutes), eq("manual"), anyString()))
                 .thenReturn(createMockStoredTask(taskDate, estimatedMinutes, false));
 
-        var request = new CreateTaskRequest("Ã”n mÃ´ hÃ¬nh quan há»‡", taskDate, estimatedMinutes);
+        var request = new CreateTaskRequest("Ôn mô hình quan hệ", taskDate, estimatedMinutes);
 
         mockMvc.perform(post("/api/goals/{goalId}/tasks", goalId)
                         .with(user(principalA))
@@ -131,15 +131,15 @@ class TaskScheduleIntegrationTest {
                 .andExpect(jsonPath("$.estimatedMinutes").value(45))
                 .andExpect(jsonPath("$.completed").value(false));
 
-        verify(taskRepository).insertTask(eq(goalId), eq("Ã”n mÃ´ hÃ¬nh quan há»‡"), eq(taskDate), eq(45), eq("manual"), eq("CÆ¡ sá»Ÿ dá»¯ liá»‡u"));
+        verify(taskRepository).insertTask(eq(goalId), eq("Ôn mô hình quan hệ"), eq(taskDate), eq(45), eq("manual"), eq("Cơ sở dữ liệu"));
         verify(taskRepository).incrementGoalVersion(userAId, goalId);
     }
 
     // =========================================================================
-    // 2. testCreateTask_OnDayBeforeExam_Success: Xáº¿p task vÃ o ngÃ y trÆ°á»›c thi -> 201
+    // 2. testCreateTask_OnDayBeforeExam_Success: Xếp task vào ngày trước thi -> 201
     // =========================================================================
     @Test
-    @DisplayName("2. testCreateTask_OnDayBeforeExam_Success: Xáº¿p task vÃ o ngÃ y liá»n ká» trÆ°á»›c examDate -> 201 Created")
+    @DisplayName("2. testCreateTask_OnDayBeforeExam_Success: Xếp task vào ngày liền kề trước examDate -> 201 Created")
     void testCreateTask_OnDayBeforeExam_Success() throws Exception {
         LocalDate dayBeforeExam = examDate.minusDays(1); // 2026-11-11
         int estimatedMinutes = 50;
@@ -148,7 +148,7 @@ class TaskScheduleIntegrationTest {
         when(taskRepository.insertTask(eq(goalId), anyString(), eq(dayBeforeExam), eq(estimatedMinutes), eq("manual"), anyString()))
                 .thenReturn(createMockStoredTask(dayBeforeExam, estimatedMinutes, false));
 
-        var request = new CreateTaskRequest("Tá»•ng Ã´n trÆ°á»›c ngÃ y thi", dayBeforeExam, estimatedMinutes);
+        var request = new CreateTaskRequest("Tổng ôn trước ngày thi", dayBeforeExam, estimatedMinutes);
 
         mockMvc.perform(post("/api/goals/{goalId}/tasks", goalId)
                         .with(user(principalA))
@@ -159,17 +159,17 @@ class TaskScheduleIntegrationTest {
                 .andExpect(jsonPath("$.scheduledDate").value(dayBeforeExam.toString()))
                 .andExpect(jsonPath("$.estimatedMinutes").value(50));
 
-        verify(taskRepository).insertTask(eq(goalId), eq("Tá»•ng Ã´n trÆ°á»›c ngÃ y thi"), eq(dayBeforeExam), eq(50), eq("manual"), eq("CÆ¡ sá»Ÿ dá»¯ liá»‡u"));
+        verify(taskRepository).insertTask(eq(goalId), eq("Tổng ôn trước ngày thi"), eq(dayBeforeExam), eq(50), eq("manual"), eq("Cơ sở dữ liệu"));
     }
 
     // =========================================================================
-    // 3. testCreateTask_OnExamDate_ShouldFail: Cá»‘ tÃ¬nh xáº¿p vÃ o ngÃ y thi -> 400
+    // 3. testCreateTask_OnExamDate_ShouldFail: Cố tình xếp vào ngày thi -> 400
     // =========================================================================
     @Test
-    @DisplayName("3. testCreateTask_OnExamDate_ShouldFail: Cá»‘ tÃ¬nh xáº¿p task vÃ o Ä‘Ãºng ngÃ y thi -> Mong Ä‘á»£i 400, DB khÃ´ng cÃ³ task má»›i")
+    @DisplayName("3. testCreateTask_OnExamDate_ShouldFail: Cố tình xếp task vào đúng ngày thi -> Mong đợi 400, DB không có task mới")
     void testCreateTask_OnExamDate_ShouldFail() throws Exception {
-        LocalDate taskDate = examDate; // 2026-11-12 (ngÃ y thi bá»‹ loáº¡i trá»«)
-        var request = new CreateTaskRequest("Ã”n táº­p ngÃ y thi", taskDate, 30);
+        LocalDate taskDate = examDate; // 2026-11-12 (ngày thi bị loại trừ)
+        var request = new CreateTaskRequest("Ôn tập ngày thi", taskDate, 30);
 
         mockMvc.perform(post("/api/goals/{goalId}/tasks", goalId)
                         .with(user(principalA))
@@ -181,23 +181,23 @@ class TaskScheduleIntegrationTest {
                 .andExpect(jsonPath("$.fieldErrors[0].field").value("scheduledDate"))
                 .andExpect(jsonPath("$.fieldErrors[0].issue").value("on_or_after_exam_date"));
 
-        // XÃ¡c nháº­n tÃ­nh nguyÃªn tá»­: Tuyá»‡t Ä‘á»‘i khÃ´ng insert vÃ o cÆ¡ sá»Ÿ dá»¯ liá»‡u
+        // Xác nhận tính nguyên tử: Tuyệt đối không insert vào cơ sở dữ liệu
         verify(taskRepository, never()).insertTask(any(), any(), any(), anyInt(), any(), any());
         verify(taskRepository, never()).incrementGoalVersion(any(), any());
     }
 
     // =========================================================================
-    // 4. testCreateTask_ExceedDailyMinutes_ShouldFail: VÆ°á»£t Ä‘á»‹nh má»©c -> 422
+    // 4. testCreateTask_ExceedDailyMinutes_ShouldFail: Vượt định mức -> 422
     // =========================================================================
     @Test
-    @DisplayName("4. testCreateTask_ExceedDailyMinutes_ShouldFail: ÄÃ£ cÃ³ 45 phÃºt, Ä‘á»‹nh má»©c 60, táº¡o thÃªm 30 phÃºt -> 422 DAILY_BUDGET_EXCEEDED")
+    @DisplayName("4. testCreateTask_ExceedDailyMinutes_ShouldFail: Đã có 45 phút, định mức 60, tạo thêm 30 phút -> 422 DAILY_BUDGET_EXCEEDED")
     void testCreateTask_ExceedDailyMinutes_ShouldFail() throws Exception {
         LocalDate taskDate = startDate.plusDays(1); // 2026-11-10
-        // NgÃ y Ä‘Ã£ dÃ¹ng 45 phÃºt
+        // Ngày đã dùng 45 phút
         when(taskRepository.getDailyUsedMinutes(goalId, taskDate, null)).thenReturn(45);
 
-        // Cá»‘ tÃ¬nh thÃªm task 30 phÃºt (Tá»•ng 45 + 30 = 75 phÃºt > 60 phÃºt Ä‘á»‹nh má»©c)
-        var request = new CreateTaskRequest("Giáº£i bÃ i táº­p nÃ¢ng cao", taskDate, 30);
+        // Cố tình thêm task 30 phút (Tổng 45 + 30 = 75 phút > 60 phút định mức)
+        var request = new CreateTaskRequest("Giải bài tập nâng cao", taskDate, 30);
 
         mockMvc.perform(post("/api/goals/{goalId}/tasks", goalId)
                         .with(user(principalA))
@@ -212,23 +212,23 @@ class TaskScheduleIntegrationTest {
                 .andExpect(jsonPath("$.error.details[0].scheduledMinutes").value(75))
                 .andExpect(jsonPath("$.error.details[0].excessMinutes").value(15));
 
-        // XÃ¡c nháº­n rollback hoÃ n toÃ n: KhÃ´ng ghi nháº­n task
+        // Xác nhận rollback hoàn toàn: Không ghi nhận task
         verify(taskRepository, never()).insertTask(any(), any(), any(), anyInt(), any(), any());
     }
 
     // =========================================================================
-    // 5. testCreateTask_DailyMinutesExactBudget_Success: ÄÃºng báº±ng Ä‘á»‹nh má»©c -> 201
+    // 5. testCreateTask_DailyMinutesExactBudget_Success: Đúng bằng định mức -> 201
     // =========================================================================
     @Test
-    @DisplayName("5. testCreateTask_DailyMinutesExactBudget_Success: Tá»•ng Ä‘Ãºng báº±ng Ä‘á»‹nh má»©c (30 + 30 = 60/60 phÃºt) -> 201 Created")
+    @DisplayName("5. testCreateTask_DailyMinutesExactBudget_Success: Tổng đúng bằng định mức (30 + 30 = 60/60 phút) -> 201 Created")
     void testCreateTask_DailyMinutesExactBudget_Success() throws Exception {
         LocalDate taskDate = startDate.plusDays(1); // 2026-11-10
-        // ÄÃ£ cÃ³ 30 phÃºt, thÃªm Ä‘Ãºng 30 phÃºt -> Tá»•ng vá»«a trÃ²n 60 phÃºt
+        // Đã có 30 phút, thêm đúng 30 phút -> Tổng vừa tròn 60 phút
         when(taskRepository.getDailyUsedMinutes(goalId, taskDate, null)).thenReturn(30);
         when(taskRepository.insertTask(eq(goalId), anyString(), eq(taskDate), eq(30), eq("manual"), anyString()))
                 .thenReturn(createMockStoredTask(taskDate, 30, false));
 
-        var request = new CreateTaskRequest("Há»c 30 phÃºt cuá»‘i ngÃ y", taskDate, 30);
+        var request = new CreateTaskRequest("Học 30 phút cuối ngày", taskDate, 30);
 
         mockMvc.perform(post("/api/goals/{goalId}/tasks", goalId)
                         .with(user(principalA))
@@ -238,14 +238,14 @@ class TaskScheduleIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.estimatedMinutes").value(30));
 
-        verify(taskRepository).insertTask(eq(goalId), eq("Há»c 30 phÃºt cuá»‘i ngÃ y"), eq(taskDate), eq(30), eq("manual"), eq("CÆ¡ sá»Ÿ dá»¯ liá»‡u"));
+        verify(taskRepository).insertTask(eq(goalId), eq("Học 30 phút cuối ngày"), eq(taskDate), eq(30), eq("manual"), eq("Cơ sở dữ liệu"));
     }
 
     // =========================================================================
-    // 6. testUpdateTask_ChangeDateOrMinutes_ValidateBudgetCorrectly: Dá»i ngÃ y / sá»­a giá»
+    // 6. testUpdateTask_ChangeDateOrMinutes_ValidateBudgetCorrectly: Dời ngày / sửa giờ
     // =========================================================================
     @Test
-    @DisplayName("6. testUpdateTask_ChangeDateOrMinutes_ValidateBudgetCorrectly: Sá»­a task chuyá»ƒn sang ngÃ y khÃ¡c, nháº£ ngÃ¢n sÃ¡ch cÅ©")
+    @DisplayName("6. testUpdateTask_ChangeDateOrMinutes_ValidateBudgetCorrectly: Sửa task chuyển sang ngày khác, nhả ngân sách cũ")
     void testUpdateTask_ChangeDateOrMinutes_ValidateBudgetCorrectly() throws Exception {
         LocalDate oldDate = startDate; // 2026-11-09
         LocalDate newDate = startDate.plusDays(1); // 2026-11-10
@@ -253,10 +253,10 @@ class TaskScheduleIntegrationTest {
         var existingTask = createMockStoredTask(oldDate, 40, false);
         when(taskRepository.findTaskInGoalOwned(userAId, goalId, taskId)).thenReturn(Optional.of(existingTask));
 
-        // Táº¡i ngÃ y má»›i (2026-11-10), cÃ¡c task khÃ¡c Ä‘Ã£ dÃ¹ng 15 phÃºt
+        // Tại ngày mới (2026-11-10), các task khác đã dùng 15 phút
         when(taskRepository.getDailyUsedMinutes(goalId, newDate, taskId)).thenReturn(15);
 
-        // Chuyá»ƒn task sang ngÃ y má»›i vá»›i 45 phÃºt (15 + 45 = 60 <= 60 -> Há»£p lá»‡)
+        // Chuyển task sang ngày mới với 45 phút (15 + 45 = 60 <= 60 -> Hợp lệ)
         when(taskRepository.updateTask(eq(taskId), eq(goalId), anyString(), eq(newDate), eq(45), eq(false)))
                 .thenReturn(true);
 
@@ -265,7 +265,7 @@ class TaskScheduleIntegrationTest {
                 .thenReturn(Optional.of(existingTask))
                 .thenReturn(Optional.of(updatedTask));
 
-        var updateRequest = new UpdateTaskRequest("Ã”n SQL dá»i sang ngÃ y 10", newDate, 45, false);
+        var updateRequest = new UpdateTaskRequest("Ôn SQL dời sang ngày 10", newDate, 45, false);
 
         mockMvc.perform(patch("/api/goals/{goalId}/tasks/{taskId}", goalId, taskId)
                         .with(user(principalA))
@@ -276,28 +276,28 @@ class TaskScheduleIntegrationTest {
                 .andExpect(jsonPath("$.scheduledDate").value(newDate.toString()))
                 .andExpect(jsonPath("$.estimatedMinutes").value(45));
 
-        verify(taskRepository).updateTask(eq(taskId), eq(goalId), eq("Ã”n SQL dá»i sang ngÃ y 10"), eq(newDate), eq(45), eq(false));
+        verify(taskRepository).updateTask(eq(taskId), eq(goalId), eq("Ôn SQL dời sang ngày 10"), eq(newDate), eq(45), eq(false));
         verify(taskRepository).incrementGoalVersion(userAId, goalId);
     }
 
     // =========================================================================
-    // 7. testDataIsolation_UserBCannotAccessUserATasks: User B gá»i task cá»§a User A -> 404
+    // 7. testDataIsolation_UserBCannotAccessUserATasks: User B gọi task của User A -> 404
     // =========================================================================
     @Test
-    @DisplayName("7. testDataIsolation_UserBCannotAccessUserATasks: DÃ¹ng session cá»§a User B gá»i task cá»§a User A -> 404 NOT_FOUND")
+    @DisplayName("7. testDataIsolation_UserBCannotAccessUserATasks: Dùng session của User B gọi task của User A -> 404 NOT_FOUND")
     void testDataIsolation_UserBCannotAccessUserATasks() throws Exception {
-        // User B khÃ´ng cÃ³ quyá»n trÃªn goal hoáº·c task cá»§a User A
+        // User B không có quyền trên goal hoặc task của User A
         when(taskRepository.findTaskInGoalOwned(userBId, goalId, taskId)).thenReturn(Optional.empty());
         when(taskRepository.findTaskOwned(userBId, taskId)).thenReturn(Optional.empty());
 
-        // 1. User B cá»‘ Ä‘á»c task cá»§a User A
+        // 1. User B cố đọc task của User A
         mockMvc.perform(get("/api/goals/{goalId}/tasks/{taskId}", goalId, taskId)
                         .with(user(principalB)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
 
-        // 2. User B cá»‘ cáº­p nháº­t task cá»§a User A
-        var updateRequest = new UpdateTaskRequest("Hacker Ä‘á»•i tÃªn", null, null, null);
+        // 2. User B cố cập nhật task của User A
+        var updateRequest = new UpdateTaskRequest("Hacker đổi tên", null, null, null);
         mockMvc.perform(patch("/api/goals/{goalId}/tasks/{taskId}", goalId, taskId)
                         .with(user(principalB))
                         .with(csrf())
@@ -306,15 +306,15 @@ class TaskScheduleIntegrationTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
 
-        // 3. User B cá»‘ xÃ³a task cá»§a User A
+        // 3. User B cố xóa task của User A
         mockMvc.perform(delete("/api/goals/{goalId}/tasks/{taskId}", goalId, taskId)
                         .with(user(principalB))
                         .with(csrf()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
 
-        // 4. User B cá»‘ táº¡o task vÃ o goal cá»§a User A
-        var createRequest = new CreateTaskRequest("Task trÃ¡i phÃ©p", startDate, 30);
+        // 4. User B cố tạo task vào goal của User A
+        var createRequest = new CreateTaskRequest("Task trái phép", startDate, 30);
         mockMvc.perform(post("/api/goals/{goalId}/tasks", goalId)
                         .with(user(principalB))
                         .with(csrf())
@@ -323,23 +323,23 @@ class TaskScheduleIntegrationTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
 
-        // Äáº£m báº£o khÃ´ng cÃ³ thao tÃ¡c ghi nÃ o Ä‘Æ°á»£c thá»±c hiá»‡n
+        // Đảm bảo không có thao tác ghi nào được thực hiện
         verify(taskRepository, never()).updateTask(any(), any(), any(), any(), anyInt(), anyBoolean());
         verify(taskRepository, never()).deleteTask(any(), any());
     }
 
     // =========================================================================
-    // 8. testCompletedTask_StillConsumesDailyBudget: Task hoÃ n thÃ nh váº«n giá»¯ quota
+    // 8. testCompletedTask_StillConsumesDailyBudget: Task hoàn thành vẫn giữ quota
     // =========================================================================
     @Test
-    @DisplayName("8. Task Ä‘Ã£ hoÃ n thÃ nh (completed = true) váº«n chiáº¿m ngÃ¢n sÃ¡ch, khÃ´ng sinh thÃªm quota")
+    @DisplayName("8. Task đã hoàn thành (completed = true) vẫn chiếm ngân sách, không sinh thêm quota")
     void testCompletedTask_StillConsumesDailyBudget() throws Exception {
         LocalDate taskDate = startDate;
-        // NgÃ y Ä‘Ã£ cÃ³ 50 phÃºt tá»« task Ä‘Ã£ hoÃ n thÃ nh (completed=true)
+        // Ngày đã có 50 phút từ task đã hoàn thành (completed=true)
         when(taskRepository.getDailyUsedMinutes(goalId, taskDate, null)).thenReturn(50);
 
-        // Táº¡o thÃªm task 20 phÃºt (50 + 20 = 70 > 60) -> Pháº£i bá»‹ tá»« chá»‘i
-        var request = new CreateTaskRequest("Há»c thÃªm sau khi Ä‘Ã£ xong viá»‡c", taskDate, 20);
+        // Tạo thêm task 20 phút (50 + 20 = 70 > 60) -> Phải bị từ chối
+        var request = new CreateTaskRequest("Học thêm sau khi đã xong việc", taskDate, 20);
 
         mockMvc.perform(post("/api/goals/{goalId}/tasks", goalId)
                         .with(user(principalA))
@@ -353,13 +353,13 @@ class TaskScheduleIntegrationTest {
     }
 
     // =========================================================================
-    // 9. testCreateTask_BeforeStartDate_ShouldFail: TrÆ°á»›c startDate -> 400
+    // 9. testCreateTask_BeforeStartDate_ShouldFail: Trước startDate -> 400
     // =========================================================================
     @Test
-    @DisplayName("9. Xáº¿p task trÆ°á»›c ngÃ y báº¯t Ä‘áº§u startDate -> 400 VALIDATION_ERROR")
+    @DisplayName("9. Xếp task trước ngày bắt đầu startDate -> 400 VALIDATION_ERROR")
     void testCreateTask_BeforeStartDate_ShouldFail() throws Exception {
         LocalDate beforeStart = startDate.minusDays(1); // 2026-11-08
-        var request = new CreateTaskRequest("Há»c sá»›m trÆ°á»›c ngÃ y báº¯t Ä‘áº§u", beforeStart, 30);
+        var request = new CreateTaskRequest("Học sớm trước ngày bắt đầu", beforeStart, 30);
 
         mockMvc.perform(post("/api/goals/{goalId}/tasks", goalId)
                         .with(user(principalA))

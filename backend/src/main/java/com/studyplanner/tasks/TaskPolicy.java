@@ -16,19 +16,19 @@ public final class TaskPolicy {
         List<TaskValidationException.FieldViolation> violations = new ArrayList<>();
 
         if (input.title() == null || input.title().trim().isEmpty()) {
-            violations.add(new TaskValidationException.FieldViolation("title", "required", "TiÃªu Ä‘á» cÃ´ng viá»‡c khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng."));
+            violations.add(new TaskValidationException.FieldViolation("title", "required", "Tiêu đề công việc không được để trống."));
         } else if (input.title().trim().length() > 200) {
-            violations.add(new TaskValidationException.FieldViolation("title", "too_long", "TiÃªu Ä‘á» khÃ´ng Ä‘Æ°á»£c vÆ°á»£t quÃ¡ 200 kÃ½ tá»±."));
+            violations.add(new TaskValidationException.FieldViolation("title", "too_long", "Tiêu đề không được vượt quá 200 ký tự."));
         }
 
         if (input.scheduledDate() == null) {
-            violations.add(new TaskValidationException.FieldViolation("scheduledDate", "required", "NgÃ y há»c lÃ  báº¯t buá»™c."));
+            violations.add(new TaskValidationException.FieldViolation("scheduledDate", "required", "Ngày học là bắt buộc."));
         }
 
         if (input.estimatedMinutes() == null) {
-            violations.add(new TaskValidationException.FieldViolation("estimatedMinutes", "required", "Thá»i lÆ°á»£ng lÃ  báº¯t buá»™c."));
+            violations.add(new TaskValidationException.FieldViolation("estimatedMinutes", "required", "Thời lượng là bắt buộc."));
         } else if (input.estimatedMinutes() < 1 || input.estimatedMinutes() > 480) {
-            violations.add(new TaskValidationException.FieldViolation("estimatedMinutes", "out_of_range", "Thá»i lÆ°á»£ng pháº£i lÃ  sá»‘ nguyÃªn tá»« 1 Ä‘áº¿n 480 phÃºt."));
+            violations.add(new TaskValidationException.FieldViolation("estimatedMinutes", "out_of_range", "Thời lượng phải là số nguyên từ 1 đến 480 phút."));
         }
 
         return List.copyOf(violations);
@@ -47,7 +47,7 @@ public final class TaskPolicy {
             violations.add(new TaskValidationException.FieldViolation(
                     "scheduledDate",
                     "before_start_date",
-                    "NgÃ y há»c khÃ´ng Ä‘Æ°á»£c trÆ°á»›c ngÃ y báº¯t Ä‘áº§u má»¥c tiÃªu (" + startDate + ")."
+                    "Ngày học không được trước ngày bắt đầu mục tiêu (" + startDate + ")."
             ));
         }
 
@@ -55,7 +55,7 @@ public final class TaskPolicy {
             violations.add(new TaskValidationException.FieldViolation(
                     "scheduledDate",
                     "on_or_after_exam_date",
-                    "NgÃ y há»c pháº£i trÆ°á»›c ngÃ y thi (" + examDate + "); ngÃ y thi khÃ´ng Ä‘Æ°á»£c xáº¿p lá»‹ch há»c."
+                    "Ngày học phải trước ngày thi (" + examDate + "); ngày thi không được xếp lịch học."
             ));
         }
 

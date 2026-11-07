@@ -62,7 +62,7 @@ public class TaskService {
 
         // Lock goal row to protect against concurrent budget races and verify ownership
         GoalJdbcRepository.StoredGoal goal = goalRepository.lockOwned(userId, goalId)
-                .orElseThrow(() -> new TaskNotFoundException("KhÃ´ng tÃ¬m tháº¥y má»¥c tiÃªu hoáº·c báº¡n khÃ´ng cÃ³ quyá»n truy cáº­p."));
+                .orElseThrow(() -> new TaskNotFoundException("Không tìm thấy mục tiêu hoặc bạn không có quyền truy cập."));
 
         // Validate task date within goal bounds: startDate <= scheduledDate < examDate
         violations.addAll(TaskPolicy.validateWithinGoal(request.scheduledDate(), goal.startDate(), goal.examDate()));
@@ -109,7 +109,7 @@ public class TaskService {
 
         // Verify goal ownership
         goalRepository.findOwned(userId, goalId)
-                .orElseThrow(() -> new TaskNotFoundException("KhÃ´ng tÃ¬m tháº¥y má»¥c tiÃªu hoáº·c báº¡n khÃ´ng cÃ³ quyá»n truy cáº­p."));
+                .orElseThrow(() -> new TaskNotFoundException("Không tìm thấy mục tiêu hoặc bạn không có quyền truy cập."));
 
         int safePage = Math.max(1, page);
         int safeLimit = Math.max(1, Math.min(100, limit));
@@ -130,12 +130,12 @@ public class TaskService {
         Objects.requireNonNull(request, "request must not be null");
 
         if (!request.hasAnyUpdate()) {
-            throw new TaskValidationException("task", "empty_update", "Pháº£i cung cáº¥p Ã­t nháº¥t má»™t trÆ°á»ng cáº§n cáº­p nháº­t.");
+            throw new TaskValidationException("task", "empty_update", "Phải cung cấp ít nhất một trường cần cập nhật.");
         }
 
         // Lock goal row
         GoalJdbcRepository.StoredGoal goal = goalRepository.lockOwned(userId, goalId)
-                .orElseThrow(() -> new TaskNotFoundException("KhÃ´ng tÃ¬m tháº¥y má»¥c tiÃªu hoáº·c báº¡n khÃ´ng cÃ³ quyá»n truy cáº­p."));
+                .orElseThrow(() -> new TaskNotFoundException("Không tìm thấy mục tiêu hoặc bạn không có quyền truy cập."));
 
         TaskJdbcRepository.StoredTask existing = taskRepository.findTaskInGoalOwned(userId, goalId, taskId)
                 .orElseThrow(TaskNotFoundException::new);
@@ -228,7 +228,7 @@ public class TaskService {
 
         // Lock goal row
         goalRepository.lockOwned(userId, goalId)
-                .orElseThrow(() -> new TaskNotFoundException("KhÃ´ng tÃ¬m tháº¥y má»¥c tiÃªu hoáº·c báº¡n khÃ´ng cÃ³ quyá»n truy cáº­p."));
+                .orElseThrow(() -> new TaskNotFoundException("Không tìm thấy mục tiêu hoặc bạn không có quyền truy cập."));
 
         taskRepository.findTaskInGoalOwned(userId, goalId, taskId)
                 .orElseThrow(TaskNotFoundException::new);
@@ -285,7 +285,7 @@ public class TaskService {
 
         // Verify goal ownership
         goalRepository.findOwned(userId, goalId)
-                .orElseThrow(() -> new TaskNotFoundException("KhÃ´ng tÃ¬m tháº¥y má»¥c tiÃªu hoáº·c báº¡n khÃ´ng cÃ³ quyá»n truy cáº­p."));
+                .orElseThrow(() -> new TaskNotFoundException("Không tìm thấy mục tiêu hoặc bạn không có quyền truy cập."));
 
         TaskJdbcRepository.ProgressCount progress = taskRepository.getGoalProgress(userId, goalId);
         return GoalProgressResponse.of(goalId, progress.total(), progress.completed());

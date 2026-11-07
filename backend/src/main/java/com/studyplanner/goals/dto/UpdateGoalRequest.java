@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 
 public record UpdateGoalRequest(
-        @Size(max = 100, message = "TÃªn mÃ´n há»c tá»‘i Ä‘a 100 kÃ½ tá»±.")
+        @Size(max = 100, message = "Tên môn học tối đa 100 ký tự.")
         String subject,
 
         String topics,
@@ -15,8 +15,8 @@ public record UpdateGoalRequest(
 
         LocalDate examDate,
 
-        @Min(value = 15, message = "Sá»‘ phÃºt má»—i ngÃ y tá»‘i thiá»ƒu lÃ  15.")
-        @Max(value = 480, message = "Sá»‘ phÃºt má»—i ngÃ y tá»‘i Ä‘a lÃ  480.")
+        @Min(value = 15, message = "Số phút mỗi ngày tối thiểu là 15.")
+        @Max(value = 480, message = "Số phút mỗi ngày tối đa là 480.")
         Integer minutesPerDay,
 
         Integer version,
