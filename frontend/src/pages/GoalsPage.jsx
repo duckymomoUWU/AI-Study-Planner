@@ -210,70 +210,49 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
   return (
     <section className="goals-page" aria-labelledby="goals-title">
       <div className="goals-heading">
-        <div>
+        <div className="goals-heading-info">
           <p className="eyebrow">SPRINT 2 · US-01</p>
           <h1 id="goals-title">Mục tiêu ôn tập</h1>
-          <p>Tạo mục tiêu rõ ràng để giới hạn thời gian và chuẩn bị cho kỳ thi.</p>
+          <p className="goals-subtitle">Tạo mục tiêu rõ ràng để giới hạn thời gian và chuẩn bị cho kỳ thi.</p>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button className="button button--secondary" type="button" onClick={onBack}>← Tổng quan</button>
+        <div className="goals-heading-actions">
+          <button className="button button--secondary" type="button" onClick={onBack}>
+            ← Tổng quan
+          </button>
           {onNavigateDaily && (
-            <button className="button button--primary" type="button" onClick={onNavigateDaily}>Xem lịch học hôm nay →</button>
+            <button className="button button--primary" type="button" onClick={onNavigateDaily}>
+              Xem lịch học hôm nay →
+            </button>
           )}
         </div>
       </div>
 
       {/* Notice Banner */}
-      <div style={{
-        background: '#f0fdf4',
-        border: '1px solid #bbf7d0',
-        color: '#166534',
-        padding: '0.75rem 1rem',
-        borderRadius: '8px',
-        fontSize: '0.875rem',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.75rem',
-      }}>
-        <span>✦</span>
-        <span>
+      <div className="goal-banner">
+        <span className="goal-banner-icon" aria-hidden="true">✦</span>
+        <div className="goal-banner-content">
           <strong>Giao diện US-01:</strong> Đang kết nối API chuẩn <code>/api/goals</code>.
           Giao diện hỗ trợ đầy đủ tạo, sửa (kiểm soát version), xóa và ràng buộc tối đa 90 ngày.
-        </span>
+        </div>
       </div>
 
       {/* Feedback Alert */}
       {successMessage && (
-        <div style={{
-          background: '#ecfdf5',
-          border: '1px solid #a7f3d0',
-          color: '#065f46',
-          padding: '0.75rem 1rem',
-          borderRadius: '8px',
-          fontSize: '0.875rem',
-        }}>
-          {successMessage}
+        <div className="goal-alert goal-alert--success" role="status">
+          <span className="goal-alert-icon" aria-hidden="true">✓</span>
+          <span>{successMessage}</span>
         </div>
       )}
 
       {/* Unauthenticated Alert */}
       {isUnauthenticated && (
-        <div style={{
-          background: '#eff6ff',
-          border: '1px solid #bfdbfe',
-          color: '#1e40af',
-          padding: '0.75rem 1rem',
-          borderRadius: '8px',
-          fontSize: '0.875rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}>
-          <div><strong>Chưa xác thực:</strong> Bạn cần đăng nhập để lưu trữ mục tiêu cá nhân.</div>
+        <div className="goal-alert goal-alert--info" role="alert">
+          <div>
+            <strong>Chưa xác thực:</strong> Bạn cần đăng nhập để lưu trữ mục tiêu cá nhân.
+          </div>
           <button
             type="button"
-            className="button button--primary"
-            style={{ fontSize: '0.8125rem', padding: '0.35rem 0.75rem' }}
+            className="button button--primary button--sm"
             onClick={() => { window.location.hash = '#login' }}
           >
             Đăng nhập ngay →
@@ -281,39 +260,76 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
         </div>
       )}
 
-      {pageError && <div className="goal-alert" role="alert">{pageError}</div>}
+      {pageError && (
+        <div className="goal-alert goal-alert--error" role="alert">
+          <span className="goal-alert-icon" aria-hidden="true">⚠</span>
+          <span>{pageError}</span>
+        </div>
+      )}
 
       <div className="goals-layout">
         <section className="goal-form-card" aria-labelledby="goal-form-title">
           <div className="goal-card-heading">
             <h2 id="goal-form-title">{editing ? 'Chỉnh sửa mục tiêu' : 'Tạo mục tiêu mới'}</h2>
-            <span>{editing ? `Phiên bản v${editing.version}` : 'US-01 Form'}</span>
+            <span className="goal-card-badge">{editing ? `Phiên bản v${editing.version}` : 'US-01 Form'}</span>
           </div>
-          <form onSubmit={submitForm} noValidate>
+          <form onSubmit={submitForm} noValidate className="goal-form">
             <div className="goal-field">
               <label htmlFor="goal-subject">Môn học</label>
-              <input id="goal-subject" name="subject" value={form.subject} onChange={changeField}
-                maxLength={100} placeholder="Ví dụ: Cơ sở dữ liệu" required aria-invalid={Boolean(formErrors.subject)} />
+              <input
+                id="goal-subject"
+                name="subject"
+                value={form.subject}
+                onChange={changeField}
+                maxLength={100}
+                placeholder="Ví dụ: Cơ sở dữ liệu"
+                required
+                aria-invalid={Boolean(formErrors.subject)}
+              />
               {formErrors.subject && <small className="field-error">{formErrors.subject}</small>}
             </div>
             <div className="goal-field">
               <label htmlFor="goal-topics">Chủ đề cần ôn tập</label>
-              <textarea id="goal-topics" name="topics" value={form.topics} onChange={changeField}
-                rows={3} placeholder="Ví dụ: SQL, chuẩn hóa, transaction..." required
-                aria-invalid={Boolean(formErrors.topics)} />
+              <textarea
+                id="goal-topics"
+                name="topics"
+                value={form.topics}
+                onChange={changeField}
+                rows={3}
+                placeholder="Ví dụ: SQL, chuẩn hóa, transaction..."
+                required
+                aria-invalid={Boolean(formErrors.topics)}
+              />
               {formErrors.topics && <small className="field-error">{formErrors.topics}</small>}
             </div>
             <div className="goal-date-grid">
               <div className="goal-field">
                 <label htmlFor="goal-start">Ngày bắt đầu</label>
-                <input id="goal-start" type="date" name="startDate" value={form.startDate}
-                  onChange={changeField} required aria-invalid={Boolean(formErrors.startDate)} />
+                <input
+                  id="goal-start"
+                  type="date"
+                  name="startDate"
+                  value={form.startDate}
+                  onChange={changeField}
+                  required
+                  aria-invalid={Boolean(formErrors.startDate)}
+                />
+                <small className="field-hint">Ngày bắt đầu ôn tập.</small>
                 {formErrors.startDate && <small className="field-error">{formErrors.startDate}</small>}
               </div>
               <div className="goal-field">
                 <label htmlFor="goal-exam">Ngày thi</label>
-                <input id="goal-exam" type="date" name="examDate" value={form.examDate}
-                  min={examMin} max={examMax || undefined} onChange={changeField} required aria-invalid={Boolean(formErrors.examDate)} />
+                <input
+                  id="goal-exam"
+                  type="date"
+                  name="examDate"
+                  value={form.examDate}
+                  min={examMin}
+                  max={examMax || undefined}
+                  onChange={changeField}
+                  required
+                  aria-invalid={Boolean(formErrors.examDate)}
+                />
                 <small className="field-hint">Tối đa 90 ngày kể từ ngày bắt đầu.</small>
                 {formErrors.examDate && <small className="field-error">{formErrors.examDate}</small>}
               </div>
@@ -321,9 +337,18 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
             <div className="goal-field">
               <label htmlFor="goal-budget">Thời gian học mỗi ngày</label>
               <div className="goal-budget-input">
-                <input id="goal-budget" type="number" name="minutesPerDay" value={form.minutesPerDay}
-                  onChange={changeField} min="15" max="480" step="1" required
-                  aria-invalid={Boolean(formErrors.minutesPerDay)} />
+                <input
+                  id="goal-budget"
+                  type="number"
+                  name="minutesPerDay"
+                  value={form.minutesPerDay}
+                  onChange={changeField}
+                  min="15"
+                  max="480"
+                  step="1"
+                  required
+                  aria-invalid={Boolean(formErrors.minutesPerDay)}
+                />
                 <span>phút / ngày</span>
               </div>
               <small className="field-hint">Cho phép từ 15 đến 480 phút mỗi ngày.</small>
@@ -333,7 +358,11 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
               <button className="button button--primary" type="submit" disabled={saving}>
                 {saving ? 'Đang lưu…' : editing ? 'Lưu thay đổi' : 'Tạo mục tiêu'}
               </button>
-              {editing && <button className="button button--secondary" type="button" onClick={resetForm} disabled={saving}>Hủy sửa</button>}
+              {editing && (
+                <button className="button button--secondary" type="button" onClick={resetForm} disabled={saving}>
+                  Hủy sửa
+                </button>
+              )}
             </div>
           </form>
         </section>
@@ -341,30 +370,42 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
         <section className="goal-list-card" aria-labelledby="goal-list-title">
           <div className="goal-card-heading">
             <h2 id="goal-list-title">Mục tiêu của tôi</h2>
-            <span>{goals.length} mục tiêu</span>
+            <span className="goal-card-badge">{goals.length} mục tiêu</span>
           </div>
           {loading ? (
-            <p className="goal-empty" role="status">Đang tải mục tiêu…</p>
+            <div className="goal-empty" role="status">
+              <span className="goal-empty-icon" aria-hidden="true">⏳</span>
+              <p>Đang tải mục tiêu…</p>
+            </div>
           ) : goals.length === 0 ? (
             <div className="goal-empty">
-              <span aria-hidden="true">✦</span>
+              <span className="goal-empty-icon" aria-hidden="true">✦</span>
               <h3>Chưa có mục tiêu nào</h3>
-              <p>Tạo mục tiêu đầu tiên để bắt đầu lập kế hoạch ôn tập.</p>
+              <p>Tạo mục tiêu đầu tiên ở biểu mẫu bên trái để bắt đầu lập kế hoạch ôn tập.</p>
             </div>
           ) : (
             <div className="goal-list">
               {goals.map(goal => (
                 <article className="goal-item" key={goal.id}>
                   <div className="goal-item-top">
-                    <div><h3>{goal.subject}</h3><span className="goal-version">v{goal.version}</span></div>
+                    <div className="goal-item-title-group">
+                      <h3>{goal.subject}</h3>
+                      <span className="goal-version">v{goal.version}</span>
+                    </div>
                     <span className="goal-budget">{goal.minutesPerDay} phút/ngày</span>
                   </div>
                   <p className="goal-topics">{goal.topics}</p>
                   <p className="goal-dates">Bắt đầu {displayDate(goal.startDate)} · Thi {displayDate(goal.examDate)}</p>
                   <div className="goal-item-actions">
-                    <button type="button" onClick={() => startEditing(goal)}>Chỉnh sửa</button>
-                    <button type="button" className="goal-delete" onClick={() => removeGoal(goal)}
-                      disabled={deletingId === goal.id}>
+                    <button type="button" className="button button--secondary button--sm" onClick={() => startEditing(goal)}>
+                      Chỉnh sửa
+                    </button>
+                    <button
+                      type="button"
+                      className="button button--danger button--sm"
+                      onClick={() => removeGoal(goal)}
+                      disabled={deletingId === goal.id}
+                    >
                       {deletingId === goal.id ? 'Đang xóa…' : 'Xóa'}
                     </button>
                   </div>
