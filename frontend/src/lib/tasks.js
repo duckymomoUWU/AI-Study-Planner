@@ -220,6 +220,37 @@ export async function createTask(goalId, { title, scheduledDate, estimatedMinute
 }
 
 /**
+ * US-03: Cập nhật chi tiết công việc
+ * Gọi PATCH /api/tasks/{taskId}
+ */
+export async function updateTask(taskId, { title, scheduledDate, estimatedMinutes, completed } = {}, { signal } = {}) {
+  const body = {}
+  if (title !== undefined) body.title = title
+  if (scheduledDate !== undefined) body.scheduledDate = scheduledDate
+  if (estimatedMinutes !== undefined) body.estimatedMinutes = Number(estimatedMinutes)
+  if (completed !== undefined) body.completed = completed
+
+  try {
+    const payload = await request(`/api/tasks/${encodeURIComponent(taskId)}`, {
+      method: 'PATCH',
+      body,
+      signal,
+    })
+    return payload
+  } catch (error) {
+    if (error instanceof TaskApiError && error.status === 401) {
+      throw error
+    }
+    const task = placeholderTasks.find(t => t.id === taskId)
+    if (task) {
+      Object.assign(task, body)
+      return { ...task }
+    }
+    throw error
+  }
+}
+
+/**
  * US-03: Xóa công việc
  * Gọi DELETE /api/tasks/{taskId}
  */

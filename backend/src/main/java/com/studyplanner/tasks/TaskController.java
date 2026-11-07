@@ -143,6 +143,19 @@ public class TaskController {
         return ResponseEntity.ok(updated);
     }
 
+    // --- Direct Update Task (Convenience route used by frontend) ---
+    @PatchMapping({"/api/tasks/{taskId}", "/api/v1/tasks/{taskId}"})
+    public ResponseEntity<?> updateTaskDirect(
+            @AuthenticationPrincipal AppUserPrincipal principal,
+            @PathVariable UUID taskId,
+            @Valid @RequestBody UpdateTaskRequest request) {
+        if (principal == null) {
+            return unauthenticated();
+        }
+        SingleTaskResponse updated = taskService.updateTaskDirect(principal.id(), taskId, request);
+        return ResponseEntity.ok(updated);
+    }
+
     // --- Direct Delete Task (Convenience route used by frontend) ---
     @DeleteMapping({"/api/tasks/{taskId}", "/api/v1/tasks/{taskId}"})
     public ResponseEntity<?> deleteTaskDirect(

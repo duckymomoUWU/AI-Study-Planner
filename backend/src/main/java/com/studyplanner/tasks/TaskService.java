@@ -179,6 +179,18 @@ public class TaskService {
     }
 
     @Transactional
+    public SingleTaskResponse updateTaskDirect(UUID userId, UUID taskId, UpdateTaskRequest request) {
+        Objects.requireNonNull(userId, "userId must not be null");
+        Objects.requireNonNull(taskId, "taskId must not be null");
+        Objects.requireNonNull(request, "request must not be null");
+
+        TaskJdbcRepository.StoredTask existing = taskRepository.findTaskOwned(userId, taskId)
+                .orElseThrow(TaskNotFoundException::new);
+
+        return updateTask(userId, existing.goalId(), taskId, request);
+    }
+
+    @Transactional
     public SingleTaskResponse setTaskCompletion(UUID userId, UUID taskId, boolean completed) {
         Objects.requireNonNull(userId, "userId must not be null");
         Objects.requireNonNull(taskId, "taskId must not be null");

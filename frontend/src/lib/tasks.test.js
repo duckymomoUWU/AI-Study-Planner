@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createTask, deleteTask, listOverdueTasks, listTasksByDate, toggleTaskComplete } from './tasks.js'
+import { createTask, deleteTask, listOverdueTasks, listTasksByDate, toggleTaskComplete, updateTask } from './tasks.js'
 
 test('listTasksByDate calls /api/tasks?date=YYYY-MM-DD and returns response items', async t => {
   const mockPayload = {
@@ -86,4 +86,18 @@ test('listOverdueTasks requests /api/tasks/overdue and returns items', async t =
   const items = await listOverdueTasks()
   assert.equal(items.length, 1)
   assert.equal(items[0].id, 'overdue-1')
+})
+
+test('updateTask sends PATCH /api/tasks/:id with fields and returns updated task', async t => {
+  const updates = { title: 'Tiêu đề mới', estimatedMinutes: 60 }
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.equal(url, '/api/tasks/task-to-update')
+    assert.equal(options.method, 'PATCH')
+    assert.deepEqual(JSON.parse(options.body), updates)
+    return Response.json({ id: 'task-to-update', ...updates })
+  })
+
+  const updated = await updateTask('task-to-update', updates)
+  assert.equal(updated.id, 'task-to-update')
+  assert.equal(updated.title, 'Tiêu đề mới')
 })

@@ -140,7 +140,7 @@ class TaskControllerIntegrationTest {
     @DisplayName("PATCH /api/tasks/{taskId}/complete toggles task completion status")
     void patchTaskCompletion() throws Exception {
         var completedTask = new TaskResponse(
-                taskId, goalId, "CÆ¡ sá»Ÿ dá»¯ liá»‡u", "Ã”n SQL JOIN",
+                taskId, goalId, "Cơ sở dữ liệu", "Ôn SQL JOIN",
                 LocalDate.of(2026, 11, 10), 45, true, "manual", Instant.now()
         );
         when(taskService.setTaskCompletion(eq(userId), eq(taskId), eq(true)))
@@ -154,6 +154,28 @@ class TaskControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(taskId.toString()))
                 .andExpect(jsonPath("$.completed").value(true));
+    }
+
+    @Test
+    @DisplayName("PATCH /api/tasks/{taskId} updates task directly and returns 200")
+    void patchTaskDirectSucceeds() throws Exception {
+        var updatedTask = new TaskResponse(
+                taskId, goalId, "Cơ sở dữ liệu", "Tiêu đề mới",
+                LocalDate.of(2026, 11, 10), 60, false, "manual", Instant.now()
+        );
+        when(taskService.updateTaskDirect(eq(userId), eq(taskId), any(UpdateTaskRequest.class)))
+                .thenReturn(SingleTaskResponse.of(updatedTask));
+
+        var req = new UpdateTaskRequest("Tiêu đề mới", null, 60, null);
+        mockMvc.perform(patch("/api/tasks/{taskId}", taskId)
+                        .with(user(principal))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(taskId.toString()))
+                .andExpect(jsonPath("$.title").value("Tiêu đề mới"))
+                .andExpect(jsonPath("$.estimatedMinutes").value(60));
     }
 
     @Test
