@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { listGoals } from '../lib/goals.js'
-import { createTask, deleteTask, listOverdueTasks, listTasksByDate, toggleTaskComplete } from '../lib/tasks.js'
+import { createTask, deleteTask, listOverdueTasks, listTasksByDate, setTaskCompleted } from '../lib/tasks.js'
+import { describeTaskError } from '../lib/taskErrors.js'
+import { Badge } from '../components/ui/badge.jsx'
+import { Checkbox } from '../components/ui/checkbox.jsx'
 import './DailyTasksPage.css'
 
 function getLocalDateString(d = new Date()) {
@@ -29,7 +32,7 @@ function offsetDate(dateStr, days) {
 
 export default function DailyTasksPage({ onBack, onNavigateGoals }) {
   const [selectedDate, setSelectedDate] = useState(getLocalDateString())
-  const [tasksData, setTasksData] = useState({ items: [], totalEstimatedMinutes: 0, completedCount: 0, totalCount: 0, isPlaceholder: false })
+  const [tasksData, setTasksData] = useState({ items: [], totalEstimatedMinutes: 0, completedCount: 0, totalCount: 0, remainingCount: 0 })
   const [overdueTasks, setOverdueTasks] = useState([])
   const [goals, setGoals] = useState([])
   const [loading, setLoading] = useState(true)
@@ -38,6 +41,7 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
   const [showAddModal, setShowAddModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [taskFeedback, setTaskFeedback] = useState('')
+  const [pendingIds, setPendingIds] = useState(() => new Set())
 
   // New task form state
   const [newTaskForm, setNewTaskForm] = useState({
@@ -109,32 +113,42 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
     }
   }, [selectedDate])
 
-  async function handleToggle(taskId, currentStatus) {
-    const newStatus = !currentStatus
-    // Optimistic UI update
-    setTasksData(prev => ({
-      ...prev,
-      completedCount: newStatus ? prev.completedCount + 1 : Math.max(0, prev.completedCount - 1),
-      items: prev.items.map(t => (t.id === taskId ? { ...t, completed: newStatus } : t)),
-    }))
-
+  /**
+   * Marks a task done or re-opens it. The row waits for the server (no optimistic change), is locked while the
+   * request runs so it cannot be sent twice, and is replaced by the task the server stored.
+   */
+  async function handleToggle(task, nextCompleted) {
+    if (pendingIds.has(task.id)) return
+    setPendingIds(prev => new Set(prev).add(task.id))
+    setError('')
     try {
-      await toggleTaskComplete(taskId, newStatus)
-    } catch {
-      // Revert if error
-      setTasksData(prev => ({
-        ...prev,
-        completedCount: currentStatus ? prev.completedCount + 1 : Math.max(0, prev.completedCount - 1),
-        items: prev.items.map(t => (t.id === taskId ? { ...t, completed: currentStatus } : t)),
-      }))
-      setError('Lỗi khi cập nhật trạng thái công việc.')
+      const stored = await setTaskCompleted(task.goalId, task.id, nextCompleted)
+      setTasksData(prev => {
+        const items = prev.items.map(t => (t.id === stored.id ? stored : t))
+        const completedCount = items.filter(t => t.completed).length
+        return { ...prev, items, completedCount, remainingCount: items.length - completedCount }
+      })
+      setTaskFeedback(nextCompleted ? 'Đã đánh dấu hoàn thành.' : 'Đã mở lại công việc.')
+      setTimeout(() => setTaskFeedback(''), 2500)
+    } catch (err) {
+      const described = describeTaskError(err)
+      setError(described.unauthenticated ? 'unauthenticated' : described.message)
+      if (described.reload) {
+        refreshData(selectedDate)
+      }
+    } finally {
+      setPendingIds(prev => {
+        const next = new Set(prev)
+        next.delete(task.id)
+        return next
+      })
     }
   }
 
-  async function handleDelete(taskId, title) {
-    if (!window.confirm(`Bạn có chắc muốn xóa công việc "${title}"?`)) return
+  async function handleDelete(task) {
+    if (!window.confirm(`Bạn có chắc muốn xóa công việc "${task.title}"?`)) return
     try {
-      await deleteTask(taskId)
+      await deleteTask(task.goalId, task.id)
       setTaskFeedback('Đã xóa công việc.')
       setTimeout(() => setTaskFeedback(''), 3000)
       refreshData(selectedDate)
@@ -173,7 +187,7 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
         scheduledDate: getLocalDateString(),
         estimatedMinutes: task.estimatedMinutes,
       })
-      await deleteTask(task.id)
+      await deleteTask(task.goalId, task.id)
       setTaskFeedback(`Đã chuyển công việc "${task.title}" sang hôm nay!`)
       setTimeout(() => setTaskFeedback(''), 3000)
       setSelectedDate(getLocalDateString())
@@ -182,6 +196,7 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
     }
   }
 
+  const subjectByGoal = Object.fromEntries(goals.map(g => [g.id, g.subject]))
   const todayStr = getLocalDateString()
   const isToday = selectedDate === todayStr
   const percentComplete = tasksData.totalCount > 0
@@ -209,15 +224,6 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
             + Thêm công việc
           </button>
         </div>
-      </div>
-
-      {/* Notice Banner */}
-      <div className="daily-notice">
-        <span>✦</span>
-        <span>
-          <strong>Chế độ US-03 Frontend UI:</strong> Đang kết nối API chuẩn <code>/api/tasks?date=...</code>.
-          Khi Backend Goal/Task API (Dev 2) hoàn thành, giao diện sẽ tự động đồng bộ dữ liệu PostgreSQL thực tế.
-        </span>
       </div>
 
       {/* Feedback Messages */}
@@ -341,6 +347,10 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
           <div className="progress-container">
             <div className="progress-bar-fill" style={{ width: `${percentComplete}%` }} />
           </div>
+          <div className="metric-hint">
+            <Badge variant="success">{tasksData.completedCount} hoàn thành</Badge>{' '}
+            <Badge variant="outline">{tasksData.remainingCount} còn lại</Badge>
+          </div>
         </div>
 
         <div className="metric-divider" />
@@ -389,15 +399,12 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
                 key={task.id}
                 className={`task-row ${task.completed ? 'task-row--completed' : ''}`}
               >
-                <label className="task-checkbox-label">
-                  <input
-                    type="checkbox"
-                    className="task-checkbox"
-                    checked={Boolean(task.completed)}
-                    onChange={() => handleToggle(task.id, task.completed)}
-                  />
-                  <span className="custom-checkbox" />
-                </label>
+                <Checkbox
+                  checked={Boolean(task.completed)}
+                  disabled={pendingIds.has(task.id)}
+                  onCheckedChange={next => handleToggle(task, next)}
+                  aria-label={`${task.completed ? 'Mở lại' : 'Đánh dấu hoàn thành'}: ${task.title}`}
+                />
 
                 <div className="task-body">
                   <div className="task-title-row">
@@ -407,7 +414,7 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
                     </span>
                   </div>
                   <div className="task-meta">
-                    <span className="task-subject-tag">{task.goalSubject || 'Mục tiêu ôn tập'}</span>
+                    <span className="task-subject-tag">{subjectByGoal[task.goalId] || 'Mục tiêu ôn tập'}</span>
                     <span className="task-duration">⏱️ {task.estimatedMinutes} phút</span>
                   </div>
                 </div>
@@ -417,7 +424,7 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
                     type="button"
                     className="task-delete-btn"
                     title="Xóa công việc"
-                    onClick={() => handleDelete(task.id, task.title)}
+                    onClick={() => handleDelete(task)}
                   >
                     ✕
                   </button>

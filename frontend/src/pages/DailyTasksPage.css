@@ -409,19 +409,6 @@
   color: #94a3b8;
 }
 
-.task-checkbox-label {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-}
-
-.task-checkbox {
-  width: 1.125rem;
-  height: 1.125rem;
-  accent-color: #2563eb;
-  cursor: pointer;
-}
-
 .task-body {
   flex: 1;
   display: flex;

@@ -349,3 +349,68 @@
 .shadcn-spinner {
   animation: shadcn-spin 1s linear infinite;
 }
+
+/* Checkbox */
+.shadcn-checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.125rem;
+  height: 1.125rem;
+  padding: 0;
+  border-radius: 0.25rem;
+  border: 1px solid hsl(var(--shadcn-primary));
+  background-color: hsl(var(--shadcn-background));
+  color: hsl(var(--shadcn-primary-foreground));
+  cursor: pointer;
+  transition: background-color 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+}
+
+.shadcn-checkbox:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px hsl(var(--shadcn-background)), 0 0 0 4px hsl(var(--shadcn-ring));
+}
+
+.shadcn-checkbox[data-state='checked'] {
+  background-color: hsl(var(--shadcn-primary));
+}
+
+.shadcn-checkbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Badge */
+.shadcn-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  padding: 0.125rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.shadcn-badge--default {
+  background-color: hsl(var(--shadcn-primary));
+  color: hsl(var(--shadcn-primary-foreground));
+}
+
+.shadcn-badge--secondary {
+  background-color: hsl(var(--shadcn-secondary));
+  color: hsl(var(--shadcn-secondary-foreground));
+}
+
+.shadcn-badge--outline {
+  border-color: hsl(var(--shadcn-border));
+  color: hsl(var(--shadcn-foreground));
+}
+
+.shadcn-badge--success {
+  background-color: hsl(var(--shadcn-success) / 0.12);
+  color: hsl(var(--shadcn-success));
+}
