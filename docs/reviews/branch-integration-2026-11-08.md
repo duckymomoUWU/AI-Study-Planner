@@ -77,7 +77,7 @@ Khi chưa cấu hình AI: nhận lỗi AI chưa sẵn sàng; task thủ công v�
 | Draft trước confirm, confirm nguyên tử, retry/key conflict/expiry/stale version, đồng thời và cross-owner | 6 test chấp nhận mới với PostgreSQL và AI mock cố định; thêm 4 test MockMvc draft controller | Đạt trong bộ backend ở trên |
 | UI/Browser/E2E | Browser runtime không có browser kết nối | Chưa chạy; HTTP không thay thế kiểm tra giao diện |
 | Kết nối/chất lượng provider Gemini thật | Chưa có cấu hình key/model dùng để xác minh | Chưa chạy; không suy từ mock hoặc heuristic |
-| Kiểm tra diff/merge | `git diff --check`; kiểm tra ancestry của cả 8 tip | Diff sạch; ancestry được kiểm tra sau merge commit |
+| Kiểm tra diff/merge | `git diff --check`; kiểm tra ancestry của cả 8 tip | Diff sạch; 8/8 tip là ancestor của merge commit `37cd459`, đã fetch lại để đối chiếu |
 
 Log chạy local được giữ ngoài Git: `backend-integration.log`, `frontend/frontend-test.log`, `live-smoke.log`.
 Không chạy lại từng branch độc lập và không khẳng định các check GitHub gốc đã xanh; kết quả trên áp dụng bản tích hợp.

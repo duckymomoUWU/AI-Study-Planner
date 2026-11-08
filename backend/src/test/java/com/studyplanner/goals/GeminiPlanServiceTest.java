@@ -52,7 +52,7 @@ class GeminiPlanServiceTest {
         String outlineText = """
                 ĐỀ CƯƠNG CHI TIẾT HỌC PHẦN
                 Môn học: Mạng máy tính nâng cao
-                
+
                 Nội dung ôn thi bao gồm:
                 Chương 1: Kiến trúc TCP/IP và mô hình phân tầng
                 Chương 2: Giao thức định tuyến OSPF và BGP
