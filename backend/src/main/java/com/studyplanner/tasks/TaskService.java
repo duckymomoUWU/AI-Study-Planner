@@ -70,6 +70,63 @@ public class TaskService {
         return tasks.findOwned(owner, goalId, taskId).orElseThrow(TaskNotFoundException::new);
     }
 
+    @Transactional
+    public TaskJdbcRepository.StoredTask createTask(UUID owner, UUID goalId, TaskPolicy.TaskInput input) {
+        var goal = goals.lockOwned(owner, goalId).orElseThrow(GoalService.GoalNotFoundException::new);
+        validateForGoal(owner, goal, input, null);
+        var stored = tasks.insertOwned(owner, goalId, input, "manual");
+        goals.bumpVersion(owner, goalId);
+        return stored;
+    }
+
+    @Transactional
+    public TaskJdbcRepository.StoredTask updateTask(UUID owner, UUID goalId, UUID taskId, TaskPatch patch) {
+        var goal = goals.lockOwned(owner, goalId).orElseThrow(GoalService.GoalNotFoundException::new);
+        var current = tasks.findOwned(owner, goalId, taskId).orElseThrow(TaskNotFoundException::new);
+        var input = new TaskPolicy.TaskInput(patch.title() == null ? current.title() : patch.title().trim(),
+                patch.scheduledDate() == null ? current.scheduledDate() : patch.scheduledDate(),
+                patch.estimatedMinutes() == null ? current.estimatedMinutes() : patch.estimatedMinutes());
+        boolean completed = patch.completed() == null ? current.completed() : patch.completed();
+        validateForGoal(owner, goal, input, taskId);
+        if (input.title().equals(current.title()) && input.scheduledDate().equals(current.scheduledDate())
+                && input.estimatedMinutes() == current.estimatedMinutes() && completed == current.completed()) {
+            return current;
+        }
+        if (!tasks.updateOwned(owner, goalId, taskId, input, completed)) throw new TaskNotFoundException();
+        goals.bumpVersion(owner, goalId);
+        return tasks.findOwned(owner, goalId, taskId).orElseThrow(TaskNotFoundException::new);
+    }
+
+    @Transactional
+    public TaskJdbcRepository.StoredTask updateTaskDirect(UUID owner, UUID taskId, TaskPatch patch) {
+        var existing = tasks.findOwnedById(owner, taskId).orElseThrow(TaskNotFoundException::new);
+        return updateTask(owner, existing.goalId(), taskId, patch);
+    }
+
+    @Transactional
+    public void deleteTask(UUID owner, UUID goalId, UUID taskId) {
+        goals.lockOwned(owner, goalId).orElseThrow(GoalService.GoalNotFoundException::new);
+        if (!tasks.deleteOwned(owner, goalId, taskId)) throw new TaskNotFoundException();
+        goals.bumpVersion(owner, goalId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TaskJdbcRepository.StoredTask> listOverdue(UUID owner) {
+        return tasks.listOverdue(Objects.requireNonNull(owner));
+    }
+
+    private void validateForGoal(UUID owner, GoalJdbcRepository.StoredGoal goal,
+                                 TaskPolicy.TaskInput input, UUID excludeId) {
+        var errors = new java.util.ArrayList<>(TaskPolicy.validateInput(input));
+        errors.addAll(TaskPolicy.validateWithinGoal(input.scheduledDate(), goal.startDate(), goal.examDate()));
+        if (!errors.isEmpty()) throw new TaskValidationException(errors);
+        TaskPolicy.checkDailyBudget(input.scheduledDate(),
+                tasks.dailyMinutes(owner, goal.id(), input.scheduledDate(), excludeId),
+                input.estimatedMinutes(), goal.minutesPerDay());
+    }
+
+    public record TaskPatch(String title, LocalDate scheduledDate, Integer estimatedMinutes, Boolean completed) {}
+
     private static long offset(int page, int limit) {
         if (page < 1 || limit < 1) {
             throw new IllegalArgumentException("page and limit must be >= 1");

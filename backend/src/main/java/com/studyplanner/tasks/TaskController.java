@@ -3,13 +3,14 @@ package com.studyplanner.tasks;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -27,13 +28,11 @@ import com.studyplanner.auth.AppUserPrincipal;
 
 /**
  * Task endpoints under /api/v1 (docs/backend-api-rules.md): read tasks and mark them done or re-open them.
- * Creating, editing and deleting tasks belongs to ASP-10. The owner always comes from the principal.
+ * Includes manual create, edit and delete (US2/sprint3). The owner always comes from the principal.
  */
 @RestController
 @RequestMapping("/api/v1")
 public class TaskController {
-    /** Spec fields of PATCH that ASP-10 will add; refused for now with a clearer issue than unknown_field. */
-    private static final Set<String> LATER_FIELDS = Set.of("title", "scheduledDate", "estimatedMinutes");
 
     private final TaskService service;
 
@@ -82,36 +81,39 @@ public class TaskController {
                                            @PathVariable UUID goalId, @PathVariable UUID taskId,
                                            @RequestBody JsonNode body) {
         UUID owner = owner(principal);
-        boolean completed = parseCompleted(body);
-        return ApiResponse.of(TaskResponse.from(service.setCompleted(owner, goalId, taskId, completed)));
+        var parsed = TaskRequest.parse(body, false);
+        if (body.size() == 1 && parsed.completed() != null) {
+            return ApiResponse.of(TaskResponse.from(service.setCompleted(owner, goalId, taskId, parsed.completed())));
+        }
+        return ApiResponse.of(TaskResponse.from(service.updateTask(owner, goalId, taskId, parsed)));
     }
 
-    private static boolean parseCompleted(JsonNode body) {
-        List<ErrorDetail> errors = new ArrayList<>();
-        if (body == null || !body.isObject()) {
-            throw new RequestValidationException(List.of(new ErrorDetail("body", "invalid_type",
-                    "Nội dung yêu cầu phải là một đối tượng JSON.")));
-        }
-        Iterator<String> names = body.fieldNames();
-        while (names.hasNext()) {
-            String name = names.next();
-            if (name.equals("completed")) {
-                continue;
-            }
-            errors.add(LATER_FIELDS.contains(name)
-                    ? new ErrorDetail(name, "not_supported", "Sửa nội dung công việc chưa được hỗ trợ.")
-                    : new ErrorDetail(name, "unknown_field", "Trường này không được phép gửi."));
-        }
-        JsonNode completed = body.get("completed");
-        if (completed == null || completed.isNull()) {
-            errors.add(new ErrorDetail("completed", "required", "completed là bắt buộc (true hoặc false)."));
-        } else if (!completed.isBoolean()) {
-            errors.add(new ErrorDetail("completed", "invalid_type", "completed phải là true hoặc false."));
-        }
-        if (!errors.isEmpty()) {
-            throw new RequestValidationException(errors);
-        }
-        return completed.booleanValue();
+    @PostMapping("/goals/{goalId}/tasks")
+    public ResponseEntity<ApiResponse<TaskResponse>> create(@AuthenticationPrincipal AppUserPrincipal principal,
+            @PathVariable UUID goalId, @RequestBody JsonNode body) {
+        UUID userId = owner(principal);
+        var parsed = TaskRequest.parse(body, true);
+        var input = new TaskPolicy.TaskInput(parsed.title(), parsed.scheduledDate(), parsed.estimatedMinutes());
+        return ResponseEntity.status(201).body(ApiResponse.of(TaskResponse.from(service.createTask(userId, goalId, input))));
+    }
+
+    @DeleteMapping("/goals/{goalId}/tasks/{taskId}")
+    public ResponseEntity<Void> delete(@AuthenticationPrincipal AppUserPrincipal principal,
+            @PathVariable UUID goalId, @PathVariable UUID taskId) {
+        service.deleteTask(owner(principal), goalId, taskId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/tasks/{taskId}")
+    public ApiResponse<TaskResponse> patchDirect(@AuthenticationPrincipal AppUserPrincipal principal,
+            @PathVariable UUID taskId, @RequestBody JsonNode body) {
+        UUID userId = owner(principal);
+        return ApiResponse.of(TaskResponse.from(service.updateTaskDirect(userId, taskId, TaskRequest.parse(body, false))));
+    }
+
+    @GetMapping("/tasks/overdue")
+    public ApiResponse<List<TaskResponse>> overdue(@AuthenticationPrincipal AppUserPrincipal principal) {
+        return ApiResponse.of(service.listOverdue(owner(principal)).stream().map(TaskResponse::from).toList());
     }
 
     private static LocalDate parseDate(String date, boolean required) {

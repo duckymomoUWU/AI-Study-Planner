@@ -122,7 +122,7 @@ class TaskControllerTest {
         mvc.perform(asUser(patch(ONE)).contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"))
-                .andExpect(jsonPath("$.error.details[?(@.field=='completed' && @.issue=='required')]").exists());
+                .andExpect(jsonPath("$.error.details[?(@.field=='body' && @.issue=='empty_patch')]").exists());
         mvc.perform(asUser(patch(ONE)).contentType(MediaType.APPLICATION_JSON).content(completed("null")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.details[?(@.field=='completed' && @.issue=='required')]").exists());
@@ -141,13 +141,12 @@ class TaskControllerTest {
     }
 
     @Test
-    void patchRejectsOtherFieldsAsUnknownOrNotSupportedYet() throws Exception {
+    void patchRejectsOwnerFieldsEvenWhenEditingContent() throws Exception {
         mvc.perform(asUser(patch(ONE)).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"completed\":true,\"goalId\":\"x\",\"userId\":\"x\",\"title\":\"đổi\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.details[?(@.field=='goalId' && @.issue=='unknown_field')]").exists())
-                .andExpect(jsonPath("$.error.details[?(@.field=='userId' && @.issue=='unknown_field')]").exists())
-                .andExpect(jsonPath("$.error.details[?(@.field=='title' && @.issue=='not_supported')]").exists());
+                .andExpect(jsonPath("$.error.details[?(@.field=='userId' && @.issue=='unknown_field')]").exists());
         verify(service, never()).setCompleted(any(), any(), any(), anyBoolean());
     }
 

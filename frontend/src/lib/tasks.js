@@ -113,7 +113,7 @@ export async function setTaskCompleted(goalId, taskId, completed, { signal } = {
   return data
 }
 
-/** POST /api/v1/goals/{goalId}/tasks. The server side belongs to ASP-10; until then this fails with an error. */
+/** POST /api/v1/goals/{goalId}/tasks. Validates the goal dates and daily budget on the server. */
 export async function createTask(goalId, { title, scheduledDate, estimatedMinutes }, { signal } = {}) {
   const { data } = await request(`${BASE}/goals/${encodeURIComponent(goalId)}/tasks`, {
     method: 'POST',
@@ -123,7 +123,7 @@ export async function createTask(goalId, { title, scheduledDate, estimatedMinute
   return data
 }
 
-/** DELETE /api/v1/goals/{goalId}/tasks/{taskId}. The server side belongs to ASP-10. */
+/** DELETE /api/v1/goals/{goalId}/tasks/{taskId}. */
 export async function deleteTask(goalId, taskId, { signal } = {}) {
   await request(`${BASE}/goals/${encodeURIComponent(goalId)}/tasks/${encodeURIComponent(taskId)}`, {
     method: 'DELETE',
@@ -132,7 +132,17 @@ export async function deleteTask(goalId, taskId, { signal } = {}) {
   return true
 }
 
-/** There is no overdue endpoint yet (ASP-11), so nothing is reported instead of inventing data. */
-export async function listOverdueTasks() {
-  return []
+/** Incomplete tasks before today, evaluated in each goal's timezone. */
+export async function listOverdueTasks({ signal } = {}) {
+  const { data } = await request(`${BASE}/tasks/overdue`, { signal })
+  if (!Array.isArray(data)) throw new TaskApiError('Invalid overdue response.', { status: 502 })
+  return data
+}
+
+export async function updateTask(taskId, changes, { signal } = {}) {
+  const { data } = await request(`${BASE}/tasks/${encodeURIComponent(taskId)}`, {
+    method: 'PATCH', body: changes, signal,
+  })
+  if (!data || typeof data.id !== 'string') throw new TaskApiError('Invalid task response.', { status: 502 })
+  return data
 }

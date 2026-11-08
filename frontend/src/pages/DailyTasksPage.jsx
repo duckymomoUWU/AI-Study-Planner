@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { listGoals } from '../lib/goals.js'
-import { createTask, deleteTask, listOverdueTasks, listTasksByDate, setTaskCompleted } from '../lib/tasks.js'
+import { createTask, deleteTask, listOverdueTasks, listTasksByDate, setTaskCompleted, updateTask } from '../lib/tasks.js'
 import { describeTaskError } from '../lib/taskErrors.js'
 import { Badge } from '../components/ui/badge.jsx'
 import { Checkbox } from '../components/ui/checkbox.jsx'
@@ -39,6 +39,8 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
   const [error, setError] = useState('')
   const [showOverdue, setShowOverdue] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [editingTask, setEditingTask] = useState(null)
+  const [taskDate, setTaskDate] = useState(selectedDate)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [taskFeedback, setTaskFeedback] = useState('')
   const [pendingIds, setPendingIds] = useState(() => new Set())
@@ -163,15 +165,19 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
     if (!newTaskForm.title.trim()) return
     setIsSubmitting(true)
     try {
-      const targetGoalId = newTaskForm.goalId || goals[0]?.id || 'custom-goal'
-      await createTask(targetGoalId, {
+      const targetGoalId = newTaskForm.goalId || goals[0]?.id
+      if (!targetGoalId) throw new Error('Bạn cần tạo mục tiêu trước.')
+      const input = {
         title: newTaskForm.title.trim(),
-        scheduledDate: selectedDate,
+        scheduledDate: taskDate,
         estimatedMinutes: Number(newTaskForm.estimatedMinutes),
-      })
+      }
+      if (editingTask) await updateTask(editingTask.id, input)
+      else await createTask(targetGoalId, input)
       setShowAddModal(false)
       setNewTaskForm({ goalId: goals[0]?.id || '', title: '', estimatedMinutes: 60 })
-      setTaskFeedback('Đã thêm công việc mới vào lịch học!')
+      setEditingTask(null)
+      setTaskFeedback('Đã lưu công việc vào lịch học.')
       setTimeout(() => setTaskFeedback(''), 3000)
       refreshData(selectedDate)
     } catch (err) {
@@ -183,15 +189,11 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
 
   async function handleMoveOverdueToToday(task) {
     try {
-      await createTask(task.goalId, {
-        title: task.title,
-        scheduledDate: getLocalDateString(),
-        estimatedMinutes: task.estimatedMinutes,
-      })
-      await deleteTask(task.goalId, task.id)
+      await updateTask(task.id, { scheduledDate: getLocalDateString() })
       setTaskFeedback(`Đã chuyển công việc "${task.title}" sang hôm nay!`)
       setTimeout(() => setTaskFeedback(''), 3000)
       setSelectedDate(getLocalDateString())
+      await refreshData(getLocalDateString())
     } catch (err) {
       setError(describeTaskError(err).message || 'Không thể dời công việc.')
     }
@@ -220,7 +222,7 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
           <button
             type="button"
             className="button button--primary"
-            onClick={() => setShowAddModal(true)}
+            onClick={() => { setEditingTask(null); setTaskDate(selectedDate); setNewTaskForm({ goalId: goals[0]?.id || '', title: '', estimatedMinutes: 60 }); setShowAddModal(true) }}
           >
             + Thêm công việc
           </button>
@@ -388,7 +390,7 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
             <button
               type="button"
               className="button button--primary button--sm"
-              onClick={() => setShowAddModal(true)}
+              onClick={() => { setEditingTask(null); setTaskDate(selectedDate); setNewTaskForm({ goalId: goals[0]?.id || '', title: '', estimatedMinutes: 60 }); setShowAddModal(true) }}
             >
               + Thêm công việc ngay
             </button>
@@ -421,6 +423,11 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
                 </div>
 
                 <div className="task-actions">
+                  <button type="button" className="button-link" disabled={pendingIds.has(task.id)} onClick={() => {
+                    setEditingTask(task); setTaskDate(task.scheduledDate)
+                    setNewTaskForm({ goalId: task.goalId, title: task.title, estimatedMinutes: task.estimatedMinutes })
+                    setShowAddModal(true)
+                  }}>Sửa</button>
                   <button
                     type="button"
                     className="task-delete-btn"
@@ -441,7 +448,7 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
         <div className="modal-overlay" role="dialog" aria-modal="true">
           <div className="modal-card">
             <div className="modal-header">
-              <h3>Thêm công việc thủ công</h3>
+              <h3>{editingTask ? 'Chỉnh sửa công việc' : 'Thêm công việc thủ công'}</h3>
               <button
                 type="button"
                 className="modal-close-btn"
@@ -452,9 +459,13 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
             </div>
             <form onSubmit={handleCreateTask}>
               <div className="modal-field">
+                <label htmlFor="task-date">Ngày học</label>
+                <input id="task-date" className="modal-input" type="date" value={taskDate} required onChange={e => setTaskDate(e.target.value)} />
+              </div>
+              <div className="modal-field">
                 <label htmlFor="task-goal-select">Thuộc môn học / mục tiêu</label>
                 <select
-                  id="task-goal-select"
+                  id="task-goal-select" disabled={Boolean(editingTask)}
                   className="modal-input"
                   value={newTaskForm.goalId}
                   onChange={e => setNewTaskForm(f => ({ ...f, goalId: e.target.value }))}

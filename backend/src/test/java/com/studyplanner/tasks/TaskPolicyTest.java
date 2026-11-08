@@ -17,7 +17,7 @@ class TaskPolicyTest {
 
     @Test
     void acceptsValidTaskInput() {
-        var input = new TaskPolicy.TaskInput("Luyá»‡n SQL JOIN", LocalDate.of(2026, 11, 10), 60);
+        var input = new TaskPolicy.TaskInput("Luyện SQL JOIN", LocalDate.of(2026, 11, 10), 60);
         var violations = TaskPolicy.validateInput(input);
         assertTrue(violations.isEmpty());
     }

@@ -9,7 +9,7 @@ public class DailyBudgetExceededException extends RuntimeException {
     private final int excessMinutes;
 
     public DailyBudgetExceededException(LocalDate scheduledDate, int budgetMinutes, int scheduledMinutes, int excessMinutes) {
-        super(String.format("CÃ´ng viá»‡c ngÃ y %s vÆ°á»£t ngÃ¢n sÃ¡ch há»c má»—i ngÃ y (%d/%d phÃºt, vÆ°á»£t %d phÃºt).",
+        super(String.format("Công việc ngày %s vượt ngân sách học mỗi ngày (%d/%d phút, vượt %d phút).",
                 scheduledDate, scheduledMinutes, budgetMinutes, excessMinutes));
         this.scheduledDate = scheduledDate;
         this.budgetMinutes = budgetMinutes;

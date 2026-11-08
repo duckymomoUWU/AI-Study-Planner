@@ -108,6 +108,60 @@ public class TaskJdbcRepository {
                 """, params) == 1;
     }
 
+    public StoredTask insertOwned(UUID owner, UUID goalId, TaskPolicy.TaskInput input, String source) {
+        var params = new MapSqlParameterSource("ownerId", owner).addValue("goalId", goalId)
+                .addValue("title", input.title().trim()).addValue("date", input.scheduledDate())
+                .addValue("minutes", input.estimatedMinutes()).addValue("source", source);
+        return jdbc.query("""
+                INSERT INTO study_tasks (goal_id, title, scheduled_date, estimated_minutes, source)
+                SELECT id, :title, :date, :minutes, :source FROM study_goals
+                WHERE id = :goalId AND user_id = :ownerId
+                RETURNING id, goal_id, title, scheduled_date, estimated_minutes, completed, source, created_at
+                """, params, MAPPER).stream().findFirst().orElseThrow(TaskService.TaskNotFoundException::new);
+    }
+
+    public int dailyMinutes(UUID owner, UUID goalId, LocalDate date, UUID excludeTaskId) {
+        var params = new MapSqlParameterSource("ownerId", owner).addValue("goalId", goalId)
+                .addValue("date", date).addValue("excludeId", excludeTaskId);
+        Integer total = jdbc.queryForObject("SELECT COALESCE(SUM(t.estimated_minutes), 0) " + FROM_OWNED
+                + " WHERE g.user_id = :ownerId AND g.id = :goalId AND t.scheduled_date = :date"
+                + (excludeTaskId == null ? "" : " AND t.id <> :excludeId"), params, Integer.class);
+        return total == null ? 0 : total;
+    }
+
+    public Optional<StoredTask> findOwnedById(UUID owner, UUID taskId) {
+        return jdbc.query("SELECT " + COLUMNS + FROM_OWNED
+                + " WHERE g.user_id = :ownerId AND t.id = :taskId",
+                new MapSqlParameterSource("ownerId", owner).addValue("taskId", taskId), MAPPER).stream().findFirst();
+    }
+
+    public boolean updateOwned(UUID owner, UUID goalId, UUID taskId, TaskPolicy.TaskInput input, boolean completed) {
+        return jdbc.update("""
+                UPDATE study_tasks t SET title = :title, scheduled_date = :date,
+                    estimated_minutes = :minutes, completed = :completed
+                FROM study_goals g WHERE g.id = t.goal_id AND g.user_id = :ownerId
+                    AND g.id = :goalId AND t.id = :taskId
+                """, new MapSqlParameterSource("ownerId", owner).addValue("goalId", goalId)
+                .addValue("taskId", taskId).addValue("title", input.title().trim())
+                .addValue("date", input.scheduledDate()).addValue("minutes", input.estimatedMinutes())
+                .addValue("completed", completed)) == 1;
+    }
+
+    public boolean deleteOwned(UUID owner, UUID goalId, UUID taskId) {
+        return jdbc.update("""
+                DELETE FROM study_tasks t USING study_goals g
+                WHERE g.id = t.goal_id AND g.user_id = :ownerId AND g.id = :goalId AND t.id = :taskId
+                """, new MapSqlParameterSource("ownerId", owner).addValue("goalId", goalId)
+                .addValue("taskId", taskId)) == 1;
+    }
+
+    public List<StoredTask> listOverdue(UUID owner) {
+        return jdbc.query("SELECT " + COLUMNS + FROM_OWNED
+                + " WHERE g.user_id = :ownerId AND t.completed = false"
+                + " AND t.scheduled_date < (CURRENT_TIMESTAMP AT TIME ZONE g.timezone)::date" + ORDER,
+                new MapSqlParameterSource("ownerId", owner), MAPPER);
+    }
+
     private static String goalWhere(LocalDate date, Boolean completed) {
         StringBuilder where = new StringBuilder(" WHERE g.user_id = :ownerId AND g.id = :goalId");
         if (date != null) {
