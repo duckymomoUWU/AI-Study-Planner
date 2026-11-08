@@ -349,3 +349,20 @@
 .shadcn-spinner {
   animation: shadcn-spin 1s linear infinite;
 }
+
+/* Progress */
+.shadcn-progress {
+  position: relative;
+  width: 100%;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 9999px;
+  background-color: hsl(var(--shadcn-primary) / 0.2);
+}
+
+.shadcn-progress-indicator {
+  height: 100%;
+  border-radius: 9999px;
+  background-color: hsl(var(--shadcn-primary));
+  transition: width 0.3s ease;
+}

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import BackendStatus from './components/BackendStatus.jsx'
 import GoalsPage from './pages/GoalsPage.jsx'
 import DailyTasksPage from './pages/DailyTasksPage.jsx'
+import WeeklyProgressPage from './pages/WeeklyProgressPage.jsx'
 import AuthPage from './pages/AuthPage.jsx'
 import { getCurrentUser, logout } from './lib/auth.js'
 import './App.css'
@@ -19,11 +20,12 @@ function getPageFromHash() {
   if (hash === '#auth' || hash === '#login' || hash === '#register') return 'auth'
   if (hash === '#goals') return 'goals'
   if (hash === '#daily' || hash === '#tasks') return 'daily'
+  if (hash === '#weekly' || hash === '#progress') return 'weekly'
   return 'overview'
 }
 
 export default function App() {
-  const [activePage, setActivePageState] = useState(getPageFromHash) // 'overview' | 'goals' | 'daily' | 'auth'
+  const [activePage, setActivePageState] = useState(getPageFromHash) // 'overview' | 'goals' | 'daily' | 'weekly' | 'auth'
   const [reviewDraft, setReviewDraft] = useState(null)
   const [currentUser, setCurrentUser] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -214,6 +216,22 @@ export default function App() {
               <span className="nav-text">Lịch học</span>
               <span className="nav-badge">US-03</span>
             </button>
+            <button
+              type="button"
+              className={`nav-link ${activePage === 'weekly' ? 'nav-link--active' : ''}`}
+              onClick={() => setActivePage('weekly')}
+              title="Tiến độ theo tuần (US-17)"
+            >
+              <span className="nav-icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="20" x2="18" y2="10" />
+                  <line x1="12" y1="20" x2="12" y2="4" />
+                  <line x1="6" y1="20" x2="6" y2="14" />
+                </svg>
+              </span>
+              <span className="nav-text">Tiến độ tuần</span>
+              <span className="nav-badge">US-17</span>
+            </button>
             <a className="nav-link" href={`${repository}/wiki`} title="Tài liệu dự án">
               <span className="nav-icon" aria-hidden="true">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -249,6 +267,7 @@ export default function App() {
             <span>
               {activePage === 'goals' && 'Quản lý mục tiêu (US-01)'}
               {activePage === 'daily' && 'Lịch học theo ngày (US-03)'}
+              {activePage === 'weekly' && 'Tiến độ theo tuần (US-17)'}
               {activePage === 'overview' && 'Không gian học tập'}
               {activePage === 'auth' && 'Xác thực tài khoản'}
             </span>
@@ -348,6 +367,12 @@ export default function App() {
                 onNavigateAuth={() => setActivePage('auth')}
                 reviewDraft={reviewDraft}
                 onFinishReview={handleFinishReview}
+              />
+            ) : activePage === 'weekly' ? (
+              <WeeklyProgressPage
+                onBack={() => setActivePage('overview')}
+                onNavigateDaily={() => setActivePage('daily')}
+                onNavigateAuth={() => setActivePage('auth')}
               />
             ) : (
               <>
