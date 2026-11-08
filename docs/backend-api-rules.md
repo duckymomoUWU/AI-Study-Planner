@@ -1,5 +1,7 @@
 # Backend API rules
 
+> Integration update 2026-11-08: on `integration/sprint2-sprint3-all8-test`, task create/edit/delete/overdue and AI drafts/confirm are implemented. [Integrated contract](product/integrated-tasks-and-plans.md) supersedes the older **future** status for these features. Scope still comes from requirements. Budget figures use numeric `error.context`; validation keeps `error.details[]`. PATCH tasks now accepts title/scheduledDate/estimatedMinutes/completed. See the linked contract for exact paths, receipts and limits.
+
 Mandatory rules for code under `backend/`. They come from the *Backend API Spec — AI Study Planner* (draft of 2026-11-07) and are the standard that reviews and tests check against. [requirements.md](../requirements.md) still owns product scope; if a rule here conflicts with it, requirements win and this file is fixed.
 
 Rules marked **(future)** describe features that are not implemented yet (tasks, AI drafts, confirm). New code for those features must follow them; there is nothing to retrofit today.

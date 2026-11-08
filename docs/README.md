@@ -23,3 +23,5 @@
 - [Product document guidance](product/README.md): generic guidance; requirements remain authoritative at the existing root document. Do not duplicate requirements or verification commands here.
 
 Harness status and doctor validate the Harness installation, not application behavior.
+
+- [Task và bản nháp trên nhánh tích hợp](product/integrated-tasks-and-plans.md)

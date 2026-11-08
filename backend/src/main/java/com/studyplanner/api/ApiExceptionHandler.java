@@ -88,11 +88,16 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(com.studyplanner.tasks.DailyBudgetExceededException.class)
     ResponseEntity<ApiErrorResponse> taskBudget(com.studyplanner.tasks.DailyBudgetExceededException ex) {
-        return respond(HttpStatus.UNPROCESSABLE_ENTITY, "DAILY_BUDGET_EXCEEDED", ex.getMessage(), List.of(
-                new ErrorDetail("scheduledDate", "daily_budget_exceeded", ex.getScheduledDate().toString()),
-                new ErrorDetail("budgetMinutes", "budget", Integer.toString(ex.getBudgetMinutes())),
-                new ErrorDetail("scheduledMinutes", "total", Integer.toString(ex.getScheduledMinutes())),
-                new ErrorDetail("excessMinutes", "shortfall", Integer.toString(ex.getExcessMinutes()))));
+        return ResponseEntity.unprocessableEntity().body(new ApiErrorResponse(new ApiErrorResponse.ApiError(
+                "DAILY_BUDGET_EXCEEDED", ex.getMessage(), null, java.util.Map.of(
+                "scheduledDate", ex.getScheduledDate().toString(), "budgetMinutes", ex.getBudgetMinutes(),
+                "scheduledMinutes", ex.getScheduledMinutes(), "excessMinutes", ex.getExcessMinutes()))));
+    }
+
+    @ExceptionHandler(com.studyplanner.goals.PlanException.class)
+    ResponseEntity<ApiErrorResponse> planError(com.studyplanner.goals.PlanException ex) {
+        return ResponseEntity.status(ex.status()).body(new ApiErrorResponse(new ApiErrorResponse.ApiError(
+                ex.code(), ex.getMessage(), null, ex.context().isEmpty() ? null : ex.context())));
     }
 
     @ExceptionHandler(RequestValidationException.class)

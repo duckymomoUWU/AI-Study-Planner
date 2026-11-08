@@ -8,9 +8,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.studyplanner.api.ApiErrorResponse.ErrorDetail;
 import com.studyplanner.api.RequestValidationException;
 
-final class TaskRequest {
+public final class TaskRequest {
     private TaskRequest() {}
-    static TaskService.TaskPatch parse(JsonNode body, boolean create) {
+    public static TaskService.TaskPatch parse(JsonNode body, boolean create) {
         List<ErrorDetail> errors = new ArrayList<>();
         if (body == null || !body.isObject()) throw new RequestValidationException(
                 List.of(new ErrorDetail("body", "invalid_type")));

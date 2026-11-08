@@ -7,3 +7,5 @@ Keep environment and startup instructions in [setup.md](../../setup.md), and val
 Add domain documents only when the team explicitly chooses to split requirements; update the [documentation map](../README.md) and retain one authoritative owner for each rule. The only domain document here is the [ASP-9 Goal API contract](ASP-9-goals-api.md), a design that turns the requirements into an API and data contract; it does not replace requirements.md.
 
 Record consequential accepted choices in [decisions](../decisions/README.md). Use [plans](../plans/README.md) only for work that needs durable memory.
+
+- [Task và bản nháp trên nhánh tích hợp](integrated-tasks-and-plans.md)

@@ -4,11 +4,12 @@ const BASE = '/api/v1'
 const PAGE_LIMIT = 100
 
 export class TaskApiError extends Error {
-  constructor(message, { status, code, fieldErrors = [] } = {}) {
+  constructor(message, { status, code, fieldErrors = [], context } = {}) {
     super(message)
     this.name = 'TaskApiError'
     this.status = status
     this.code = code
+    this.context = context
     // Items look like { field, issue, message } (the API's error.details).
     this.fieldErrors = Array.isArray(fieldErrors) ? fieldErrors : []
   }
@@ -63,6 +64,7 @@ async function request(path, { method = 'GET', body, signal, csrfToken } = {}) {
       status: response.status,
       code: error?.code,
       fieldErrors: error?.details,
+      context: error?.context,
     })
   }
   return payload ?? { data: null }

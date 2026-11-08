@@ -227,4 +227,17 @@ class TaskControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
     }
+
+    @Test void createDeleteAndDirectEditUseSharedEnvelopeAndStrictInputs() throws Exception {
+        when(service.createTask(eq(USER), eq(GOAL), any())).thenReturn(stored(false));
+        mvc.perform(asUser(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/goals/" + GOAL + "/tasks"))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"SQL\",\"scheduledDate\":\"2026-11-10\",\"estimatedMinutes\":30}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.data.id").value(TASK.toString()));
+        mvc.perform(asUser(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete(ONE))).andExpect(status().isNoContent());
+        when(service.updateTaskDirect(eq(USER), eq(TASK), any())).thenReturn(stored(false));
+        mvc.perform(asUser(patch("/api/v1/tasks/" + TASK)).contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"New title\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.id").value(TASK.toString()));
+        mvc.perform(asUser(patch(ONE)).contentType(MediaType.APPLICATION_JSON).content("{\"estimatedMinutes\":30.5}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.details[0].issue").value("invalid_type"));
+    }
 }

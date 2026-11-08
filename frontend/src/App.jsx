@@ -26,17 +26,7 @@ function getPageFromHash() {
 
 export default function App() {
   const [activePage, setActivePageState] = useState(getPageFromHash) // 'overview' | 'goals' | 'daily' | 'auth'
-  const [currentUser, setCurrentUser] = useState(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('ai_study_planner_user')
-        if (saved) return JSON.parse(saved)
-      } catch {
-        // fallback
-      }
-    }
-    return null
-  })
+  const [currentUser, setCurrentUser] = useState(null)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)

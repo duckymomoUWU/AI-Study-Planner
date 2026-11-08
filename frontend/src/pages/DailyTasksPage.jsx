@@ -164,6 +164,7 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
     e.preventDefault()
     if (!newTaskForm.title.trim()) return
     setIsSubmitting(true)
+    setError('')
     try {
       const targetGoalId = newTaskForm.goalId || goals[0]?.id
       if (!targetGoalId) throw new Error('Bạn cần tạo mục tiêu trước.')
@@ -270,7 +271,7 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
           {overdueTasks.map(ot => (
             <div key={ot.id} className="daily-task-item daily-task-item--overdue">
               <div className="task-info">
-                <span className="task-subject-badge">{ot.goalSubject || 'Môn học'}</span>
+                <span className="task-subject-badge">{subjectByGoal[ot.goalId] || 'Môn học'}</span>
                 <span className="task-title">{ot.title}</span>
                 <span className="task-date-tag">Lịch: {ot.scheduledDate} · {ot.estimatedMinutes} phút</span>
               </div>
@@ -458,6 +459,7 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
               </button>
             </div>
             <form onSubmit={handleCreateTask}>
+              {error && <p role="alert" className="daily-alert daily-alert--error">{error}</p>}
               <div className="modal-field">
                 <label htmlFor="task-date">Ngày học</label>
                 <input id="task-date" className="modal-input" type="date" value={taskDate} required onChange={e => setTaskDate(e.target.value)} />
@@ -499,23 +501,12 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
                   id="task-duration-input"
                   className="modal-input"
                   type="number"
-                  min="15"
+                  min="1"
                   max="480"
                   required
                   value={newTaskForm.estimatedMinutes}
                   onChange={e => setNewTaskForm(f => ({ ...f, estimatedMinutes: e.target.value }))}
                 />
-              </div>
-
-              <div className="modal-field">
-                <label>Ngày thực hiện</label>
-                <input
-                  className="modal-input"
-                  type="date"
-                  value={selectedDate}
-                  disabled
-                />
-                <small className="field-hint">Công việc sẽ được thêm vào ngày đang xem ({selectedDate}).</small>
               </div>
 
               <div className="modal-actions">
@@ -531,7 +522,7 @@ export default function DailyTasksPage({ onBack, onNavigateGoals }) {
                   className="button button--primary"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? 'Đang lưu…' : 'Thêm công việc'}
+                  {isSubmitting ? 'Đang lưu…' : 'Lưu công việc'}
                 </button>
               </div>
             </form>

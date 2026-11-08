@@ -7,7 +7,9 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 /** Error envelope: {"error": {"code", "message", "details": [{"field", "issue", "message"}]}}. */
 public record ApiErrorResponse(ApiError error) {
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record ApiError(String code, String message, List<ErrorDetail> details) {}
+    public record ApiError(String code, String message, List<ErrorDetail> details, java.util.Map<String, Object> context) {
+        public ApiError(String code, String message, List<ErrorDetail> details) { this(code, message, details, null); }
+    }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record ErrorDetail(String field, String issue, String message) {

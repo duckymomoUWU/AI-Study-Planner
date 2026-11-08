@@ -3,6 +3,7 @@ import { createGoal, deleteGoal, GoalApiError, getGoal, listGoals, updateGoal } 
 import { describeGoalError } from '../lib/goalErrors.js'
 import { confirmAndDeleteGoal } from '../lib/goalDelete.js'
 import GoalProgress from '../components/GoalProgress.jsx'
+import PlanDraftPanel from '../components/PlanDraftPanel.jsx'
 import './GoalsPage.css'
 
 const emptyForm = {
@@ -372,6 +373,10 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
                 <dt>Phiên bản</dt><dd>v{detail.version}</dd>
               </dl>
               <GoalProgress goalId={detail.id} version={detail.version} />
+              <PlanDraftPanel key={detail.id} goal={detail} onSaved={async () => {
+                await refresh()
+                try { setDetail(await getGoal(detail.id)) } catch (err) { setPageError(err.message) }
+              }} />
             </section>
           )}
           {loading ? (

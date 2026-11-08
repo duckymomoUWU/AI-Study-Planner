@@ -30,15 +30,17 @@ Giúp sinh viên tạo kế hoạch ôn tập theo môn học, nội dung, ngày
 Đọc PDF, kết nối LMS, đồng bộ lịch, thanh toán và tự động đánh giá kiến thức.
 
 ## Trạng thái
-Cập nhật 2026-11-07 (nhánh kiểm thử tích hợp `integration/sprint2-sprint3-test`; chưa gộp vào `main`). Chi tiết hợp đồng API: [docs/backend-api-rules.md](docs/backend-api-rules.md).
+Cập nhật 2026-11-08 (nhánh kiểm thử tích hợp `integration/sprint2-sprint3-all8-test`; chưa gộp vào `main`). Chi tiết hợp đồng API: [docs/backend-api-rules.md](docs/backend-api-rules.md).
 
 | Chức năng | Tình trạng |
 | --- | --- |
 | 1. Đăng ký, đăng nhập, đăng xuất, chỉ truy cập dữ liệu của mình | Đã hiện thực (session, CSRF, ownership) |
 | 2. Tạo, sửa, xóa mục tiêu | Đã hiện thực, có giao diện |
-| 3. Tạo, sửa, xóa công việc thủ công; xem công việc theo ngày | Đã có xem theo ngày và mục tiêu; tạo, sửa, xóa chưa hiện thực qua API |
-| 4. AI đề xuất bản nháp | Chưa hiện thực trong các branch này |
-| 5. Chỉ lưu kế hoạch sau khi xác nhận | Chưa hiện thực trong các branch này |
+| 3. Tạo, sửa, xóa công việc thủ công; xem công việc theo ngày | Đã có API và UI tạo/sửa/xóa, xem theo ngày/mục tiêu; kiểm tra ngày/ngân sách/ownership ở server |
+| 4. AI đề xuất bản nháp | Đã tích hợp API/UI trên nhánh test; cần GEMINI_API_KEY và GEMINI_MODEL ở backend, chưa kiểm chứng provider thật |
+| 5. Chỉ lưu kế hoạch sau khi xác nhận | Có confirm nguyên tử, kiểm tra version/expiry/ngân sách, receipt chống lưu trùng; đã test PostgreSQL với AI mock |
 | 6. Đánh dấu hoàn thành/mở lại; số công việc hoàn thành và còn lại | Đã có API và giao diện đánh dấu hoàn thành/mở lại; có số lượng theo ngày và tiến độ theo từng mục tiêu (kể cả 0/0) |
 
 Mô tả tính năng: [đánh dấu hoàn thành](docs/product/task-completion.md) và [tiến độ mục tiêu](docs/product/goal-progress.md).
+
+Chi tiết tích hợp: [review 8 branch](docs/reviews/branch-integration-2026-11-08.md) và [hợp đồng task/draft](docs/product/integrated-tasks-and-plans.md).

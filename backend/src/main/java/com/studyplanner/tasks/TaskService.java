@@ -13,7 +13,7 @@ import com.studyplanner.goals.GoalService;
 
 /**
  * Task reads and the done/re-open transition. The owner ID comes from the authenticated principal.
- * Creating, editing and deleting tasks (budget and deadline checks) belong to ASP-10.
+ * Manual CRUD validates dates and budgets under the same goal lock.
  */
 @Service
 public class TaskService {

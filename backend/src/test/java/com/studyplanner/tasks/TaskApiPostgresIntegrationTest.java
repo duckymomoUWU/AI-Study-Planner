@@ -207,7 +207,7 @@ class TaskApiPostgresIntegrationTest {
                         .content("{\"completed\":true}"))
                 .andExpect(status().isForbidden()).andExpect(jsonPath("$.error.code").value("CSRF_INVALID"));
         for (String bad : List.of("{}", "{\"completed\":null}", "{\"completed\":\"true\"}", "{\"completed\":1}",
-                "{\"completed\":true,\"title\":\"x\"}", "{\"completed\":true,\"goalId\":\"x\"}")) {
+                "{\"completed\":true,\"title\":null}", "{\"completed\":true,\"goalId\":\"x\"}")) {
             mvc.perform(patch(url(goal, task)).session(s).with(csrf()).contentType(MediaType.APPLICATION_JSON)
                             .content(bad))
                     .andExpect(status().isBadRequest())
