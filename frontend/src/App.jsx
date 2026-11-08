@@ -229,7 +229,7 @@ export default function App() {
                   <line x1="6" y1="20" x2="6" y2="14" />
                 </svg>
               </span>
-              <span className="nav-text">Tiến độ tuần</span>
+              <span className="nav-text">Tiến độ</span>
               <span className="nav-badge">US-17</span>
             </button>
             <a className="nav-link" href={`${repository}/wiki`} title="Tài liệu dự án">
