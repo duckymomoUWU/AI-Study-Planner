@@ -65,8 +65,8 @@ class AuthPostgresIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(registerRequest)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").isNotEmpty())
-                .andExpect(jsonPath("$.email").value(email.toLowerCase()))
+                .andExpect(jsonPath("$.data.id").isNotEmpty())
+                .andExpect(jsonPath("$.data.email").value(email.toLowerCase()))
                 .andReturn();
 
         // Verify inserted into PostgreSQL with BCrypt hash
@@ -80,7 +80,7 @@ class AuthPostgresIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(registerRequest)))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("email_already_exists"));
+                .andExpect(jsonPath("$.error.code").value("EMAIL_ALREADY_EXISTS"));
 
         // 3. Login with wrong password returns 401 Unauthorized
         var badLogin = new LoginRequest(email, "WrongPassword!");
@@ -89,7 +89,7 @@ class AuthPostgresIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(badLogin)))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("invalid_credentials"));
+                .andExpect(jsonPath("$.error.code").value("INVALID_CREDENTIALS"));
 
         // 4. Login with correct password establishes session
         var goodLogin = new LoginRequest(email, password);
@@ -98,7 +98,7 @@ class AuthPostgresIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(goodLogin)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value(email.toLowerCase()))
+                .andExpect(jsonPath("$.data.email").value(email.toLowerCase()))
                 .andReturn();
 
         MockHttpSession session = (MockHttpSession) loginResult.getRequest().getSession(false);
@@ -108,7 +108,7 @@ class AuthPostgresIntegrationTest {
         mockMvc.perform(get("/api/auth/me")
                         .session(session))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value(email.toLowerCase()));
+                .andExpect(jsonPath("$.data.email").value(email.toLowerCase()));
 
         // 6. Logout invalidates session
         mockMvc.perform(post("/api/auth/logout")
@@ -122,7 +122,7 @@ class AuthPostgresIntegrationTest {
         mockMvc.perform(get("/api/auth/me")
                         .session(session))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("unauthenticated"));
+                .andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
     }
 
     @Test
@@ -162,11 +162,11 @@ class AuthPostgresIntegrationTest {
         // Check A
         mockMvc.perform(get("/api/auth/me").session(sessionA))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value(emailA.toLowerCase()));
+                .andExpect(jsonPath("$.data.email").value(emailA.toLowerCase()));
 
         // Check B
         mockMvc.perform(get("/api/auth/me").session(sessionB))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value(emailB.toLowerCase()));
+                .andExpect(jsonPath("$.data.email").value(emailB.toLowerCase()));
     }
 }
