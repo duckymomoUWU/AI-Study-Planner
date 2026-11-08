@@ -9,6 +9,7 @@
 - [Frontend guide](../frontend/README.md): frontend operation and proxy behavior.
 - [Initial schema](../backend/src/main/resources/db/migration/V1__initial_schema.sql): current database structure; not an implemented business API.
 - [ASP-9 Goal API contract](product/ASP-9-goals-api.md): proposed secure CRUD contract and mapping of user-facing rules to planned implementation. Not a deployed endpoint.
+- [Weekly progress (US-17)](product/weekly-progress.md): completed and total tasks per Monday-to-Sunday week (API, UI, 0/0 rule, open PO points); evidence in [weekly-progress-verification.md](product/weekly-progress-verification.md).
 
 ## Repository Harness
 
