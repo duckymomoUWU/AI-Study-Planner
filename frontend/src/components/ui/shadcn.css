@@ -414,3 +414,20 @@
   background-color: hsl(var(--shadcn-success) / 0.12);
   color: hsl(var(--shadcn-success));
 }
+
+/* Progress */
+.shadcn-progress {
+  position: relative;
+  width: 100%;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 9999px;
+  background-color: hsl(var(--shadcn-primary) / 0.2);
+}
+
+.shadcn-progress-indicator {
+  height: 100%;
+  border-radius: 9999px;
+  background-color: hsl(var(--shadcn-primary));
+  transition: width 0.3s ease;
+}

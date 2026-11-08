@@ -1,0 +1,195 @@
+.weekly-page {
+  display: grid;
+  gap: 1.125rem;
+  padding: 4px 0 28px;
+}
+
+.weekly-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1.25rem;
+}
+
+.weekly-heading h1 {
+  font-size: 32px;
+  letter-spacing: -1px;
+  margin: 8px 0;
+}
+
+.weekly-heading > div > p:last-child {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #6b7b90;
+}
+
+.weekly-heading-actions,
+.weekly-nav-buttons {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* The global .button--primary (App.css) adds margin-top: 22px for the hero card; keep buttons on one baseline. */
+.weekly-page .button,
+.weekly-page .button--primary,
+.weekly-page .button--secondary {
+  margin-top: 0;
+  height: 2.5rem;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.weekly-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  background: #fff;
+  border: 1px solid #e4eaf3;
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+}
+
+.weekly-range {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 1.0625rem;
+}
+
+.weekly-pill {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #d6deea;
+  border-radius: 9999px;
+  padding: 0.125rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #334761;
+}
+
+.weekly-pill--done {
+  border-color: transparent;
+  background: #e6f6ed;
+  color: #1c7a47;
+}
+
+.weekly-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(320px, 1.1fr);
+  gap: 1.125rem;
+  align-items: start;
+}
+
+.weekly-summary,
+.weekly-days {
+  border-radius: 14px;
+}
+
+.weekly-total {
+  font-size: 2rem;
+  letter-spacing: -0.04em;
+}
+
+.weekly-total span {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #64748b;
+  letter-spacing: 0;
+}
+
+.weekly-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.75rem;
+}
+
+.weekly-percent {
+  margin-left: auto;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.weekly-empty {
+  margin: 0.875rem 0 0;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.weekly-day-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.625rem;
+}
+
+.weekly-day {
+  display: grid;
+  grid-template-columns: 2rem 3rem 1fr 3rem;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 0.8125rem;
+}
+
+.weekly-day-name {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.weekly-day-date {
+  color: #64748b;
+}
+
+.weekly-day-count {
+  text-align: right;
+  font-weight: 600;
+  color: #334761;
+}
+
+.weekly-status,
+.weekly-note {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #8793a5;
+}
+
+.weekly-alert {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  border-radius: 9px;
+  padding: 0.75rem 1rem;
+  font-size: 0.8125rem;
+}
+
+.weekly-alert--error {
+  background: #fff7f2;
+  border: 1px solid #f1d0bd;
+  color: #8e4827;
+}
+
+.weekly-alert--auth {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+}
+
+@media (max-width: 1000px) {
+  .weekly-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .weekly-heading {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

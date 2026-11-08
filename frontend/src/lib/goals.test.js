@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createGoal, deleteGoal, GoalApiError, getGoal, listGoals, updateGoal } from './goals.js'
+import { createGoal, deleteGoal, GoalApiError, getGoal, listGoals, parseSyllabusDocument, updateGoal } from './goals.js'
 
 const goal = (id, extra = {}) => ({
   id, subject: 'Toán', topics: 'Tích phân', startDate: '2026-11-09', examDate: '2026-12-05',
@@ -109,4 +109,29 @@ test('404 is surfaced as an error and never replaced with demo data', async t =>
   await assert.rejects(createGoal({ subject: 'A' }), error => error.status === 404)
   await assert.rejects(updateGoal('goal-1', { subject: 'A' }, 0), error => error.status === 404)
   await assert.rejects(deleteGoal('goal-1'), error => error.status === 404)
+})
+
+test('parseSyllabusDocument posts to /api/v1/goals/parse-syllabus and returns extracted fields', async t => {
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.equal(url, '/api/v1/goals/parse-syllabus')
+    assert.equal(options.method, 'POST')
+    const body = JSON.parse(options.body)
+    assert.equal(body.fileName, 'de_cuong_csdl.txt')
+    return Response.json({
+      data: {
+        subject: 'Cơ sở dữ liệu',
+        topics: 'Mô hình ER, SQL JOIN, Chuẩn hóa 3NF',
+        startDate: '2026-11-10',
+        examDate: '2026-12-10',
+        minutesPerDay: 90,
+      },
+    })
+  })
+
+  const result = await parseSyllabusDocument({
+    content: 'Môn: Cơ sở dữ liệu',
+    fileName: 'de_cuong_csdl.txt',
+  })
+  assert.equal(result.subject, 'Cơ sở dữ liệu')
+  assert.equal(result.minutesPerDay, 90)
 })

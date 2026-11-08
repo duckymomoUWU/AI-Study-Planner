@@ -78,7 +78,8 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.GET, "/api/v1/auth/csrf", "/actuator/health").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/register", "/api/v1/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/register", "/api/v1/auth/login",
+                                "/api/v1/goals/parse-syllabus").permitAll() // syllabus autofill is open (dev1 sprint 3)
                         .requestMatchers("/api/**").authenticated() // every business route is /api/v1/**
                         .anyRequest().permitAll()
                 )

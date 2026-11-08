@@ -12,6 +12,7 @@
 - [ASP-9 Goal API contract](product/ASP-9-goals-api.md): Goal CRUD contract, errors, timezone rule and AC mapping; the endpoints are implemented on the development branch.
 - [Task completion](product/task-completion.md): mark a task done or re-open it (API, UI, version effect, open decisions).
 - [ASP-9 verification evidence](product/ASP-9-verification.md): AC-to-test traceability with the results that were actually run and the limits not verified.
+- [Weekly progress (US-17)](product/weekly-progress.md): completed and total tasks per Monday-to-Sunday week (API, UI, 0/0 rule, open PO points); evidence in [weekly-progress-verification.md](product/weekly-progress-verification.md).
 
 ## Repository Harness
 
