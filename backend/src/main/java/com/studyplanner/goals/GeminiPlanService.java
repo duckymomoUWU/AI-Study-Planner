@@ -119,8 +119,7 @@ public class GeminiPlanService {
                         Map.of("parts", List.of(Map.of("text", prompt)))
                 ),
                 "generationConfig", Map.of(
-                        "responseMimeType", "application/json",
-                        "temperature", 0.3
+                        "responseMimeType", "application/json"
                 )
         );
 
@@ -219,8 +218,7 @@ public class GeminiPlanService {
         Map<String, Object> body = Map.of(
                 "contents", List.of(Map.of("parts", parts)),
                 "generationConfig", Map.of(
-                        "responseMimeType", "application/json",
-                        "temperature", 0.2
+                        "responseMimeType", "application/json"
                 )
         );
 

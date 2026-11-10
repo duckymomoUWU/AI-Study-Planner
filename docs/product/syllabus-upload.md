@@ -29,3 +29,6 @@ Chưa xác minh provider Gemini thật khi không có key/model; build/mock/HTTP
 
 Có thể thử ngay bằng `examples/syllabus-demo.txt`: Mục tiêu → Tải tài liệu / đề cương để điền nhanh → chọn file → xem kết quả → Điền vào biểu mẫu → tạo mục tiêu.
 Cấu hình GEMINI_API_KEY và GEMINI_MODEL ở môi trường tiến trình backend để thử Gemini (ví dụ model gemini-3.8-flash); không đưa key vào frontend hoặc Git.
+
+
+Gemini 3.8: request generationConfig chỉ gửi responseMimeType; bỏ temperature theo hướng dẫn model hiện hành của Google (https://ai.google.dev/gemini-api/docs/latest-model). Key/model được đọc từ môi trường lúc backend khởi động; thay key cần khởi động lại Java.
