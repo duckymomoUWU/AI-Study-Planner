@@ -509,8 +509,8 @@ export default function DailyTasksPage({
     ? (tasksByUser[userStorageKey] ?? loadUserTasks(userStorageKey))
     : []
 
-  // Existing tasks already on the calendar (user's own tasks if present, otherwise mockup demo tasks)
-  const existingCalendarTasks = userTasks.length > 0 ? userTasks : mockupTasks
+  // Existing tasks already on the calendar (user's own tasks; empty array if calendar is currently empty)
+  const existingCalendarTasks = userTasks
 
   // Draft tasks with automatic best-fit slot assignment against existing calendar tasks
   const [draftTasks, setDraftTasks] = useState(() => {
@@ -522,6 +522,10 @@ export default function DailyTasksPage({
     setPrevDraft(reviewDraft)
     const raw = reviewDraft?.tasks || []
     setDraftTasks(applyBestFitToDraftTasks(raw, existingCalendarTasks))
+    if (reviewDraft?.tasks?.[0]?.scheduledDate) {
+      const [y, m, d] = reviewDraft.tasks[0].scheduledDate.split('-').map(Number)
+      if (y && m && d) setUserBaseDate(new Date(y, m - 1, d, 12, 0, 0))
+    }
   }
 
   function setUserTasks(updater) {
@@ -999,7 +1003,9 @@ export default function DailyTasksPage({
               <div className="cal-review-badge-group">
                 <span className="cal-review-badge">✨ BẢN NHÁP AI (GEMINI FLASH)</span>
                 <span className="cal-review-fit-badge" title="AI đã tự động kiểm tra lịch bận để chọn khung giờ tối ưu nhất, không bị trùng lịch">✓ Đã ghép tối ưu (Best-fit, tránh trùng)</span>
-                <span className="cal-review-existing-badge" title="Hiển thị đồng thời các công việc/lịch học đã có trên thời khóa biểu của bạn">📅 Cùng {existingCalendarTasks.length} lịch đã có</span>
+                {existingCalendarTasks.length > 0 && (
+                  <span className="cal-review-existing-badge" title="Hiển thị đồng thời các công việc/lịch học đã có trên thời khóa biểu của bạn">📅 Cùng {existingCalendarTasks.length} lịch đã có</span>
+                )}
               </div>
               <h3>Lịch ôn tập đề xuất cho môn: {reviewDraft.goalSubject || 'Mục tiêu'}</h3>
             </div>
@@ -1343,9 +1349,9 @@ export default function DailyTasksPage({
                     }
 
                     // Display label in overview mode (unclicked)
-                    const displayLabel = task.overviewLabel !== undefined
+                    const displayLabel = (task.overviewLabel !== undefined && task.overviewLabel !== '' && isViewingMockup)
                       ? task.overviewLabel
-                      : (task.type === 'other' && isViewingMockup ? '' : task.title)
+                      : (task.title || task.overviewLabel || 'Buổi học')
 
                     return (
                       <div

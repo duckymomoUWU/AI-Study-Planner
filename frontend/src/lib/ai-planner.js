@@ -151,11 +151,6 @@ export function getExistingCalendarTasks(currentUser = null) {
         if (Array.isArray(parsed) && parsed.length > 0) return parsed
       }
     }
-    const mockupRaw = localStorage.getItem('ai_study_planner_mockup_tasks_v2')
-    if (mockupRaw) {
-      const parsed = JSON.parse(mockupRaw)
-      if (Array.isArray(parsed)) return parsed
-    }
   } catch {
     // fallback
   }
@@ -192,11 +187,6 @@ export function findBestFitSlot(task, existingTasks = [], alreadyAssigned = []) 
       }
     }
     return true
-  }
-
-  // Preserve exact 12:00 PM if requested for user verification
-  if (initialHour === 12.0) {
-    return { startHour: 12.0, isBestFit: true, adjusted: false }
   }
 
   // 1. If initially proposed hour is free and within bounds, use it!
@@ -252,7 +242,7 @@ export function generateClientFallbackDraft(goal, existingTasks = []) {
     [1, 4],    // T2, T5
     [0, 6],    // T7, CN
   ]
-  const preferredHours = [12.0, 12.0, 12.0, 12.0]
+  const preferredHours = [9.0, 14.0, 10.5, 15.5]
   const subjectCode = (goal.subject || '').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
   const chosenDays = daySchedules[subjectCode % daySchedules.length]
 

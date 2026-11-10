@@ -1141,7 +1141,7 @@
   border: 2px dashed #818cf8 !important;
   box-shadow: 0 3px 8px rgba(99, 102, 241, 0.25);
   cursor: grab !important;
-  position: relative;
+  z-index: 8;
 }
 
 .cal-task-block--draft:active {
