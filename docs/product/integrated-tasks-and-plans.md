@@ -36,7 +36,7 @@ UI dời việc bằng PATCH nguyên tử, không dùng create rồi delete.
 | POST | `/api/v1/goals/{goalId}/plan-drafts/{draftId}/confirm` | 201 lần đầu / 200 khi replay cùng key và nội dung |
 
 Draft gồm `id`, `goalId`, `goalVersion`, `proposal: {tasks: [...]}`, `createdAt`, `expiresAt`.
-Mỗi task trong proposal chỉ có `title`, `scheduledDate`, `estimatedMinutes`.
+Mỗi task trong proposal có `title`, `scheduledDate`, `estimatedMinutes` và tùy chọn `priority` (`HIGH`, `MEDIUM`, `LOW`; cập nhật 2026-11-10). Priority là metadata để xem/sắp thứ tự bản nháp; task đã xác nhận vẫn theo schema task hiện tại. Body confirm vẫn chỉ gửi ba trường đầu.
 Tạo draft không ghi `study_tasks`; provider nhận snapshot goal và các phần thời gian đã được dùng.
 Không giữ transaction/khóa trong thời gian gọi provider. Server validate JSON, ngày, phút và ngân sách trước khi lưu draft.
 
@@ -88,3 +88,15 @@ xung đột payload/key, expiry/version, hai xác nhận đồng thời, AI lỗ
 `TaskControllerTest` và `PlanDraftControllerTest` kiểm tra HTTP/envelope/CSRF/input.
 `ai-planner.test.js` kiểm tra API client không giả thành công và giữ version/key/body khi retry.
 Provider được mock trong test; chưa phải kiểm chứng một model Gemini thật.
+
+
+## Cập nhật AIfeat ngày 2026-11-10
+
+- Nhận các thay đổi từ `3c79a01..bc6ebdd`: CSRF warmup, cookie fallback, retry auth khi CSRF hết hạn, cookie/session 7 ngày, ưu tiên AI và UI gọn hơn.
+- CSRF request không cache HTTP và dùng chung một request đang chạy để tránh race warmup/submit. Lỗi `403 CSRF_INVALID` được refresh rồi retry đúng một lần; các lỗi khác không tự gửi lại.
+- Cookie fallback chỉ lấy XSRF-TOKEN; không dùng cookie chỉ báo `active` để xem người dùng đã đăng nhập. `/me` và session HttpOnly vẫn là nguồn xác thực.
+- JSESSIONID và XSRF cookie có Max-Age 7 ngày; session server có idle timeout 7 ngày. Session vẫn nằm trong bộ nhớ backend, không cam kết giữ đăng nhập sau khi backend khởi động lại.
+- Logout xóa JSESSIONID, XSRF-TOKEN và marker cũ nếu có. Mã lỗi giữ nguyên chữ hoa và envelope chung.
+- Giữ 401 INVALID_CREDENTIALS chung cho tài khoản không tồn tại và sai mật khẩu theo quy tắc API; không nhận thay đổi USER_NOT_FOUND làm lộ sự tồn tại tài khoản.
+- Prompt ưu tiên kiến thức nền tảng/bài tập cốt lõi; HTTP timeout AI là 60 giây. Priority trong proposal được kiểm tra trước lưu; hiển thị/sắp ưu tiên không tự đổi ngày hoặc thời lượng.
+- Sửa nhãn trống ở calendar-preview; lịch mẫu vẫn tách khỏi luồng API thật. Best-fit giờ/lặp tuần của prototype chưa được bật vì schema MVP vẫn lập lịch theo ngày.

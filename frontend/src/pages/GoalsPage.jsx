@@ -302,7 +302,7 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
         <section className="goal-form-card" aria-labelledby="goal-form-title">
           <div className="goal-card-heading">
             <h2 id="goal-form-title">{editing ? 'Chỉnh sửa mục tiêu' : 'Tạo mục tiêu mới'}</h2>
-            <span>{editing ? `Phiên bản v${editing.version}` : 'Mục tiêu mới'}</span>
+            {editing && <span>Phiên bản v{editing.version}</span>}
           </div>
           <form onSubmit={submitForm} noValidate>
             <div className="goal-field">
@@ -400,6 +400,7 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
                   <GoalProgress goalId={goal.id} version={goal.version} />
                   <div className="goal-item-actions">
                     <button type="button" onClick={() => showDetail(goal)} disabled={detailLoading}>Chi tiết</button>
+                    <button type="button" onClick={() => showDetail(goal)} disabled={detailLoading}>Bản nháp AI & Điều chỉnh</button>
                     <button type="button" onClick={() => startEditing(goal)}>Chỉnh sửa</button>
                     <button type="button" className="goal-delete" onClick={() => removeGoal(goal)}
                       disabled={deletingId !== null}>

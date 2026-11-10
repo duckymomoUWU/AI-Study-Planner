@@ -155,4 +155,27 @@ class CombinedFeaturesPostgresIntegrationTest {
         assertEquals(0, count("plan_drafts")); assertEquals(0, count("study_tasks"));
         json(owner, post(taskUrl()), item(today, 15)).andExpect(status().isCreated());
     }
+
+    @Test void priorityMetadataStaysInDraftAndCannotChangeConfirmContract() throws Exception {
+        var task = new HashMap<String,Object>(item(today, 30)); task.put("priority", "HIGH");
+        when(generator.generateProposalJson(any())).thenReturn(mapper.writeValueAsString(Map.of("tasks", List.of(task))));
+        String id = draft();
+        mvc.perform(as(owner, get(draftUrl() + "/" + id))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.proposal.tasks[0].priority").value("HIGH"));
+        assertEquals(0, count("study_tasks"));
+        confirm(owner, id, UUID.randomUUID(), confirmBody(0, task)).andExpect(status().isBadRequest());
+        assertEquals(0, count("study_tasks")); assertEquals(0, version());
+        confirm(owner, id, UUID.randomUUID(), confirmBody(0, item(today, 30))).andExpect(status().isCreated());
+        assertEquals(1, count("study_tasks")); assertEquals(1, version());
+    }
+
+    @Test void invalidAiPriorityIsRejectedBeforeSavingADraft() throws Exception {
+        for (Object value : List.of("URGENT", 1, List.of("HIGH"))) {
+            var task = new HashMap<String,Object>(item(today, 30)); task.put("priority", value);
+            when(generator.generateProposalJson(any())).thenReturn(mapper.writeValueAsString(Map.of("tasks", List.of(task))));
+            json(owner, post(draftUrl()), Map.of()).andExpect(status().isBadGateway())
+                    .andExpect(jsonPath("$.error.code").value("AI_INVALID_RESPONSE"));
+        }
+        assertEquals(0, count("plan_drafts")); assertEquals(0, count("study_tasks"));
+    }
 }

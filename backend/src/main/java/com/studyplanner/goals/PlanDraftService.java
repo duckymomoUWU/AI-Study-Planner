@@ -52,7 +52,7 @@ public class PlanDraftService {
             proposal = mapper.readTree(raw);
             if (proposal == null || !proposal.isObject() || proposal.size() != 1 || !proposal.has("tasks"))
                 throw new IllegalArgumentException();
-            input = parseTasks(proposal.get("tasks"));
+            input = parseTasks(proposal.get("tasks"), true);
             validate(goal, owner, input);
         } catch (PlanException ex) { throw ex; }
         catch (Exception ex) { throw new PlanException(502, "AI_INVALID_RESPONSE", "AI proposed invalid tasks."); }
@@ -141,10 +141,23 @@ public class PlanDraftService {
     }
 
     private List<TaskPolicy.TaskInput> parseTasks(JsonNode list) {
+        return parseTasks(list, false);
+    }
+
+    private List<TaskPolicy.TaskInput> parseTasks(JsonNode list, boolean allowPriority) {
         if (list == null || !list.isArray() || list.isEmpty()) throw invalid("tasks", "required");
         var result = new ArrayList<TaskPolicy.TaskInput>();
         for (var node : list) {
-            var parsed = TaskRequest.parse(node, true);
+            JsonNode fields = node;
+            if (allowPriority && node.isObject() && node.has("priority")) {
+                JsonNode priority = node.get("priority");
+                if (!priority.isTextual() || !java.util.Set.of("HIGH", "MEDIUM", "LOW").contains(priority.textValue()))
+                    throw invalid("priority", "invalid_type");
+                var copy = ((com.fasterxml.jackson.databind.node.ObjectNode) node).deepCopy();
+                copy.remove("priority");
+                fields = copy;
+            }
+            var parsed = TaskRequest.parse(fields, true);
             result.add(new TaskPolicy.TaskInput(parsed.title() == null ? null : parsed.title().trim(),
                     parsed.scheduledDate(), parsed.estimatedMinutes()));
         }

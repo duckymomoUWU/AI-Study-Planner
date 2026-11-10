@@ -876,9 +876,9 @@ export default function LocalCalendarPreview({ currentUser, onBack, onNavigateAu
                     }
 
                     // Display label in overview mode (unclicked)
-                    const displayLabel = task.overviewLabel !== undefined
+                    const displayLabel = (task.overviewLabel !== undefined && task.overviewLabel !== '' && isViewingMockup)
                       ? task.overviewLabel
-                      : (task.type === 'other' && isViewingMockup ? '' : task.title)
+                      : (task.title || task.overviewLabel || 'Buổi học')
 
                     return (
                       <div

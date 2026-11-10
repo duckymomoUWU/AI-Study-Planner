@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { confirmPlanDraft, generatePlanDraft, getLatestPlanDraft } from '../lib/ai-planner.js'
+import { confirmPlanDraft, generatePlanDraft, getLatestPlanDraft, sortDraftTasksByPriority } from '../lib/ai-planner.js'
 
 export default function PlanDraftPanel({ goal, onSaved }) {
   const [draft, setDraft] = useState(null)
@@ -13,7 +13,7 @@ export default function PlanDraftPanel({ goal, onSaved }) {
     setBusy(true); setError(''); setMessage('')
     try {
       const value = await (generate ? generatePlanDraft(goal.id) : getLatestPlanDraft(goal.id))
-      setDraft(value); setItems(value.proposal.tasks); setAttempt(null)
+      setDraft(value); setItems(sortDraftTasksByPriority(value.proposal.tasks)); setAttempt(null)
       setMessage('Bản nháp chưa được lưu vào lịch học. Bạn có thể sửa trước khi xác nhận.')
     } catch (err) {
       setError(err.status === 503 ? 'AI chưa sẵn sàng. Bạn vẫn có thể tạo công việc thủ công trong Lịch học.'
@@ -53,7 +53,7 @@ export default function PlanDraftPanel({ goal, onSaved }) {
     {draft && <form onSubmit={confirm}>
       <p>Bản nháp theo phiên bản v{draft.goalVersion}. Nếu mục tiêu hoặc công việc đã thay đổi, hãy tạo lại bản nháp.</p>
       {items.map((task, index) => <fieldset key={index} disabled={busy} className="goal-field">
-        <legend>Công việc {index + 1}</legend>
+        <legend>Công việc {index + 1}{task.priority && ` · Ưu tiên: ${{ HIGH: 'Cao', MEDIUM: 'Trung bình', LOW: 'Thấp' }[task.priority] || task.priority}`}</legend>
         <label>Tiêu đề<input aria-label={`Tiêu đề công việc ${index + 1}`} value={task.title} required maxLength={200} onChange={e => edit(index, 'title', e.target.value)} /></label>
         <label>Ngày học<input type="date" aria-label={`Ngày học công việc ${index + 1}`} required min={goal.startDate} value={task.scheduledDate} onChange={e => edit(index, 'scheduledDate', e.target.value)} /></label>
         <label>Số phút<input type="number" aria-label={`Số phút công việc ${index + 1}`} required min={1} max={480} step={1} value={task.estimatedMinutes} onChange={e => edit(index, 'estimatedMinutes', e.target.value)} /></label>

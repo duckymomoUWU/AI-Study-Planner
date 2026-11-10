@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { confirmPlanDraft, generatePlanDraft, getLatestPlanDraft, PlanApiError } from './ai-planner.js'
+import { confirmPlanDraft, generatePlanDraft, getLatestPlanDraft, PlanApiError, sortDraftTasksByPriority } from './ai-planner.js'
 import { clearCsrfTokenCache } from './auth.js'
 
 test('draft generation uses v1 and CSRF without creating or confirming tasks', async t => {
@@ -45,4 +45,19 @@ test('AI and confirm errors stay errors, including expired, stale, auth, budget 
   t.mock.method(globalThis, 'fetch', async () => { throw new TypeError('offline') })
   await assert.rejects(generatePlanDraft('g1'), /offline/)
   await assert.rejects(getLatestPlanDraft('g1'), /offline/)
+})
+
+
+test('draft review sorts by priority without changing dates, minutes, equal-priority order or input', () => {
+  const items = [
+    { title: 'Revision', priority: 'LOW', scheduledDate: '2026-11-12', estimatedMinutes: 30 },
+    { title: 'Practice', priority: 'MEDIUM', scheduledDate: '2026-11-11', estimatedMinutes: 30 },
+    { title: 'Foundations', priority: 'HIGH', scheduledDate: '2026-11-10', estimatedMinutes: 30 },
+    { title: 'Legacy', scheduledDate: '2026-11-11', estimatedMinutes: 15 },
+  ]
+  const original = structuredClone(items)
+  const sorted = sortDraftTasksByPriority(items)
+  assert.deepEqual(sorted.map(task => task.title), ['Foundations', 'Practice', 'Legacy', 'Revision'])
+  assert.deepEqual(items, original)
+  for (const task of sorted) assert.deepEqual(task, original.find(item => item.title === task.title))
 })

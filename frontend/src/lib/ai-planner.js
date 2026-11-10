@@ -43,3 +43,9 @@ export function confirmPlanDraft(goalId, draftId, tasks, expectedGoalVersion, id
     })) },
   })
 }
+
+/** Stable priority order for review; dates/minutes remain unchanged until explicit confirmation. */
+export function sortDraftTasksByPriority(items) {
+  const rank = { HIGH: 0, MEDIUM: 1, LOW: 2 }
+  return [...items].sort((a, b) => (rank[a.priority] ?? 1) - (rank[b.priority] ?? 1))
+}

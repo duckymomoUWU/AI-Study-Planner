@@ -12,9 +12,13 @@ export class AuthApiError extends Error {
 }
 
 let cachedCsrfToken = null
+let csrfRequest = null
+let csrfGeneration = 0
 
 export function clearCsrfTokenCache() {
   cachedCsrfToken = null
+  csrfRequest = null
+  csrfGeneration += 1
 }
 
 function errorFrom(response, payload, fallbackCode) {
@@ -27,25 +31,46 @@ function errorFrom(response, payload, fallbackCode) {
   )
 }
 
-export async function getCsrfToken() {
-  if (cachedCsrfToken) {
-    return cachedCsrfToken
-  }
-  const response = await fetch(`${BASE}/auth/csrf`, {
-    method: 'GET',
-    credentials: 'same-origin',
-    headers: { Accept: 'application/json' },
-  })
-  if (!response.ok) {
-    throw new AuthApiError(response.status, 'csrf_error', 'Không thể lấy CSRF token')
-  }
-  const payload = await response.json()
-  cachedCsrfToken = payload?.data?.token
-  return cachedCsrfToken
+function getCookieToken() {
+  if (typeof document === 'undefined') return null
+  const match = document.cookie?.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/)
+  if (!match) return null
+  try { return decodeURIComponent(match[1]) || null } catch { return null }
+}
+
+export async function getCsrfToken(forceRefresh = false) {
+  if (forceRefresh) clearCsrfTokenCache()
+  if (cachedCsrfToken) return cachedCsrfToken
+  if (csrfRequest) return csrfRequest
+  const generation = csrfGeneration
+  const pending = (async () => {
+    let token
+    try {
+      const response = await fetch(`${BASE}/auth/csrf`, {
+        method: 'GET', credentials: 'same-origin', cache: 'no-store',
+        headers: { Accept: 'application/json', 'Cache-Control': 'no-cache, no-store' },
+      })
+      if (!response.ok) throw new AuthApiError(response.status, 'CSRF_ERROR', 'Không thể lấy CSRF token')
+      const payload = await response.json()
+      token = payload?.data?.token
+      if (typeof token !== 'string' || !token.trim()) throw new AuthApiError(502, 'CSRF_ERROR', 'Phản hồi CSRF không hợp lệ')
+    } catch (error) {
+      token = getCookieToken()
+      if (!token) {
+        if (error instanceof AuthApiError) throw error
+        throw new AuthApiError(503, 'CSRF_ERROR', 'Không thể lấy CSRF token')
+      }
+    }
+    if (generation === csrfGeneration) cachedCsrfToken = token
+    return token
+  })()
+  csrfRequest = pending
+  try { return await pending }
+  finally { if (csrfRequest === pending) csrfRequest = null }
 }
 
 /** Sends a write request with the CSRF header and returns the envelope's `data` (null for 204). */
-async function requestWithCsrf(url, options = {}) {
+async function requestWithCsrf(url, options = {}, isRetry = false) {
   const token = await getCsrfToken()
   const headers = {
     'Content-Type': 'application/json',
@@ -62,6 +87,7 @@ async function requestWithCsrf(url, options = {}) {
 
   const newCsrf = response.headers?.get ? response.headers.get('X-CSRF-TOKEN') : null
   if (newCsrf) {
+    clearCsrfTokenCache()
     cachedCsrfToken = newCsrf
   }
 
@@ -72,6 +98,11 @@ async function requestWithCsrf(url, options = {}) {
   const payload = await response.json().catch(() => null)
 
   if (!response.ok) {
+    // The CSRF filter rejected this request before its business action ran: retry only once.
+    if (!isRetry && response.status === 403 && payload?.error?.code === 'CSRF_INVALID') {
+      await getCsrfToken(true)
+      return requestWithCsrf(url, options, true)
+    }
     throw errorFrom(response, payload, 'auth_error')
   }
 
