@@ -617,19 +617,6 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
                             <strong>Đã sinh xong kế hoạch học tập ({getStatus(goal.id)?.taskCount || 'nhiều'} buổi học)!</strong>
                             <p>Bạn có thể mở lịch học để xem trước, kéo thả điều chỉnh các buổi học lặp lại theo tuần.</p>
                           </div>
-                          <button
-                            type="button"
-                            className="button button--primary button--sm goal-ai-review-btn"
-                            onClick={() => {
-                              if (onReviewDraft && getStatus(goal.id)?.draft) {
-                                onReviewDraft(getStatus(goal.id).draft)
-                              } else if (onNavigateDaily) {
-                                onNavigateDaily()
-                              }
-                            }}
-                          >
-                            Xem lịch & Điều chỉnh →
-                          </button>
                         </div>
                       )}
 
@@ -669,6 +656,21 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
                         title="Tạo lịch học tự động bằng Gemini Flash"
                       >
                         ✨ Sinh lịch AI
+                      </button>
+                    )}
+                    {getStatus(goal.id)?.status === 'ready' && (
+                      <button
+                        type="button"
+                        className="button button--primary button--sm"
+                        onClick={() => {
+                          if (onReviewDraft && getStatus(goal.id)?.draft) {
+                            onReviewDraft(getStatus(goal.id).draft)
+                          } else if (onNavigateDaily) {
+                            onNavigateDaily()
+                          }
+                        }}
+                      >
+                        Xem lịch & Điều chỉnh →
                       </button>
                     )}
                     <button
