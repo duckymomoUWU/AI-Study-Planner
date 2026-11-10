@@ -4,6 +4,7 @@ import { describeGoalError } from '../lib/goalErrors.js'
 import { confirmAndDeleteGoal } from '../lib/goalDelete.js'
 import GoalProgress from '../components/GoalProgress.jsx'
 import PlanDraftPanel from '../components/PlanDraftPanel.jsx'
+import SyllabusUpload from '../components/SyllabusUpload.jsx'
 import './GoalsPage.css'
 
 const emptyForm = {
@@ -304,6 +305,12 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
             <h2 id="goal-form-title">{editing ? 'Chỉnh sửa mục tiêu' : 'Tạo mục tiêu mới'}</h2>
             {editing && <span>Phiên bản v{editing.version}</span>}
           </div>
+          <SyllabusUpload key={editing?.id || 'new'} disabled={saving} onApply={data => {
+            setForm(previous => ({ ...previous, subject: data.subject, topics: data.topics,
+              startDate: data.startDate, examDate: data.examDate, minutesPerDay: String(data.minutesPerDay) }))
+            setFormErrors({})
+            setSuccessMessage('Đã điền thông tin từ tài liệu. Hãy kiểm tra rồi bấm lưu mục tiêu.')
+          }} />
           <form onSubmit={submitForm} noValidate>
             <div className="goal-field">
               <label htmlFor="goal-subject">Môn học</label>

@@ -27,10 +27,12 @@ Giúp sinh viên tạo kế hoạch ôn tập theo môn học, nội dung, ngày
 - Kiểm thử ngày/giờ, thiếu ngân sách, truy cập chéo tài khoản và AI lỗi.
 
 ## Ngoài phạm vi ban đầu
-Đọc PDF, kết nối LMS, đồng bộ lịch, thanh toán và tự động đánh giá kiến thức.
+Kết nối LMS, đồng bộ lịch, thanh toán và tự động đánh giá kiến thức.
+
+Theo yêu cầu bổ sung của người dùng ngày 2026-11-10, nhánh test tích hợp khôi phục chức năng upload PDF/DOCX/TXT/MD từ AIfeat để trích xuất đề cương và điền nhanh mục tiêu. Kết quả phải được xem lại, không tự lưu goal/task. TXT/MD/DOCX có chế độ trích xuất cục bộ ghi nhãn rõ; PDF dùng Gemini và cần cấu hình key/model.
 
 ## Trạng thái
-Cập nhật 2026-11-08 (nhánh kiểm thử tích hợp `integration/sprint2-sprint3-all8-test`; chưa gộp vào `main`). Chi tiết hợp đồng API: [docs/backend-api-rules.md](docs/backend-api-rules.md).
+Cập nhật 2026-11-10 (nhánh kiểm thử tích hợp `integration/sprint2-sprint3-all8-test`; chưa gộp vào `main`). Chi tiết hợp đồng API: [docs/backend-api-rules.md](docs/backend-api-rules.md).
 
 | Chức năng | Tình trạng |
 | --- | --- |

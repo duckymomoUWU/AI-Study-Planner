@@ -153,27 +153,36 @@ public class GeminiPlanService {
         return null;
     }
 
-    /**
-     * Upstream syllabus utility retained for review; not exposed by the MVP API.
-     */
+    public record SyllabusExtraction(SyllabusData fields, String extractionMethod) {}
+
     public SyllabusData parseSyllabus(String content, String base64, String mimeType, String fileName) {
-        if (!apiKey.isBlank()) {
-            try {
-                SyllabusData result = callGeminiSyllabusApi(content, base64, mimeType, fileName);
-                if (result != null && result.subject() != null && !result.subject().isBlank()) {
-                    return result;
-                }
-            } catch (Exception e) {
-                log.warn("Gemini request failed: {}", e.getClass().getSimpleName());
-            }
+        return extractSyllabus(content, base64, mimeType, fileName).fields();
+    }
+
+    public SyllabusExtraction extractSyllabus(String content, String base64, String mimeType, String fileName) {
+        if (apiKey.isBlank() || modelName.isBlank()) {
+            if ("application/pdf".equals(mimeType))
+                throw new PlanException(503, "AI_UNAVAILABLE", "Configure GEMINI_API_KEY and GEMINI_MODEL to read PDF documents.");
+            return new SyllabusExtraction(parseFallbackSyllabus(content, fileName), "local");
         }
-        return parseFallbackSyllabus(content, fileName);
+        try {
+            var result = callGeminiSyllabusApi(content, base64, mimeType, fileName);
+            if (result == null) throw new PlanException(502, "AI_INVALID_RESPONSE", "AI returned invalid syllabus fields.");
+            return new SyllabusExtraction(result, "gemini");
+        } catch (PlanException ex) { throw ex; }
+        catch (java.net.http.HttpTimeoutException ex) { throw new PlanException(504, "AI_TIMEOUT", "Document extraction timed out."); }
+        catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new PlanException(503, "AI_UNAVAILABLE", "Document extraction interrupted.");
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            throw new PlanException(502, "AI_INVALID_RESPONSE", "AI returned invalid JSON.");
+        } catch (Exception ex) { throw new PlanException(503, "AI_UNAVAILABLE", "Document extraction unavailable."); }
     }
 
     private SyllabusData callGeminiSyllabusApi(String content, String base64, String mimeType, String fileName) throws Exception {
         String url = "https://generativelanguage.googleapis.com/v1beta/models/" + modelName + ":generateContent";
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
         String prompt = """
                 Bạn là một trợ lý AI thông minh chuyên hỗ trợ sinh viên lập kế hoạch học tập.
                 Hãy phân tích tài liệu đề cương môn học / syllabus được cung cấp và trích xuất các thông tin sau để điền vào biểu mẫu mục tiêu ôn tập:
@@ -234,34 +243,14 @@ public class GeminiPlanService {
                 String rawJson = cleanJsonString(textNode.asText());
                 JsonNode parsed = objectMapper.readTree(rawJson);
 
-                String subject = parsed.path("subject").asText("").trim();
-                String topics = parsed.path("topics").asText("").trim();
-
-                LocalDate start = today;
-                try {
-                    String startStr = parsed.path("startDate").asText("");
-                    if (!startStr.isBlank()) start = LocalDate.parse(startStr);
-                } catch (Exception ignored) {}
-
-                LocalDate exam = start.plusDays(30);
-                try {
-                    String examStr = parsed.path("examDate").asText("");
-                    if (!examStr.isBlank()) {
-                        LocalDate parsedExam = LocalDate.parse(examStr);
-                        if (parsedExam.isAfter(start)) exam = parsedExam;
-                    }
-                } catch (Exception ignored) {}
-
-                int minutes = parsed.path("minutesPerDay").asInt(90);
-                if (minutes < 15 || minutes > 480) minutes = 90;
-
-                if (!subject.isBlank()) {
-                    if (subject.length() > 100) subject = subject.substring(0, 100);
-                    return new SyllabusData(subject, topics, start, exam, minutes);
-                }
+                var parsedGoal = GoalRequest.parseCreate(parsed);
+                if (!parsedGoal.errors().isEmpty() || !GoalPolicy.validate(parsedGoal.input(), today).isEmpty())
+                    throw new PlanException(502, "AI_INVALID_RESPONSE", "AI returned invalid syllabus fields.");
+                var input = parsedGoal.input();
+                return new SyllabusData(input.subject().trim(), input.topics().trim(), input.startDate(), input.examDate(), input.minutesPerDay());
             }
         } else {
-            log.warn("Gemini returned status {}", response.statusCode());
+            throw new PlanException(503, "AI_UNAVAILABLE", "AI provider could not process the document.");
         }
 
         return null;
@@ -272,7 +261,7 @@ public class GeminiPlanService {
      */
     public SyllabusData parseFallbackSyllabus(String content, String fileName) {
         String text = content != null ? content : "";
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
 
         // 1. Extract subject
         String subject = "";

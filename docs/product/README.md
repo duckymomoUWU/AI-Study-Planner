@@ -9,3 +9,5 @@ Add domain documents only when the team explicitly chooses to split requirements
 Record consequential accepted choices in [decisions](../decisions/README.md). Use [plans](../plans/README.md) only for work that needs durable memory.
 
 - [Task và bản nháp trên nhánh tích hợp](integrated-tasks-and-plans.md)
+
+- [Upload tài liệu và điền nhanh mục tiêu](syllabus-upload.md)

@@ -178,4 +178,23 @@ class CombinedFeaturesPostgresIntegrationTest {
         }
         assertEquals(0, count("plan_drafts")); assertEquals(0, count("study_tasks"));
     }
+
+    @Test void syllabusQuickfillRequiresAuthCsrfAndDoesNotPersistGoalsOrTasks() throws Exception {
+        String path = "/api/v1/goals/parse-syllabus";
+        var body = Map.of("content", "Subject: Databases", "fileName", "course.txt");
+        var fields = new GeminiPlanService.SyllabusData("Databases", "SQL JOIN", today, today.plusDays(30), 90);
+        when(generator.extractSyllabus(any(), any(), any(), any())).thenReturn(new GeminiPlanService.SyllabusExtraction(fields, "local"));
+        mvc.perform(post(path).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(body)))
+                .andExpect(status().isUnauthorized());
+        var principal = new AppUserPrincipal(owner, "owner@example.test", "unused");
+        mvc.perform(post(path).with(authentication(new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities())))
+                .contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(body)))
+                .andExpect(status().isForbidden());
+        int before = count("study_goals");
+        json(owner, post(path), body).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.subject").value("Databases"))
+                .andExpect(jsonPath("$.data.extractionMethod").value("local"));
+        assertEquals(before, count("study_goals")); assertEquals(0, count("study_tasks"));
+        json(owner, post(path), Map.of("content", "text", "userId", "foreign")).andExpect(status().isBadRequest());
+    }
 }

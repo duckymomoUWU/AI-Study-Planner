@@ -100,3 +100,6 @@ Provider được mock trong test; chưa phải kiểm chứng một model Gemin
 - Giữ 401 INVALID_CREDENTIALS chung cho tài khoản không tồn tại và sai mật khẩu theo quy tắc API; không nhận thay đổi USER_NOT_FOUND làm lộ sự tồn tại tài khoản.
 - Prompt ưu tiên kiến thức nền tảng/bài tập cốt lõi; HTTP timeout AI là 60 giây. Priority trong proposal được kiểm tra trước lưu; hiển thị/sắp ưu tiên không tự đổi ngày hoặc thời lượng.
 - Sửa nhãn trống ở calendar-preview; lịch mẫu vẫn tách khỏi luồng API thật. Best-fit giờ/lặp tuần của prototype chưa được bật vì schema MVP vẫn lập lịch theo ngày.
+
+
+> Cập nhật upload 2026-11-10: người dùng yêu cầu khôi phục upload từ AIfeat. PDF/DOCX/TXT/MD và dán văn bản đã được nhận vào nhánh test qua `POST /api/v1/goals/parse-syllabus`; các ghi chú chưa có endpoint upload ở phần lịch sử phía trên không còn áp dụng. Xem [hợp đồng upload](syllabus-upload.md).
