@@ -98,7 +98,7 @@ public class SecurityConfig {
                         ))
                         .invalidateHttpSession(true)
                         .clearAuthentication(true)
-                        .deleteCookies("JSESSIONID")
+                        .deleteCookies("JSESSIONID", "ai_study_planner_session", "XSRF-TOKEN")
                         .logoutSuccessHandler((request, response, authentication) -> {
                             response.setStatus(HttpServletResponse.SC_NO_CONTENT);
                         })

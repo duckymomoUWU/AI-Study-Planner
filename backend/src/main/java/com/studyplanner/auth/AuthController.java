@@ -1,5 +1,6 @@
 package com.studyplanner.auth;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 
@@ -58,6 +59,7 @@ public class AuthController {
                 .path("/")
                 .httpOnly(false)
                 .sameSite("Lax")
+                .maxAge(Duration.ofDays(7))
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
@@ -102,9 +104,18 @@ public class AuthController {
                     .path("/")
                     .httpOnly(false)
                     .sameSite("Lax")
+                    .maxAge(Duration.ofDays(7))
                     .build();
             httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
         }
+
+        ResponseCookie sessionCookie = ResponseCookie.from("ai_study_planner_session", "active")
+                .path("/")
+                .httpOnly(false)
+                .sameSite("Lax")
+                .maxAge(Duration.ofDays(7))
+                .build();
+        httpResponse.addHeader(HttpHeaders.SET_COOKIE, sessionCookie.toString());
 
         return ResponseEntity.ok(Map.of("data", responseBody));
     }
