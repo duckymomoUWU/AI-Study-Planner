@@ -185,7 +185,7 @@ export default function App() {
               type="button"
               className={`nav-link ${activePage === 'goals' ? 'nav-link--active' : ''}`}
               onClick={() => setActivePage('goals')}
-              title="Quản lý mục tiêu (US-01)"
+              title="Quản lý mục tiêu"
             >
               <span className="nav-icon" aria-hidden="true">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -195,13 +195,12 @@ export default function App() {
                 </svg>
               </span>
               <span className="nav-text">Mục tiêu</span>
-              <span className="nav-badge">US-01</span>
             </button>
             <button
               type="button"
               className={`nav-link ${activePage === 'daily' ? 'nav-link--active' : ''}`}
               onClick={() => setActivePage('daily')}
-              title="Lịch học theo ngày (US-03)"
+              title="Lịch học theo ngày"
             >
               <span className="nav-icon" aria-hidden="true">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -212,7 +211,6 @@ export default function App() {
                 </svg>
               </span>
               <span className="nav-text">Lịch học</span>
-              <span className="nav-badge">US-03</span>
             </button>
             <a className="nav-link" href={`${repository}/wiki`} title="Tài liệu dự án">
               <span className="nav-icon" aria-hidden="true">
@@ -364,10 +362,10 @@ export default function App() {
                     <p>Thiết lập môn học cần ôn thi và theo dõi sát sao từng việc cần hoàn thành trong hôm nay.</p>
                     <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
                       <button className="button button--primary" type="button" onClick={() => setActivePage('goals')}>
-                        Quản lý mục tiêu (US-01) <span aria-hidden="true">→</span>
+                        Quản lý mục tiêu <span aria-hidden="true">→</span>
                       </button>
                       <button className="button button--secondary" type="button" onClick={() => setActivePage('daily')}>
-                        Lịch học hôm nay (US-03) <span aria-hidden="true">→</span>
+                        Lịch học hôm nay <span aria-hidden="true">→</span>
                       </button>
                       {!currentUser && (
                         <button className="button button--secondary" type="button" onClick={() => setActivePage('auth')}>

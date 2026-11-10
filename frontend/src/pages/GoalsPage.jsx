@@ -354,15 +354,6 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
         </div>
       </div>
 
-      {/* Notice Banner */}
-      <div className="goal-banner">
-        <span className="goal-banner-icon" aria-hidden="true">✦</span>
-        <div className="goal-banner-content">
-          <strong>Chuẩn hóa API & AI US-06:</strong> Kết nối <code>/api/v1/auth</code> và <code>/api/v1/goals</code>.
-          Hỗ trợ đọc đề cương bằng model <strong>Gemini 3.8 Flash</strong> và sinh lịch học lặp lại hàng tuần.
-        </div>
-      </div>
-
       {/* Feedback Alert */}
       {successMessage && (
         <div className="goal-alert goal-alert--success" role="status">
@@ -398,9 +389,11 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
         <section className="goal-form-card" aria-labelledby="goal-form-title">
           <div className="goal-card-heading">
             <h2 id="goal-form-title">{editing ? 'Chỉnh sửa mục tiêu' : 'Tạo mục tiêu mới'}</h2>
-            <div className="goal-card-heading-tags">
-              <span className="goal-card-badge">{editing ? `Phiên bản v${editing.version}` : 'US-01 Form'}</span>
-            </div>
+            {editing && (
+              <div className="goal-card-heading-tags">
+                <span className="goal-card-badge">Phiên bản v{editing.version}</span>
+              </div>
+            )}
           </div>
 
           {/* Quickfill Syllabus Component using Gemini 3.8 Flash */}

@@ -2056,7 +2056,7 @@ export default function DailyTasksPage({
                   </label>
                   {goals.length > 0 && (
                     <span className="form-label-hint">
-                      (Đã đồng bộ {goals.length} môn từ mục tiêu US-01)
+                      (Đã đồng bộ {goals.length} môn từ mục tiêu)
                     </span>
                   )}
                 </div>
