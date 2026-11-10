@@ -1447,6 +1447,19 @@ export default function DailyTasksPage({
                     ✓ Ghép tối ưu (Best-fit)
                   </span>
                 )}
+                {selectedTask.priority && (
+                  <span
+                    className="badge"
+                    style={{
+                      background: selectedTask.priority === 'HIGH' ? '#fef2f2' : '#f0f9ff',
+                      color: selectedTask.priority === 'HIGH' ? '#b91c1c' : '#0369a1',
+                      borderColor: selectedTask.priority === 'HIGH' ? '#fecaca' : '#bae6fd',
+                    }}
+                    title={`Mức độ ưu tiên sư phạm: ${selectedTask.priority}`}
+                  >
+                    🔥 Ưu tiên: {selectedTask.priority === 'HIGH' ? 'Cao' : (selectedTask.priority === 'MEDIUM' ? 'Trung bình' : 'Tiêu chuẩn')}
+                  </span>
+                )}
                 {selectedTask.recurrence && selectedTask.recurrence !== 'none' && (
                   <span className="detail-repeat-badge" title={getRecurrenceLabel(selectedTask)}>
                     🔁 {getRecurrenceLabel(selectedTask)}

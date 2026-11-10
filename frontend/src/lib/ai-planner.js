@@ -210,8 +210,16 @@ export function findBestFitSlot(task, existingTasks = [], alreadyAssigned = []) 
  * Adjusts draft tasks to non-overlapping best-fit slots against existing calendar tasks
  */
 export function applyBestFitToDraftTasks(draftTasks = [], existingTasks = []) {
+  // Sort tasks by priority (HIGH -> MEDIUM -> LOW) so prime study slots are assigned to top priorities first
+  const priorityOrder = { HIGH: 0, high: 0, MEDIUM: 1, medium: 1, LOW: 2, low: 2 }
+  const sorted = [...draftTasks].sort((a, b) => {
+    const pA = priorityOrder[a.priority] ?? 1
+    const pB = priorityOrder[b.priority] ?? 1
+    return pA - pB
+  })
+
   const assigned = []
-  return draftTasks.map(task => {
+  return sorted.map(task => {
     const fit = findBestFitSlot(task, existingTasks, assigned)
     const updated = {
       ...task,
@@ -269,6 +277,7 @@ export function generateClientFallbackDraft(goal, existingTasks = []) {
       goalId: goal.id,
       goalSubject: goal.subject,
       title: `Focus Time: ${topic}`,
+      priority: index === 0 ? 'HIGH' : (index === 1 ? 'HIGH' : 'MEDIUM'),
       scheduledDate: dateStr,
       date: dateStr,
       startHour: preferredHours[index % preferredHours.length],
@@ -354,6 +363,7 @@ export async function generatePlanDraft(goal, { signal, existingTasks = [] } = {
           goalId: goal.id,
           goalSubject: goal.subject,
           title: t.title || `Ôn tập ${goal.subject}`,
+          priority: t.priority || (idx === 0 ? 'HIGH' : (idx === 1 ? 'HIGH' : 'MEDIUM')),
           scheduledDate,
           date: scheduledDate,
           startHour: startH,

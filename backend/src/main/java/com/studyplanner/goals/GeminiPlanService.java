@@ -96,20 +96,24 @@ public class GeminiPlanService {
 
                 Yêu cầu bắt buộc cho mỗi buổi học (task):
                 1. "title": Tiêu đề súc tích, bắt đầu bằng "Focus Time: [Tên chủ đề]" hoặc "Luyện đề: [Tên chủ đề]".
-                2. "startHour": Giờ học thực tế (số thập phân trong khoảng ban ngày từ 8.0 đến 17.0, ví dụ 9.0 cho 9h sáng, 13.5 cho 13h30 chiều, 15.0 cho 15h chiều). Tuyệt đối không chọn sau 18.0 để buổi học kết thúc trước buổi tối.
-                3. "durationHours": Số giờ học phù hợp với ngân sách thời gian (ví dụ 1.5 hoặc 2.0).
-                4. "estimatedMinutes": Số phút học (ví dụ %d).
-                5. "scheduledDate": Ngày đầu tiên diễn ra buổi học (YYYY-MM-DD) trong khoảng [%s đến %s).
-                6. "recurrence": "weekly".
-                7. "recurringDays": Mảng các thứ lặp lại hàng tuần (0=Chủ nhật, 1=Thứ 2, 2=Thứ 3, 3=Thứ 4, 4=Thứ 5, 5=Thứ 6, 6=Thứ 7). Bắt buộc phải chứa thứ tương ứng với "scheduledDate".
-                8. "targetGrade": Mục tiêu điểm số cụ thể. Ví dụ: "Điểm 8.5+ (Điểm A) - Hiểu sâu bản chất, làm chủ các câu hỏi lý thuyết và bài tập nâng cao."
-                9. "effort": Mức độ nỗ lực và thời gian đầu tư. Ví dụ: "Mức độ nỗ lực: Cao (khoảng 5 - 7 giờ/tuần ôn tập chủ động, tập trung cao độ)."
-                10. "courseWeight": Đánh giá độ nặng môn học. Ví dụ: "Độ nặng môn: Nặng (3 - 4 tín chỉ chuyên ngành), khối lượng bài tập lớn và tính toán phức tạp."
-                11. "practicalValue": Giá trị ứng dụng thực tế. Ví dụ: "Giá trị thực tế: Ứng dụng trực tiếp khi xây dựng hệ thống phần mềm thực tế, tối ưu cơ sở dữ liệu và câu hỏi phỏng vấn kỹ sư."
-                12. "specificLearning": Nội dung học tập cụ thể theo từng bước thực hiện. Ví dụ: "1) Đọc lại lý thuyết định nghĩa và tính chất cơ bản; 2) Phân tích 3 bài tập mẫu; 3) Tự tay giải 2 bài tập đề thi các năm trước; 4) Tóm tắt lỗi sai thường gặp."
-                13. "references": Giáo trình, slide hoặc tài liệu tham khảo. Ví dụ: "Giáo trình chính (Chương 3 & 4), Slide bài giảng của khoa, Bộ đề thi mẫu 2024-2025."
-                14. "topics": Tóm tắt chủ đề buổi học.
-                15. "description": Đoạn văn bản định dạng markdown chuẩn hóa tổng hợp đầy đủ các mục trên:
+                2. "priority": Mức độ ưu tiên sư phạm ("HIGH", "MEDIUM", "LOW"). Hãy xếp các kiến thức nền tảng và bài tập cốt lõi ưu tiên "HIGH", các bài luyện tập mở rộng "MEDIUM", đề tổng hợp "LOW" hoặc "MEDIUM".
+                3. "startHour": Giờ học tối ưu theo thuật toán Best-Fit (số thập phân trong khoảng ban ngày):
+                   - Ưu tiên khung giờ vàng buổi sáng (8.5 đến 10.5, ví dụ 9.0) cho các chủ đề lý thuyết khó, tư duy toán hoặc thuật toán phức tạp cần độ tập trung cao.
+                   - Ưu tiên khung giờ vàng đầu giờ chiều (13.5 đến 16.0, ví dụ 13.5 hoặc 14.5) cho thực hành giải bài tập, làm lab hoặc luyện đề thi.
+                   - Tránh giờ nghỉ trưa (11.5 đến 13.0) và TUYỆT ĐỐI không xếp sau 17.5 để đảm bảo kết thúc trước 18.0.
+                4. "durationHours": Số giờ học phù hợp với ngân sách thời gian (ví dụ 1.5 hoặc 2.0).
+                5. "estimatedMinutes": Số phút học (ví dụ %d).
+                6. "scheduledDate": Ngày đầu tiên diễn ra buổi học (YYYY-MM-DD) trong khoảng [%s đến %s).
+                7. "recurrence": "weekly".
+                8. "recurringDays": Mảng các thứ lặp lại hàng tuần (0=Chủ nhật, 1=Thứ 2, 2=Thứ 3, 3=Thứ 4, 4=Thứ 5, 5=Thứ 6, 6=Thứ 7). Phân bổ hợp lý (ví dụ [1, 3, 5] hoặc [2, 4, 6]) và bắt buộc phải chứa thứ tương ứng với "scheduledDate".
+                9. "targetGrade": Mục tiêu điểm số cụ thể. Ví dụ: "Điểm 8.5+ (Điểm A) - Hiểu sâu bản chất, làm chủ các câu hỏi lý thuyết và bài tập nâng cao."
+                10. "effort": Mức độ nỗ lực và thời gian đầu tư. Ví dụ: "Mức độ nỗ lực: Cao (khoảng 5 - 7 giờ/tuần ôn tập chủ động, tập trung cao độ)."
+                11. "courseWeight": Đánh giá độ nặng môn học. Ví dụ: "Độ nặng môn: Nặng (3 - 4 tín chỉ chuyên ngành), khối lượng bài tập lớn và tính toán phức tạp."
+                12. "practicalValue": Giá trị ứng dụng thực tế. Ví dụ: "Giá trị thực tế: Ứng dụng trực tiếp khi xây dựng hệ thống phần mềm thực tế, tối ưu cơ sở dữ liệu và câu hỏi phỏng vấn kỹ sư."
+                13. "specificLearning": Nội dung học tập cụ thể theo từng bước thực hiện. Ví dụ: "1) Đọc lại lý thuyết định nghĩa và tính chất cơ bản; 2) Phân tích 3 bài tập mẫu; 3) Tự tay giải 2 bài tập đề thi các năm trước; 4) Tóm tắt lỗi sai thường gặp."
+                14. "references": Giáo trình, slide hoặc tài liệu tham khảo. Ví dụ: "Giáo trình chính (Chương 3 & 4), Slide bài giảng của khoa, Bộ đề thi mẫu 2024-2025."
+                15. "topics": Tóm tắt chủ đề buổi học.
+                16. "description": Đoạn văn bản định dạng markdown chuẩn hóa tổng hợp đầy đủ các mục trên:
                 🎯 **Mục tiêu điểm số:** ...
                 ⚡ **Mức độ nỗ lực (Effort):** ...
                 ⚖️ **Độ nặng môn học:** ...
@@ -123,6 +127,7 @@ public class GeminiPlanService {
                   "tasks": [
                     {
                       "title": "Focus Time: ...",
+                      "priority": "HIGH",
                       "scheduledDate": "%s",
                       "startHour": 9.0,
                       "durationHours": 1.5,
@@ -406,6 +411,7 @@ public class GeminiPlanService {
 
             ObjectNode task = tasksArray.addObject();
             task.put("title", "Focus Time: " + topic);
+            task.put("priority", i == 0 ? "HIGH" : (i == 1 ? "HIGH" : "MEDIUM"));
             task.put("scheduledDate", taskDate.toString());
             task.put("startHour", preferredHours[i % preferredHours.length]);
             task.put("durationHours", durationHours);
