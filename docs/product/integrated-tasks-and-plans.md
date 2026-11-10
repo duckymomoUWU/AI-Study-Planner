@@ -103,3 +103,13 @@ Provider được mock trong test; chưa phải kiểm chứng một model Gemin
 
 
 > Cập nhật upload 2026-11-10: người dùng yêu cầu khôi phục upload từ AIfeat. PDF/DOCX/TXT/MD và dán văn bản đã được nhận vào nhánh test qua `POST /api/v1/goals/parse-syllabus`; các ghi chú chưa có endpoint upload ở phần lịch sử phía trên không còn áp dụng. Xem [hợp đồng upload](syllabus-upload.md).
+
+
+## Tạo mục tiêu và tự sinh lịch — 2026-11-10
+
+Sau khi người dùng bấm **Tạo mục tiêu & sinh lịch AI**, frontend lưu goal rồi tự gọi tạo draft một lần và mở chi tiết/bản nháp. Không sinh draft trong mount effect nên StrictMode không tạo request AI trùng.
+Màn hình hiển thị đang sinh lịch. Nếu AI lỗi, goal đã tạo vẫn được giữ, người dùng có thể sinh lại draft mà không POST tạo goal lần nữa. Sửa mục tiêu hiện hữu không tự sinh lại lịch.
+Người dùng vẫn chỉnh bản nháp và bấm **Xác nhận và lưu kế hoạch**. Sau xác nhận, chuyển sang lịch theo ngày tại ngày sớm nhất trong các task đã lưu, tránh mở hôm nay khi lịch bắt đầu trong tương lai.
+
+Kiểm chứng: frontend 63/63 test, lint/build pass; client thật trên Flash-Lite đã tạo 1 goal + 1 draft, chưa có task trước xác nhận, xác nhận lưu 7 task và đọc được task ngày 2026-11-11.
+Kiểm tra tương tác UI bằng browser chưa chạy vì không có browser kết nối; không suy kết quả E2E từ test client/API.

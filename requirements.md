@@ -46,3 +46,6 @@ Cập nhật 2026-11-10 (nhánh kiểm thử tích hợp `integration/sprint2-sp
 Mô tả tính năng: [đánh dấu hoàn thành](docs/product/task-completion.md) và [tiến độ mục tiêu](docs/product/goal-progress.md).
 
 Chi tiết tích hợp: [review 8 branch](docs/reviews/branch-integration-2026-11-08.md) và [hợp đồng task/draft](docs/product/integrated-tasks-and-plans.md).
+
+
+Luồng tạo mục tiêu trên nhánh test (2026-11-10): tạo goal xong tự sinh/mở bản nháp AI; giữ bước người dùng xác nhận trước khi lưu task. AI lỗi vẫn giữ goal và cho thử lại sinh draft, không tạo thêm goal.

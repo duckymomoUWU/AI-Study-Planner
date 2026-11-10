@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
-import { createGoal, deleteGoal, GoalApiError, getGoal, listGoals, updateGoal } from '../lib/goals.js'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { deleteGoal, GoalApiError, getGoal, listGoals, updateGoal } from '../lib/goals.js'
 import { describeGoalError } from '../lib/goalErrors.js'
+import { createGoalWithPlan } from '../lib/goalPlanning.js'
 import { confirmAndDeleteGoal } from '../lib/goalDelete.js'
 import GoalProgress from '../components/GoalProgress.jsx'
 import PlanDraftPanel from '../components/PlanDraftPanel.jsx'
@@ -66,6 +67,8 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
   const [conflicts, setConflicts] = useState([])
   const [detail, setDetail] = useState(null)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [automaticPlan, setAutomaticPlan] = useState(null)
+  const detailRef = useRef(null)
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -105,6 +108,10 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
       })
     return () => controller.abort()
   }, [])
+
+  useEffect(() => {
+    if (detail?.id) detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [detail?.id, automaticPlan?.status])
 
   function changeField(event) {
     const { name, value } = event.target
@@ -152,6 +159,7 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
 
   async function submitForm(event) {
     event.preventDefault()
+    if (saving) return
     setSaving(true)
     setPageError('')
     setSuccessMessage('')
@@ -184,11 +192,24 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
         if (detail?.id === updated.id) setDetail(updated)
         setSuccessMessage('Đã cập nhật mục tiêu thành công!')
       } else {
-        await createGoal(payload)
-        setSuccessMessage('Đã tạo mục tiêu ôn tập thành công!')
+        const result = await createGoalWithPlan(payload, { onCreated: goal => {
+          resetForm()
+          setGoals(previous => [goal, ...previous])
+          setDetail(goal)
+          setAutomaticPlan({ goalId: goal.id, status: 'generating' })
+          setSuccessMessage('Đã tạo mục tiêu. AI đang sinh bản nháp lịch học để bạn kiểm tra…')
+        } })
+        if (result.planError) {
+          const reason = result.planError.status === 503 ? 'AI hiện chưa sẵn sàng.' : result.planError.message
+          setAutomaticPlan({ goalId: result.goal.id, status: 'error', error: `Mục tiêu đã được lưu. Chưa sinh được lịch: ${reason} Hãy thử lại bằng nút Tạo bản nháp AI; không cần tạo lại mục tiêu.` })
+          setSuccessMessage('Đã lưu mục tiêu; lịch học đang chờ sinh bản nháp.')
+        } else {
+          setAutomaticPlan({ goalId: result.goal.id, status: 'ready', draft: result.draft })
+          setSuccessMessage('Bản nháp lịch học đã sẵn sàng ở Chi tiết mục tiêu. Hãy xem lại rồi bấm Xác nhận và lưu kế hoạch.')
+        }
       }
       setTimeout(() => setSuccessMessage(''), 4000)
-      resetForm()
+      if (editing) resetForm()
       await refresh()
     } catch (error) {
       const described = describeGoalError(error)
@@ -227,6 +248,8 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
       setDeletingId(null)
     }
   }
+
+  const activePlan = automaticPlan?.goalId === detail?.id ? automaticPlan : null
 
   const examMin = form.startDate
     ? [localDateString(), nextDate(form.startDate)].sort().at(-1)
@@ -353,7 +376,7 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
             </div>
             <div className="goal-form-actions">
               <button className="button button--primary" type="submit" disabled={saving}>
-                {saving ? 'Đang lưu…' : editing ? 'Lưu thay đổi' : 'Tạo mục tiêu'}
+                {saving ? automaticPlan?.status === 'generating' ? 'Đang sinh lịch học…' : 'Đang lưu…' : editing ? 'Lưu thay đổi' : 'Tạo mục tiêu & sinh lịch AI'}
               </button>
               {editing && <button className="button button--secondary" type="button" onClick={resetForm} disabled={saving}>Hủy sửa</button>}
             </div>
@@ -366,7 +389,7 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
             <span>{goals.length} mục tiêu</span>
           </div>
           {detail && (
-            <section className="goal-detail" aria-label="Chi tiết mục tiêu">
+            <section ref={detailRef} className="goal-detail" aria-label="Chi tiết mục tiêu">
               <div className="goal-item-top">
                 <h3>{detail.subject}</h3>
                 <button type="button" onClick={() => setDetail(null)}>Đóng</button>
@@ -380,9 +403,14 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
                 <dt>Phiên bản</dt><dd>v{detail.version}</dd>
               </dl>
               <GoalProgress goalId={detail.id} version={detail.version} />
-              <PlanDraftPanel key={detail.id} goal={detail} onSaved={async () => {
+              <PlanDraftPanel key={`${detail.id}:${activePlan?.status || 'manual'}:${activePlan?.draft?.id || ''}`} goal={detail}
+                initialDraft={activePlan?.draft} initialError={activePlan?.error} generating={activePlan?.status === 'generating'}
+                onSaved={async (saved, firstDate) => {
+                setAutomaticPlan(null)
+                setSuccessMessage(`Đã lưu ${saved.createdCount} công việc vào lịch học.`)
                 await refresh()
                 try { setDetail(await getGoal(detail.id)) } catch (err) { setPageError(err.message) }
+                if (onNavigateDaily) onNavigateDaily(firstDate)
               }} />
             </section>
           )}
@@ -406,11 +434,11 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
                   <p className="goal-dates">Bắt đầu {displayDate(goal.startDate)} · Thi {displayDate(goal.examDate)}</p>
                   <GoalProgress goalId={goal.id} version={goal.version} />
                   <div className="goal-item-actions">
-                    <button type="button" onClick={() => showDetail(goal)} disabled={detailLoading}>Chi tiết</button>
-                    <button type="button" onClick={() => showDetail(goal)} disabled={detailLoading}>Bản nháp AI & Điều chỉnh</button>
-                    <button type="button" onClick={() => startEditing(goal)}>Chỉnh sửa</button>
+                    <button type="button" onClick={() => showDetail(goal)} disabled={detailLoading || saving}>Chi tiết</button>
+                    <button type="button" onClick={() => showDetail(goal)} disabled={detailLoading || saving}>Bản nháp AI & Điều chỉnh</button>
+                    <button type="button" onClick={() => startEditing(goal)} disabled={saving}>Chỉnh sửa</button>
                     <button type="button" className="goal-delete" onClick={() => removeGoal(goal)}
-                      disabled={deletingId !== null}>
+                      disabled={deletingId !== null || saving}>
                       {deletingId === goal.id ? 'Đang xóa…' : 'Xóa'}
                     </button>
                   </div>

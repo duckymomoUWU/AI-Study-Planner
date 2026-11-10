@@ -27,6 +27,7 @@ function getPageFromHash() {
 export default function App() {
   const [activePage, setActivePageState] = useState(getPageFromHash) // 'overview' | 'goals' | 'daily' | 'auth'
   const [currentUser, setCurrentUser] = useState(null)
+  const [dailyDate, setDailyDate] = useState(null)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -324,13 +325,14 @@ export default function App() {
               <GoalsPage
                 currentUser={currentUser}
                 onBack={() => setActivePage('overview')}
-                onNavigateDaily={() => setActivePage('daily')}
+                onNavigateDaily={date => { setDailyDate(typeof date === 'string' ? date : null); setActivePage('daily') }}
                 onNavigateAuth={() => setActivePage('auth')}
               />
             ) : activePage === 'calendar-preview' ? (
               <LocalCalendarPreview currentUser={null} onBack={() => setActivePage('daily')} />
             ) : activePage === 'daily' ? (
               <DailyTasksPage
+                initialDate={dailyDate}
                 currentUser={currentUser}
                 onBack={() => setActivePage('overview')}
                 onNavigateGoals={() => setActivePage('goals')}

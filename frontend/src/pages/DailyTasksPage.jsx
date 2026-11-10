@@ -30,8 +30,8 @@ function offsetDate(dateStr, days) {
   return getLocalDateString(date)
 }
 
-export default function DailyTasksPage({ onBack, onNavigateGoals }) {
-  const [selectedDate, setSelectedDate] = useState(getLocalDateString())
+export default function DailyTasksPage({ onBack, onNavigateGoals, initialDate }) {
+  const [selectedDate, setSelectedDate] = useState(() => initialDate || getLocalDateString())
   const [tasksData, setTasksData] = useState({ items: [], totalEstimatedMinutes: 0, completedCount: 0, totalCount: 0, remainingCount: 0 })
   const [overdueTasks, setOverdueTasks] = useState([])
   const [goals, setGoals] = useState([])
