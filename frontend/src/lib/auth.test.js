@@ -83,7 +83,7 @@ test('login rejects with AuthApiError on invalid credentials', async t => {
       return Response.json({ data: { token: 'csrf-123' } })
     }
     return Response.json(
-      { error: { code: 'INVALID_CREDENTIALS', message: 'Email hoặc mật khẩu không chính xác.' } },
+      { error: { code: 'INVALID_CREDENTIALS', message: 'Mật khẩu không chính xác.' } },
       { status: 401 }
     )
   })
@@ -92,6 +92,26 @@ test('login rejects with AuthApiError on invalid credentials', async t => {
     assert.ok(error instanceof AuthApiError)
     assert.equal(error.status, 401)
     assert.equal(error.code, 'invalid_credentials')
+    return true
+  })
+})
+
+test('login rejects with USER_NOT_FOUND when account does not exist', async t => {
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    if (url === '/api/v1/auth/csrf') {
+      return Response.json({ data: { token: 'csrf-123' } })
+    }
+    return Response.json(
+      { error: { code: 'USER_NOT_FOUND', message: 'Tài khoản không tồn tại.' } },
+      { status: 401 }
+    )
+  })
+
+  await assert.rejects(login('nonexistent@example.com', 'pass'), error => {
+    assert.ok(error instanceof AuthApiError)
+    assert.equal(error.status, 401)
+    assert.equal(error.code, 'user_not_found')
+    assert.equal(error.message, 'Tài khoản không tồn tại.')
     return true
   })
 })

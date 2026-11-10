@@ -96,7 +96,7 @@ public class GeminiPlanService {
 
                 Yêu cầu bắt buộc cho mỗi buổi học (task):
                 1. "title": Tiêu đề súc tích, bắt đầu bằng "Focus Time: [Tên chủ đề]" hoặc "Luyện đề: [Tên chủ đề]".
-                2. "startHour": Giờ học thực tế (số thập phân trong khoảng học tập ban ngày từ 8.0 đến 16.5, ví dụ 9.0 cho 9h sáng, 13.5 cho 13h30 chiều, 15.0 cho 15h chiều). TUYỆT ĐỐI không chọn sau 17.5 để tránh quá muộn.
+                2. "startHour": BẮT BUỘC VÀ DUY NHẤT LÀ 12.0 (tức đúng 12:00 trưa). Tuyệt đối không chọn bất kỳ giờ nào khác ngoài 12.0.
                 3. "durationHours": Số giờ học phù hợp với ngân sách thời gian (ví dụ 1.5 hoặc 2.0).
                 4. "estimatedMinutes": Số phút học (ví dụ %d).
                 5. "scheduledDate": Ngày đầu tiên diễn ra buổi học (YYYY-MM-DD) trong khoảng [%s đến %s).
@@ -124,7 +124,7 @@ public class GeminiPlanService {
                     {
                       "title": "Focus Time: ...",
                       "scheduledDate": "%s",
-                      "startHour": 9.0,
+                      "startHour": 12.0,
                       "durationHours": 1.5,
                       "estimatedMinutes": %d,
                       "recurrence": "weekly",
@@ -161,7 +161,7 @@ public class GeminiPlanService {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("Content-Type", "application/json")
-                .timeout(Duration.ofSeconds(25))
+                .timeout(Duration.ofSeconds(60))
                 .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                 .build();
 
@@ -251,7 +251,7 @@ public class GeminiPlanService {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("Content-Type", "application/json")
-                .timeout(Duration.ofSeconds(25))
+                .timeout(Duration.ofSeconds(60))
                 .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                 .build();
 
@@ -394,7 +394,7 @@ public class GeminiPlanService {
                 {0, 6}     // T7, CN
         };
         int[] chosenDays = daySchedules[Math.abs(req.subject().hashCode()) % daySchedules.length];
-        double[] preferredHours = new double[]{9.0, 13.5, 15.5, 10.5};
+        double[] preferredHours = new double[]{12.0, 12.0, 12.0, 12.0};
 
         LocalDate startDate = req.startDate() != null ? req.startDate() : LocalDate.now();
 

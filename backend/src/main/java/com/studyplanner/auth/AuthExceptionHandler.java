@@ -25,10 +25,16 @@ public class AuthExceptionHandler {
                 .body(new AuthErrorResponse("EMAIL_ALREADY_EXISTS", ex.getMessage()));
     }
 
-    @ExceptionHandler({BadCredentialsException.class, UsernameNotFoundException.class})
+    @ExceptionHandler({UserNotFoundException.class, UsernameNotFoundException.class})
+    public ResponseEntity<AuthErrorResponse> handleUserNotFound(Exception ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new AuthErrorResponse("USER_NOT_FOUND", "Tài khoản không tồn tại."));
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<AuthErrorResponse> handleBadCredentials(Exception ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(new AuthErrorResponse("INVALID_CREDENTIALS", "Email hoặc mật khẩu không chính xác."));
+                .body(new AuthErrorResponse("INVALID_CREDENTIALS", "Mật khẩu không chính xác."));
     }
 
     @ExceptionHandler(AuthenticationException.class)

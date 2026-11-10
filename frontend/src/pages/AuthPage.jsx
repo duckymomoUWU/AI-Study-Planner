@@ -55,8 +55,12 @@ export default function AuthPage({ onAuthSuccess, onBack, initialTab = 'login' }
       }
     } catch (err) {
       if (err instanceof AuthApiError) {
-        if (err.code === 'invalid_credentials') {
-          setGeneralError('Email hoặc mật khẩu không chính xác.')
+        if (err.code === 'user_not_found') {
+          setGeneralError('Tài khoản không tồn tại.')
+          setFieldErrors({ email: 'Tài khoản không tồn tại.' })
+        } else if (err.code === 'invalid_credentials') {
+          setGeneralError(err.message || 'Mật khẩu không chính xác.')
+          setFieldErrors({ password: 'Mật khẩu không chính xác.' })
         } else if (err.code === 'forbidden_or_csrf') {
           setGeneralError('Phiên làm việc đã hết hạn hoặc token CSRF không hợp lệ. Vui lòng thử lại.')
         } else {

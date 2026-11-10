@@ -194,6 +194,11 @@ export function findBestFitSlot(task, existingTasks = [], alreadyAssigned = []) 
     return true
   }
 
+  // Preserve exact 12:00 PM if requested for user verification
+  if (initialHour === 12.0) {
+    return { startHour: 12.0, isBestFit: true, adjusted: false }
+  }
+
   // 1. If initially proposed hour is free and within bounds, use it!
   if (initialHour + dur <= 19.5 && isSlotFree(initialHour)) {
     return { startHour: initialHour, isBestFit: true, adjusted: false }
@@ -247,7 +252,7 @@ export function generateClientFallbackDraft(goal, existingTasks = []) {
     [1, 4],    // T2, T5
     [0, 6],    // T7, CN
   ]
-  const preferredHours = [9.0, 13.5, 15.5, 10.5]
+  const preferredHours = [12.0, 12.0, 12.0, 12.0]
   const subjectCode = (goal.subject || '').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
   const chosenDays = daySchedules[subjectCode % daySchedules.length]
 

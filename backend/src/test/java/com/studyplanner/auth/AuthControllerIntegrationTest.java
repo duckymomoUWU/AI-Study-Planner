@@ -197,7 +197,23 @@ class AuthControllerIntegrationTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error.code").value("INVALID_CREDENTIALS"))
-                .andExpect(jsonPath("$.error.message").value("Email hoặc mật khẩu không chính xác."));
+                .andExpect(jsonPath("$.error.message").value("Mật khẩu không chính xác."));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/auth/login returns 401 Unauthorized with USER_NOT_FOUND when account does not exist")
+    void loginRejectsNonExistentAccount() throws Exception {
+        var request = new LoginRequest("nonexistent@example.com", "Password123!");
+        when(authService.authenticate(eq("nonexistent@example.com"), eq("Password123!")))
+                .thenThrow(new UserNotFoundException("Tài khoản không tồn tại."));
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("USER_NOT_FOUND"))
+                .andExpect(jsonPath("$.error.message").value("Tài khoản không tồn tại."));
     }
 
     @Test

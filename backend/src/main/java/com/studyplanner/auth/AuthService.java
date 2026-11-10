@@ -45,6 +45,9 @@ public class AuthService {
 
     public Authentication authenticate(String email, String rawPassword) {
         String normalizedEmail = email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
+        if (!users.existsByEmail(normalizedEmail)) {
+            throw new UserNotFoundException("Tài khoản không tồn tại.");
+        }
         var authToken = new UsernamePasswordAuthenticationToken(normalizedEmail, rawPassword);
         return authenticationManager.authenticate(authToken);
     }

@@ -72,6 +72,7 @@ class AuthServiceTest {
     @DisplayName("authenticate delegates to AuthenticationManager with normalized email")
     void authenticateDelegates() {
         var expectedAuth = mock(Authentication.class);
+        when(repository.existsByEmail("user@test.com")).thenReturn(true);
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(expectedAuth);
 
@@ -84,8 +85,18 @@ class AuthServiceTest {
     }
 
     @Test
+    @DisplayName("authenticate throws UserNotFoundException when account does not exist")
+    void authenticateThrowsUserNotFoundWhenAccountDoesNotExist() {
+        when(repository.existsByEmail("nonexistent@test.com")).thenReturn(false);
+
+        var ex = assertThrows(UserNotFoundException.class, () -> service.authenticate("nonexistent@test.com", "any"));
+        assertEquals("Tài khoản không tồn tại.", ex.getMessage());
+    }
+
+    @Test
     @DisplayName("authenticate throws BadCredentialsException on invalid credentials")
     void authenticateThrowsOnBadCredentials() {
+        when(repository.existsByEmail("user@test.com")).thenReturn(true);
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenThrow(new BadCredentialsException("Bad credentials"));
 
