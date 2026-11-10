@@ -159,3 +159,54 @@ test('logout calls /api/v1/auth/logout with CSRF and clears cache', async t => {
   assert.equal(result, true)
   assert.equal(logoutCalled, true)
 })
+
+test('requestWithCsrf automatically retries on 403 CSRF_INVALID with fresh token', async t => {
+  let csrfFetchCount = 0
+  let loginAttemptCount = 0
+
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    if (url === '/api/v1/auth/csrf') {
+      csrfFetchCount++
+      const token = csrfFetchCount === 1 ? 'stale-token' : 'fresh-token'
+      return Response.json({ data: { token } })
+    }
+    if (url === '/api/v1/auth/login') {
+      loginAttemptCount++
+      if (loginAttemptCount === 1) {
+        assert.equal(options.headers['X-CSRF-TOKEN'], 'stale-token')
+        return Response.json(
+          { error: { code: 'CSRF_INVALID', message: 'Yêu cầu không hợp lệ hoặc phiên đã hết hạn.' } },
+          { status: 403 }
+        )
+      }
+      assert.equal(options.headers['X-CSRF-TOKEN'], 'fresh-token')
+      return Response.json({ data: { id: 'user-retry-1', email: 'retry@example.com' } }, { status: 200 })
+    }
+    throw new Error(`Unexpected url ${url}`)
+  })
+
+  const user = await login('retry@example.com', 'password123')
+  assert.equal(user.email, 'retry@example.com')
+  assert.equal(csrfFetchCount, 2, 'Should have fetched fresh CSRF token')
+  assert.equal(loginAttemptCount, 2, 'Should have retried login request')
+})
+
+test('getCsrfToken falls back to document.cookie XSRF-TOKEN when fetch fails', async t => {
+  t.mock.method(globalThis, 'fetch', async () => {
+    return new Response(null, { status: 502 })
+  })
+
+  // Mock document.cookie
+  const originalDocument = globalThis.document
+  globalThis.document = {
+    cookie: 'other=123; XSRF-TOKEN=cookie-csrf-val; JSESSIONID=abc',
+  }
+
+  try {
+    const token = await getCsrfToken()
+    assert.equal(token, 'cookie-csrf-val')
+  } finally {
+    globalThis.document = originalDocument
+  }
+})
+

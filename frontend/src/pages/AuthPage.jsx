@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/card.jsx'
 import { Button } from '../components/ui/button.jsx'
 import { Input } from '../components/ui/input.jsx'
 import { Label } from '../components/ui/label.jsx'
 import { Alert, AlertTitle, AlertDescription } from '../components/ui/alert.jsx'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs.jsx'
-import { login, register, AuthApiError } from '../lib/auth.js'
+import { login, register, getCsrfToken, AuthApiError } from '../lib/auth.js'
 import { clearPlaceholderGoals } from '../lib/goals.js'
 import './AuthPage.css'
 
@@ -23,6 +23,11 @@ export default function AuthPage({ onAuthSuccess, onBack, initialTab = 'login' }
   const [fieldErrors, setFieldErrors] = useState({})
   const [successMessage, setSuccessMessage] = useState(null)
 
+  // Warm up CSRF token and session as soon as AuthPage mounts
+  useEffect(() => {
+    getCsrfToken().catch(() => {})
+  }, [])
+
   function resetErrors() {
     setGeneralError(null)
     setFieldErrors({})
@@ -32,6 +37,7 @@ export default function AuthPage({ onAuthSuccess, onBack, initialTab = 'login' }
   function handleTabChange(newTab) {
     setTab(newTab)
     resetErrors()
+    getCsrfToken().catch(() => {})
   }
 
   async function handleLogin(e) {
@@ -61,8 +67,8 @@ export default function AuthPage({ onAuthSuccess, onBack, initialTab = 'login' }
         } else if (err.code === 'invalid_credentials') {
           setGeneralError(err.message || 'Mật khẩu không chính xác.')
           setFieldErrors({ password: 'Mật khẩu không chính xác.' })
-        } else if (err.code === 'forbidden_or_csrf') {
-          setGeneralError('Phiên làm việc đã hết hạn hoặc token CSRF không hợp lệ. Vui lòng thử lại.')
+        } else if (err.code === 'forbidden_or_csrf' || err.code === 'csrf_invalid' || err.code === 'csrf_error') {
+          setGeneralError('Phiên làm việc đã hết hạn hoặc không có token CSRF hợp lệ. Vui lòng thử lại.')
         } else {
           setGeneralError(err.message || 'Đăng nhập không thành công.')
         }
@@ -123,6 +129,8 @@ export default function AuthPage({ onAuthSuccess, onBack, initialTab = 'login' }
       if (err instanceof AuthApiError) {
         if (err.code === 'email_already_exists') {
           setGeneralError('Email này đã được sử dụng. Vui lòng chọn email khác hoặc đăng nhập.')
+        } else if (err.code === 'forbidden_or_csrf' || err.code === 'csrf_invalid' || err.code === 'csrf_error') {
+          setGeneralError('Phiên làm việc đã hết hạn hoặc không có token CSRF hợp lệ. Vui lòng thử lại.')
         } else if (err.code === 'validation_failed' && err.fieldErrors?.length) {
           const map = {}
           for (const item of err.fieldErrors) {
