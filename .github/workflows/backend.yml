@@ -20,18 +20,18 @@ jobs:
       postgres:
         image: postgres:17
         env:
-          POSTGRES_DB: study_planner
+          POSTGRES_DB: study_planner_test
           POSTGRES_USER: study_planner
           POSTGRES_PASSWORD: ci-test-password
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U study_planner -d study_planner"
+          --health-cmd "pg_isready -U study_planner -d study_planner_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
     env:
-      DB_URL: jdbc:postgresql://localhost:5432/study_planner
+      DB_URL: jdbc:postgresql://localhost:5432/study_planner_test
       DB_USER: study_planner
       DB_PASSWORD: ci-test-password
     steps:
