@@ -37,10 +37,10 @@ class SyllabusServiceTest {
         assertEquals("Databases", result.subject()); assertTrue(result.topics().contains("SQL JOIN"));
         assertEquals("local", result.extractionMethod());
     }
-    @Test void pdfWithoutProviderConfigurationIs503RatherThanPretendExtraction() throws Exception {
+    @Test void malformedPdfIsUnreadableRatherThanPretendExtraction() throws Exception {
         var error = assertThrows(PlanException.class, () -> service.extract(mapper.valueToTree(Map.of(
                 "fileName", "course.pdf", "mimeType", "application/pdf", "base64", Base64.getEncoder().encodeToString("%PDF-1.7".getBytes())))));
-        assertEquals(503, error.status()); assertEquals("AI_UNAVAILABLE", error.code());
+        assertEquals(422, error.status()); assertEquals("SYLLABUS_UNREADABLE", error.code());
     }
     @Test void rejectsAmbiguousOversizedAndMalformedInputs() throws Exception {
         for (var body : java.util.List.of(Map.of(), Map.of("content", "text", "base64", "aA=="),

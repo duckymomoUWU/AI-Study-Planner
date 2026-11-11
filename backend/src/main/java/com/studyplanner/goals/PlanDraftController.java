@@ -21,9 +21,10 @@ public class PlanDraftController {
             @AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID goalId,
             @RequestBody(required = false) JsonNode body) {
         UUID user = owner(principal);
-        if (body != null && (!body.isObject() || !body.isEmpty()))
-            throw new RequestValidationException(List.of(new ErrorDetail("body", "unknown_field")));
-        return ResponseEntity.status(201).body(ApiResponse.of(service.generate(user, goalId)));
+        if (body == null || (body.isObject() && body.isEmpty()))
+            return ResponseEntity.status(201).body(ApiResponse.of(service.generate(user, goalId)));
+        PlanScheduling.strict(body, java.util.Set.of("selectedTopics", "dailyMinutes"));
+        return ResponseEntity.status(201).body(ApiResponse.of(service.generateScoped(user, goalId, body)));
     }
 
     @GetMapping("/{goalId}/plan-drafts/{draftId}")
@@ -35,6 +36,16 @@ public class PlanDraftController {
     @GetMapping("/{goalId}/plan-drafts/latest")
     public ApiResponse<PlanDraftService.DraftResponse> latest(@AuthenticationPrincipal AppUserPrincipal principal,
             @PathVariable UUID goalId) { return ApiResponse.of(service.latest(owner(principal), goalId)); }
+
+    @GetMapping("/{goalId}/plan-drafts/pending")
+    public ApiResponse<List<PlanDraftService.DraftResponse>> pending(@AuthenticationPrincipal AppUserPrincipal principal,
+            @PathVariable UUID goalId) { return ApiResponse.of(service.pending(owner(principal), goalId)); }
+
+    @PostMapping("/{goalId}/plan-drafts/{draftId}/reschedule")
+    public ApiResponse<PlanDraftService.DraftResponse> reschedule(@AuthenticationPrincipal AppUserPrincipal principal,
+            @PathVariable UUID goalId, @PathVariable UUID draftId) {
+        return ApiResponse.of(service.reschedule(owner(principal), goalId, draftId));
+    }
 
     @PostMapping("/{goalId}/plan-drafts/{draftId}/confirm")
     public ResponseEntity<ApiResponse<PlanDraftService.ConfirmResponse>> confirm(

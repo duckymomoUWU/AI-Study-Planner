@@ -1,0 +1,13 @@
+.plan-shortage { margin: 1rem 0; padding: 1.1rem; border: 1px solid #d8c9a6; border-radius: 14px; background: #f7f1df; color: #344c40; }
+.plan-shortage h4 { margin: 0 0 .65rem; font-size: 1.05rem; line-height: 1.5; }
+.plan-shortage p { line-height: 1.65; }
+.plan-shortage-cause { padding: .7rem .8rem; border-radius: 8px; background: #ede9d7; }
+.plan-shortage-actions { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); margin-top: 1rem; }
+.plan-shortage-actions > div { display: flex; flex-direction: column; gap: .45rem; }
+.plan-shortage-actions button { padding: .7rem .85rem; min-height: 44px; border: 1px solid #9bab91; border-radius: 10px; background: #fffdf5; color: #28554a; font: inherit; font-weight: 600; cursor: pointer; transition: background .18s, box-shadow .18s; }
+.plan-shortage-actions .plan-shortage-primary { background: #285b50; border-color: #285b50; color: #fffdf5; }
+.plan-shortage-actions button:hover { background: #e6ead9; box-shadow: 0 3px 8px #28554a16; }
+.plan-shortage-actions .plan-shortage-primary:hover { background: #1e493f; }
+.plan-shortage-actions button:focus-visible { outline: 2px solid #28554a; outline-offset: 3px; }
+.plan-shortage-actions button:disabled { opacity: .55; cursor: default; box-shadow: none; }
+.plan-shortage-actions small, .plan-shortage-hint { font-size: .82rem; line-height: 1.6; color: #5e6754; }

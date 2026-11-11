@@ -75,6 +75,33 @@ class GoalServiceTest {
     }
 
     @Test
+    void createRejectsYesterdayInVietnamEvenWhenItIsStillTodayInUtc() {
+        var input = new GoalPolicy.GoalInput("Math", "Algebra", LocalDate.of(2026, 11, 6),
+                LocalDate.of(2026, 12, 5), 60);
+        var ex = assertThrows(GoalService.GoalValidationException.class,
+                () -> service.createGoal(OWNER, input, null));
+        assertTrue(ex.violations().stream().anyMatch(v -> v.field().equals("startDate")
+                && v.code().equals("must_not_be_in_past")));
+        verify(repository, never()).insertOwned(any(), any(), any());
+    }
+
+    @Test
+    void patchPreservesHistoricalStartOfAnOngoingGoal() {
+        service = new GoalService(repository, Clock.fixed(Instant.parse("2026-11-10T03:00:00Z"), ZoneOffset.UTC),
+                "Asia/Ho_Chi_Minh");
+        when(repository.lockOwned(OWNER, GOAL)).thenReturn(Optional.of(stored(0)));
+        when(repository.listScheduledTasksOwned(OWNER, GOAL)).thenReturn(List.of());
+        when(repository.updateOwnedIfVersion(eq(OWNER), eq(GOAL), any(), eq("Asia/Ho_Chi_Minh"), eq(0)))
+                .thenReturn(true);
+        when(repository.findOwned(OWNER, GOAL)).thenReturn(Optional.of(stored(1)));
+        service.patchGoal(OWNER, GOAL, patch(120, null, null), 0);
+        var merged = ArgumentCaptor.forClass(GoalPolicy.GoalInput.class);
+        verify(repository).updateOwnedIfVersion(eq(OWNER), eq(GOAL), merged.capture(),
+                eq("Asia/Ho_Chi_Minh"), eq(0));
+        assertEquals(LocalDate.of(2026, 11, 7), merged.getValue().startDate());
+    }
+
+    @Test
     void createRejectsUnknownOrTooLongTimezone() {
         for (String bad : List.of("Mars/Olympus", "x".repeat(65), "")) {
             var ex = assertThrows(GoalService.GoalValidationException.class,

@@ -17,7 +17,8 @@ public class SyllabusService {
     private final GeminiPlanService gemini;
     public SyllabusService(GeminiPlanService gemini) { this.gemini = gemini; }
     public record Result(String subject, String topics, java.time.LocalDate startDate,
-                         java.time.LocalDate examDate, int minutesPerDay, String extractionMethod) {}
+                         java.time.LocalDate examDate, Integer minutesPerDay, String extractionMethod,
+                         List<SyllabusOutline.Chapter> chapters, List<SyllabusExamDate.Candidate> examDateCandidates) {}
 
     public Result extract(JsonNode body) {
         if (body == null || !body.isObject()) throw bad("body", "invalid_type");
@@ -28,7 +29,9 @@ public class SyllabusService {
         if (content.isBlank() == base64.isBlank()) throw bad("content", "provide_exactly_one_input");
         if (fileName.length() > 255) throw bad("fileName", "too_long");
         String lower = fileName.toLowerCase(Locale.ROOT);
-        GeminiPlanService.SyllabusExtraction result;
+        List<String> pages;
+        List<String> teachingPages = null;
+        String method = "local";
         if (!base64.isBlank()) {
             if (base64.length() > ((MAX_BYTES + 2L) / 3) * 4) throw bad("base64", "file_too_large");
             byte[] bytes;
@@ -38,19 +41,35 @@ public class SyllabusService {
             if (lower.endsWith(".pdf") && mime.equals("application/pdf")) {
                 if (bytes.length < 5 || !new String(bytes, 0, 5, StandardCharsets.US_ASCII).equals("%PDF-"))
                     throw bad("base64", "invalid_pdf");
-                result = gemini.extractSyllabus(null, base64, "application/pdf", fileName);
+                var pdf = SyllabusOutline.readPdf(bytes);
+                pages = pdf.pages(); teachingPages = pdf.teachingPages();
+                method = "local_pdf";
             } else if (lower.endsWith(".docx") && mime.equals("application/vnd.openxmlformats-officedocument.wordprocessingml.document")) {
                 content = readDocx(bytes);
-                result = gemini.extractSyllabus(content, null, "text/plain", fileName);
+                pages = List.of(content);
             } else throw bad("fileName", "unsupported_file_type");
         } else {
             if (!fileName.isEmpty() && !lower.endsWith(".txt") && !lower.endsWith(".md") && !lower.endsWith(".text"))
                 throw bad("fileName", "unsupported_file_type");
             requireText(content);
-            result = gemini.extractSyllabus(content, null, "text/plain", fileName.isBlank() ? "de_cuong.txt" : fileName);
+            pages = List.of(content);
         }
-        var fields = result.fields();
-        return new Result(fields.subject(), fields.topics(), fields.startDate(), fields.examDate(), fields.minutesPerDay(), result.extractionMethod());
+        boolean paginated = method.equals("local_pdf");
+        SyllabusOutline.Outline outline;
+        try { outline = SyllabusOutline.parse(teachingPages == null ? pages : teachingPages, fileName.isBlank() ? "Đề cương" : fileName); }
+        catch (PlanException ex) {
+            if ((!ex.code().equals("SYLLABUS_NO_TOPICS") && !ex.code().equals("SYLLABUS_INCOMPLETE")) || !gemini.isConfigured()) throw ex;
+            outline = SyllabusEvidence.validate(gemini.generateOutlineJson(pages), pages, new com.fasterxml.jackson.databind.ObjectMapper());
+            method = "gemini";
+        }
+        String topics = outline.chapters().stream().flatMap(c -> c.topics().stream()).map(SyllabusOutline.Topic::title)
+                .collect(java.util.stream.Collectors.joining("\n"));
+        var chapters = outline.chapters();
+        if (!paginated) chapters = chapters.stream().map(c -> new SyllabusOutline.Chapter(c.id(), c.title(),
+                c.topics().stream().map(t -> new SyllabusOutline.Topic(t.id(), t.title(), t.aliases(),
+                        t.sources().stream().map(s -> new SyllabusOutline.Source(null, s.section())).toList(), t.needsReview())).toList())).toList();
+        var examDates = SyllabusExamDate.extract(pages, paginated);
+        return new Result(outline.subject(), topics, null, SyllabusExamDate.unique(examDates), null, method, chapters, examDates);
     }
 
     private static String readDocx(byte[] bytes) {

@@ -14,7 +14,9 @@ public final class GoalPolicy {
     private GoalPolicy() {}
 
     public record GoalInput(String subject, String topics, LocalDate startDate,
-                            LocalDate examDate, Integer minutesPerDay) {}
+                            LocalDate examDate, Integer minutesPerDay, com.fasterxml.jackson.databind.JsonNode planningScope) {
+        public GoalInput(String subject,String topics,LocalDate startDate,LocalDate examDate,Integer minutesPerDay) {this(subject,topics,startDate,examDate,minutesPerDay,null);}
+    }
 
     /** An existing task of the goal. id/title are optional and only used to make error messages specific. */
     public record ScheduledTask(UUID id, String title, LocalDate scheduledDate, int estimatedMinutes) {

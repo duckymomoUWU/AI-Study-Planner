@@ -76,4 +76,16 @@ class PlanDraftControllerTest {
         mvc.perform(asUser(post(base())).contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.error.code").value("AI_UNAVAILABLE"));
     }
+    @Test void scopedGenerationForwardsOnlyConfirmedScopeAndTrustedOwner() throws Exception {
+        var value = new PlanDraftService.DraftResponse(draft, goal, 0, mapper.readTree("{\"tasks\":[],\"unscheduled\":[]}"),
+                Instant.parse("2026-11-10T01:00:00Z"), Instant.parse("2026-11-11T01:00:00Z"));
+        when(service.generateScoped(eq(user), eq(goal), any())).thenReturn(value);
+        mvc.perform(asUser(post(base())).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"selectedTopics\":[{\"id\":\"collision\",\"title\":\"Collision\"}],\"dailyMinutes\":{}}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.data.proposal.unscheduled").isArray());
+        verify(service).generateScoped(eq(user), eq(goal), argThat(body -> body.path("selectedTopics").get(0).path("id").asText().equals("collision")));
+        mvc.perform(asUser(post(base())).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"selectedTopics\":[],\"userId\":\"foreign\"}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"));
+    }
 }

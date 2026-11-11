@@ -7,4 +7,6 @@ import java.time.LocalDate;
  * for these fields, so null can safely stand for "keep the stored value".
  */
 public record GoalPatch(String subject, String topics, LocalDate startDate, LocalDate examDate,
-                        Integer minutesPerDay, String timezone) {}
+                        Integer minutesPerDay, String timezone, com.fasterxml.jackson.databind.JsonNode planningScope) {
+    public GoalPatch(String subject,String topics,LocalDate startDate,LocalDate examDate,Integer minutesPerDay,String timezone) {this(subject,topics,startDate,examDate,minutesPerDay,timezone,null);}
+}

@@ -1,0 +1,152 @@
+@font-face {
+  font-family: 'Be Vietnam Pro';
+  src: url('./assets/fonts/BeVietnamPro-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Be Vietnam Pro';
+  src: url('./assets/fonts/BeVietnamPro-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Be Vietnam Pro';
+  src: url('./assets/fonts/BeVietnamPro-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Be Vietnam Pro';
+  src: url('./assets/fonts/BeVietnamPro-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+:root {
+  --font-ui: 'Be Vietnam Pro', 'Segoe UI', sans-serif;
+  font-family: var(--font-ui);
+  --canvas: #f6f3eb;
+  --surface: #fffefa;
+  --primary: #285b53;
+  --primary-hover: #204a43;
+  --ink: #293c35;
+  --muted: #647267;
+  --line: #e2dfd3;
+  --soft: #e9ede2;
+  --shadcn-background: 44 38% 94%;
+  --shadcn-foreground: 145 19% 20%;
+  --shadcn-card: 48 100% 99%;
+  --shadcn-card-foreground: 145 19% 20%;
+  --shadcn-popover: 48 100% 99%;
+  --shadcn-popover-foreground: 145 19% 20%;
+  --shadcn-primary: 171 39% 26%;
+  --shadcn-primary-foreground: 48 100% 99%;
+  --shadcn-secondary: 82 23% 91%;
+  --shadcn-secondary-foreground: 171 39% 26%;
+  --shadcn-muted: 48 20% 92%;
+  --shadcn-muted-foreground: 132 7% 40%;
+  --shadcn-accent: 82 23% 91%;
+  --shadcn-accent-foreground: 171 39% 26%;
+  --shadcn-border: 48 20% 85%;
+  --shadcn-input: 48 20% 85%;
+  --shadcn-ring: 171 39% 26%;
+  color: var(--ink);
+  background: var(--canvas);
+}
+body,.workspace{background:var(--canvas);color:var(--ink)}
+body{font-family:var(--font-ui);line-height:1.65}
+h1,h2,h3{font-family:var(--font-ui);line-height:1.5}
+::selection{background:#d1dfcc;color:var(--ink)}
+button,input,textarea,select{font-family:inherit}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline-color:var(--primary)}
+.sidebar{background:var(--primary);border-color:transparent;color:var(--surface)}
+.sidebar .brand{color:var(--surface)}
+.sidebar .brand small{color:#d2ded7}
+.sidebar .brand-mark{background:#fffefa1a;color:var(--surface);border:1px solid #fffefa24}
+.sidebar nav :is(button,a).nav-link{color:#e1e9e1}
+.sidebar nav :is(button,a).nav-link:hover{background:#fffefa12;color:var(--surface)}
+.sidebar nav :is(button,a).nav-link--active,
+.sidebar nav :is(button,a).nav-link--active:hover{background:#dce5d5;color:#234d45;font-weight:600}
+.sidebar nav .nav-link:focus-visible{outline:2px solid #a7c5b9;outline-offset:2px}
+.sidebar .nav-link--active .nav-icon{color:inherit}
+.sidebar .sidebar-collapse-btn{background:#fffefa12;border-color:#fffefa30;color:#fffefa}
+.sidebar-note{background:#fffefa0d;border:1px solid #fffefa15;color:#e1e9e1}
+.sidebar-note>span,.sidebar-note small{color:#c9d8c9}
+.topbar{background:var(--canvas);border-color:var(--line);color:var(--muted)}
+.avatar-btn,.avatar-initial{color:var(--primary);background:var(--soft);border-color:#ccd8c9}
+.avatar-btn:hover{background:#dce5d5}
+.user-menu-dropdown{background:var(--surface);border-color:var(--line)}
+.user-menu-item{color:var(--ink)}
+.user-menu-item:hover{background:var(--soft);color:var(--primary)}
+.user-menu-divider{background:var(--line)}
+.button--primary{background:var(--primary);color:var(--surface);box-shadow:none}
+.button--primary:hover{background:var(--primary-hover)}
+.button--secondary{background:var(--soft);color:var(--primary)}
+.button--secondary:hover{background:#dde5d6}
+.eyebrow,.daily-eyebrow{color:var(--primary)}
+.study-plan{color:var(--ink);background:transparent;border:0;padding:4px 0 30px;border-radius:0}
+.study-heading h1{font-family:var(--font-ui);font-weight:400;font-size:38px}
+.study-eyebrow{color:var(--primary)}
+.study-heading p:not(.study-eyebrow),.study-summary,.study-date p,.study-session p,.study-rest,.study-empty p{color:var(--muted)}
+.study-plan button,.study-back{background:var(--surface);color:var(--primary);border-color:var(--line)}
+.study-plan .study-primary{background:var(--primary);color:var(--surface);border-color:var(--primary)}
+.study-plan .study-primary:hover{background:var(--primary-hover)}
+.study-summary,.study-toolbar{border-color:var(--line)}
+.study-summary strong{color:var(--ink)}
+.study-plan select{background:var(--surface);border-color:var(--line);color:var(--ink)}
+.study-day--today{background:var(--soft)}
+.study-date h2 span{background:#d0dfc9;color:#244d3d}
+.study-date button{background:transparent;border:0}
+.study-session,.study-planner{background:var(--surface);border-color:var(--line)}
+.study-session-icon{background:var(--canvas);border-color:var(--line);color:var(--primary)}
+.study-session-copy>span{color:var(--primary)}
+.study-session--done{background:#f0f3e9}
+.study-plan .study-done{color:#345c42;background:#dfe9d8;border-color:transparent}
+.study-notice{background:var(--soft);color:var(--primary)}
+.study-rest{border-color:#d8dbce}
+.goal-form-card,.goal-list-card,.shadcn-card{background:var(--surface);border-color:var(--line)}
+.goal-field input,.goal-field textarea{background:var(--surface);border-color:var(--line);color:var(--ink)}
+.goal-field input:focus,.goal-field textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px #285b531a}
+.goals-heading h1,.daily-title{font-family:var(--font-ui);font-weight:400;letter-spacing:-.5px}
+.goal-dates,.field-hint,.goal-page-note,.goal-budget-input span{color:var(--muted)}
+@media(max-width:760px){.sidebar{border-bottom-color:#ffffff25}.study-plan{padding:4px 0 24px}.study-heading h1{font-size:32px}}
+
+/* Shared action feedback: soft moss/cream surface, keyboard focus and pressed state. */
+button,.button,a.nav-link{
+  transition:background-color .2s ease,color .2s ease,border-color .2s ease,box-shadow .2s ease,transform .2s ease;
+}
+.button--primary,.study-plan .study-primary{
+  background:linear-gradient(110deg,#80aca5 0%,#d3ddcc 65%,#f0e7d4 100%);
+  color:#183d36;
+  border:1px solid #a9c0b2;
+  border-radius:14px;
+  box-shadow:0 2px 4px #285b5310;
+  font-weight:600;
+}
+.button--primary:hover:not(:disabled),.study-plan .study-primary:hover:not(:disabled){
+  background:linear-gradient(110deg,#6b9e95 0%,#c1d2bd 65%,#e9dec5 100%);
+}
+button:focus-visible,.button:focus-visible,a.nav-link:focus-visible{
+  outline:3px solid #80aca5;
+  outline-offset:4px;
+}
+button:active:not(:disabled),.button:active:not(:disabled){transform:translateY(1px) scale(.985)}
+button:disabled{cursor:not-allowed;opacity:.55;transform:none;box-shadow:none}
+.overview-text-button{border-radius:8px;padding:8px 10px}
+.overview-text-button:hover{background:var(--soft);text-decoration:none}
+.overview-actions .button{padding:13px 20px}
+.overview-focus-copy>p,.overview-intro>div>p:last-child{line-height:1.9}
+.overview-panel h2,.overview-guide-heading h2{font-weight:500;line-height:1.6}
+.study-plan .study-planner h2,.study-plan .study-empty h2{font-family:var(--font-ui);line-height:1.6}
+@media(hover:hover) and (prefers-reduced-motion:no-preference){
+  .button:hover:not(:disabled),.study-plan .study-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 6px 16px #285b5320}
+  .button:active:not(:disabled),.study-plan .study-primary:active:not(:disabled){transform:translateY(1px) scale(.985);box-shadow:0 1px 3px #285b5315}
+}
+@media(prefers-reduced-motion:reduce){
+  button,.button,a.nav-link{transition:none!important}
+  button:active:not(:disabled),.button:active:not(:disabled){transform:none}
+}

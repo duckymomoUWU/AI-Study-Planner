@@ -36,7 +36,7 @@ export async function parseSyllabusDocument(input, { signal } = {}) {
   const payload = await response.json().catch(() => null)
   if (!response.ok) throw new SyllabusApiError(payload?.error?.message || `HTTP ${response.status}`, response.status, payload?.error?.code)
   const data = payload?.data
-  if (!data || typeof data.subject !== 'string' || typeof data.topics !== 'string' || !['gemini', 'local'].includes(data.extractionMethod))
+  if (!data || typeof data.subject !== 'string' || typeof data.topics !== 'string' || !['gemini', 'local', 'local_pdf'].includes(data.extractionMethod))
     throw new SyllabusApiError('Phản hồi trích xuất tài liệu không hợp lệ.', 502, 'INVALID_RESPONSE')
   return data
 }

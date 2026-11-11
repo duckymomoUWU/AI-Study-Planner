@@ -1,7 +1,56 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { confirmPlanDraft, generatePlanDraft, getLatestPlanDraft, PlanApiError, sortDraftTasksByPriority } from './ai-planner.js'
+import { confirmPlanDraft, generatePlanDraft, getLatestPlanDraft, getPendingPlanDrafts, reschedulePlanDraft, draftReview, draftState, PlanApiError, sortDraftTasksByPriority } from './ai-planner.js'
 import { clearCsrfTokenCache } from './auth.js'
+
+test('confirmed or expired history is read-only; stale scoped work can be rescheduled and valid drafts remain editable', () => {
+  assert.equal(draftState({ status: 'CONFIRMED' }).readOnly, true)
+  assert.equal(draftState({ status: 'CONFIRMED' }).canReschedule, false)
+  assert.match(draftState({ status: 'CONFIRMED' }).message, /đã được lưu/)
+  assert.equal(draftState({ status: 'EXPIRED' }).readOnly, true)
+  assert.equal(draftState({ status: 'STALE', proposal: { scope: {} } }).canReschedule, true)
+  assert.equal(draftState({ status: 'STALE', proposal: {} }).canReschedule, false)
+  assert.equal(draftState({}).readOnly, false)
+  assert.equal(draftState({ status: 'DRAFT' }).readOnly, false)
+})
+
+test('insufficient budget preserves honest estimates and distinguishes no-day-fits from total shortage', () => {
+  const items = [{ id: 'a', estimatedMinutes: 90, scheduledDate: '2026-11-12' }, { id: 'b', estimatedMinutes: 90, scheduledDate: null }]
+  const before = structuredClone(items)
+  const review = draftReview(items, 120)
+  assert.equal(review.requiredMinutes, 180)
+  assert.equal(review.shortfallMinutes, 60)
+  assert.equal(review.remainingMinutes, 90)
+  assert.equal(review.scheduled.length, 1)
+  assert.equal(draftReview(items, 200).shortfallMinutes, 0)
+  assert.equal(draftReview(items, 200).remaining.length, 1)
+  assert.deepEqual(items, before)
+})
+
+test('partial save explicitly retains edited deferred work; pending reload and reschedule use real API', async t => {
+  clearCsrfTokenCache()
+  const bodies = []
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    if (url.endsWith('/csrf')) return Response.json({ data: { token: 'csrf' } })
+    if (url.endsWith('/pending')) return Response.json({ data: [{ id: 'remaining' }] })
+    if (url.endsWith('/reschedule')) {
+      assert.equal(options.method, 'POST')
+      assert.equal(options.headers['X-CSRF-TOKEN'], 'csrf')
+      return Response.json({ data: { id: 'remaining', goalVersion: 9 } })
+    }
+    bodies.push(JSON.parse(options.body))
+    assert.equal(options.headers['Idempotency-Key'], 'retry-key')
+    return Response.json({ data: { createdCount: 1, remainingCount: 1, remainingDraftId: 'remaining' } })
+  })
+  const scheduled = [{ id: 'a', topicId: 't', title: 'Practice basics', scheduledDate: '2026-11-12', estimatedMinutes: '90' }]
+  const deferredTasks = [{ id: 'b', topicId: 't', title: 'Edited advanced work', estimatedMinutes: '110', reason: 'does not fit' }]
+  for (let i = 0; i < 2; i++) await confirmPlanDraft('g', 'd', scheduled, 7, 'retry-key', { allowPartial: true, deferredTasks })
+  assert.deepEqual(bodies[0], bodies[1])
+  assert.equal(bodies[0].allowPartial, true)
+  assert.deepEqual(bodies[0].deferredTasks, [{ id: 'b', topicId: 't', title: 'Edited advanced work', estimatedMinutes: 110 }])
+  assert.equal((await getPendingPlanDrafts('g'))[0].id, 'remaining')
+  assert.equal((await reschedulePlanDraft('g', 'remaining')).goalVersion, 9)
+})
 
 test('draft generation uses v1 and CSRF without creating or confirming tasks', async t => {
   clearCsrfTokenCache()

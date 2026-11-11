@@ -12,12 +12,12 @@
 }
 
 .goal-progress-label {
-  color: #64748b;
+  color: #66746b;
   font-weight: 600;
 }
 
 .goal-progress-value {
-  color: #0f172a;
+  color: #253b35;
   font-weight: 700;
 }
 
@@ -31,7 +31,7 @@
 .goal-progress-note {
   margin: 0.5rem 0 0;
   font-size: 0.6875rem;
-  color: #8793a5;
+  color: #66746b;
 }
 
 .goal-progress-note--error {
@@ -41,12 +41,12 @@
 .goal-progress-pill {
   display: inline-flex;
   align-items: center;
-  border: 1px solid #d6deea;
+  border: 1px solid #dddcd0;
   border-radius: 9999px;
   padding: 0.125rem 0.625rem;
   font-size: 0.75rem;
   font-weight: 600;
-  color: #334761;
+  color: #34594e;
 }
 
 .goal-progress-pill--done {

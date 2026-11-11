@@ -36,7 +36,7 @@ class TaskServiceTest {
     void setUp() {
         tasks = mock(TaskJdbcRepository.class);
         goals = mock(GoalJdbcRepository.class);
-        service = new TaskService(tasks, goals);
+        service = new TaskService(tasks, goals, mock(com.studyplanner.goals.StudyBudgetService.class));
         when(goals.lockOwned(OWNER, GOAL)).thenReturn(Optional.of(mock(GoalJdbcRepository.StoredGoal.class)));
     }
 

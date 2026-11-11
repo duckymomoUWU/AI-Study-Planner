@@ -1,26 +1,19 @@
-import { useEffect, useRef, useState } from 'react'
-import BackendStatus from './components/BackendStatus.jsx'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import OverviewPage from './pages/OverviewPage.jsx'
 import GoalsPage from './pages/GoalsPage.jsx'
-import DailyTasksPage from './pages/DailyTasksPage.jsx'
-import LocalCalendarPreview from './pages/LocalCalendarPreview.jsx'
+import StudyPlanPage from './pages/StudyPlanPage.jsx'
 import AuthPage from './pages/AuthPage.jsx'
 import { getCurrentUser, logout } from './lib/auth.js'
 import './App.css'
+import './theme.css'
 
 const repository = 'https://github.com/duckymomoUWU/AI-Study-Planner'
-const stages = [
-  { number: '01', title: 'Đặt mục tiêu', text: 'Xác định môn học, chủ đề, ngày thi và thời gian bạn có.', sprint: 'Sprint 1' },
-  { number: '02', title: 'Lên kế hoạch', text: 'AI đề xuất. Bạn chỉnh sửa và quyết định lịch học phù hợp.', sprint: 'Sprint 2' },
-  { number: '03', title: 'Học từng ngày', text: 'Xem việc cần làm và theo dõi những bước đã hoàn thành.', sprint: 'Sprint 3' },
-]
-
 function getPageFromHash() {
   if (typeof window === 'undefined') return 'overview'
   const hash = window.location.hash.toLowerCase()
   if (hash === '#auth' || hash === '#login' || hash === '#register') return 'auth'
   if (hash === '#goals') return 'goals'
   if (hash === '#daily' || hash === '#tasks') return 'daily'
-  if (hash === '#calendar-preview') return 'calendar-preview'
   return 'overview'
 }
 
@@ -28,6 +21,8 @@ export default function App() {
   const [activePage, setActivePageState] = useState(getPageFromHash) // 'overview' | 'goals' | 'daily' | 'auth'
   const [currentUser, setCurrentUser] = useState(null)
   const [dailyDate, setDailyDate] = useState(null)
+  const [goalEditRequest, setGoalEditRequest] = useState(null)
+  const handleGoalEditRequest = useCallback(() => setGoalEditRequest(null), [])
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -100,6 +95,7 @@ export default function App() {
     }
     localStorage.removeItem('ai_study_planner_user')
     setCurrentUser(null)
+    setGoalEditRequest(null)
     setShowUserMenu(false)
     setActivePage('overview')
   }
@@ -119,7 +115,7 @@ export default function App() {
         {/* Sidebar with Collapse capability */}
         <aside
           className={`sidebar ${isSidebarCollapsed ? 'sidebar--collapsed' : ''}`}
-          aria-label="Thông tin dự án"
+          aria-label="Điều hướng ứng dụng"
         >
           <div className="sidebar-top">
             <a
@@ -180,7 +176,7 @@ export default function App() {
               type="button"
               className={`nav-link ${activePage === 'daily' ? 'nav-link--active' : ''}`}
               onClick={() => setActivePage('daily')}
-              title="Lịch học theo ngày"
+              title="Lịch học theo tuần"
             >
               <span className="nav-icon" aria-hidden="true">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -192,16 +188,6 @@ export default function App() {
               </span>
               <span className="nav-text">Lịch học</span>
             </button>
-            <button
-              type="button"
-              className={`nav-link ${activePage === 'calendar-preview' ? 'nav-link--active' : ''}`}
-              onClick={() => setActivePage('calendar-preview')}
-              title="Xem giao diện lịch kéo dài theo giờ, dữ liệu mô phỏng"
-            >
-              <span className="nav-icon" aria-hidden="true">▦</span>
-              <span className="nav-text">Lịch mẫu (UI)</span>
-              <span className="nav-badge">Demo</span>
-            </button>
             <a className="nav-link" href={`${repository}/wiki`} title="Tài liệu dự án">
               <span className="nav-icon" aria-hidden="true">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -210,16 +196,6 @@ export default function App() {
                 </svg>
               </span>
               <span className="nav-text">Tài liệu</span>
-              <span className="nav-arrow" aria-hidden="true">↗</span>
-            </a>
-            <a className="nav-link" href={`${repository}/issues`} title="Backlog Jira / GitHub">
-              <span className="nav-icon" aria-hidden="true">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="9 11 12 14 22 4" />
-                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                </svg>
-              </span>
-              <span className="nav-text">Backlog</span>
               <span className="nav-arrow" aria-hidden="true">↗</span>
             </a>
           </nav>
@@ -235,9 +211,8 @@ export default function App() {
           {/* Topbar Header */}
           <header className="topbar">
             <span>
-              {activePage === 'goals' && 'Quản lý mục tiêu (US-01)'}
-              {activePage === 'daily' && 'Lịch học theo ngày (US-03)'}
-              {activePage === 'calendar-preview' && 'Lịch mẫu (chỉ lưu trên trình duyệt)'}
+              {activePage === 'goals' && 'Quản lý mục tiêu'}
+              {activePage === 'daily' && 'Lịch học theo tuần'}
               {activePage === 'overview' && 'Không gian học tập'}
               {activePage === 'auth' && 'Xác thực tài khoản'}
             </span>
@@ -279,7 +254,7 @@ export default function App() {
                           className="user-menu-item"
                           onClick={() => setActivePage('daily')}
                         >
-                          <span>📅</span> Lịch học hôm nay
+                          <span>📅</span> Lịch học của tôi
                         </button>
                         <div className="user-menu-divider" />
                         <button
@@ -310,7 +285,6 @@ export default function App() {
                   </button>
                 )
               )}
-              <span className="version">Sprint 2 · UI Demo</span>
             </div>
           </header>
 
@@ -324,95 +298,30 @@ export default function App() {
             ) : activePage === 'goals' ? (
               <GoalsPage
                 currentUser={currentUser}
+                editRequest={goalEditRequest}
+                onEditRequestHandled={handleGoalEditRequest}
                 onBack={() => setActivePage('overview')}
                 onNavigateDaily={date => { setDailyDate(typeof date === 'string' ? date : null); setActivePage('daily') }}
                 onNavigateAuth={() => setActivePage('auth')}
               />
-            ) : activePage === 'calendar-preview' ? (
-              <LocalCalendarPreview currentUser={null} onBack={() => setActivePage('daily')} />
             ) : activePage === 'daily' ? (
-              <DailyTasksPage
+              <StudyPlanPage
                 initialDate={dailyDate}
+                onEditGoal={(id, section) => { setGoalEditRequest({ id, section }); setActivePage('goals') }}
                 currentUser={currentUser}
                 onBack={() => setActivePage('overview')}
                 onNavigateGoals={() => setActivePage('goals')}
                 onNavigateAuth={() => setActivePage('auth')}
               />
             ) : (
-              <>
-                <div className="page-heading">
-                  <p className="eyebrow">AI STUDY PLANNER</p>
-                  <h1>Mỗi buổi học,<br />một bước tiến.</h1>
-                  <p>Biến nội dung cần ôn thành những việc cụ thể mỗi ngày.<br className="desktop-break" /> Lên kế hoạch vừa sức, chủ động với kỳ thi của bạn.</p>
-                </div>
-
-                <section className="hero-card" aria-labelledby="hero-title">
-                  <div>
-                    <span className="hero-label">SPRINT 2 GIAO DIỆN MỚI</span>
-                    <h2 id="hero-title">Bắt đầu từ mục tiêu<br />và việc làm mỗi ngày.</h2>
-                    <p>Thiết lập môn học cần ôn thi và theo dõi sát sao từng việc cần hoàn thành trong hôm nay.</p>
-                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                      <button className="button button--primary" type="button" onClick={() => setActivePage('goals')}>
-                        Quản lý mục tiêu <span aria-hidden="true">→</span>
-                      </button>
-                      <button className="button button--secondary" type="button" onClick={() => setActivePage('daily')}>
-                        Lịch học hôm nay <span aria-hidden="true">→</span>
-                      </button>
-                      {!currentUser && (
-                        <button className="button button--secondary" type="button" onClick={() => setActivePage('auth')}>
-                          Đăng nhập ngay
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="plan-illustration" aria-hidden="true">
-                    <div className="orb orb--one" />
-                    <div className="orb orb--two" />
-                    <div className="paper">
-                      <div className="paper-top">
-                        <span>KẾ HOẠCH ÔN TẬP</span>
-                        <b>✦</b>
-                      </div>
-                      <div className="paper-line wide" />
-                      <div className="paper-task"><span>✓</span><i /></div>
-                      <div className="paper-task"><span>✓</span><i /></div>
-                      <div className="paper-task muted"><span>○</span><i /></div>
-                      <div className="paper-progress"><i /></div>
-                      <small>Từng bước một, mỗi ngày.</small>
-                    </div>
-                  </div>
-                </section>
-
-                <div className="section-heading roadmap-heading">
-                  <h2>Hành trình của sản phẩm</h2>
-                  <span>3 bước để học chủ động</span>
-                </div>
-                <div className="stages">
-                  {stages.map(stage => (
-                    <article className="stage" key={stage.number}>
-                      <div className="stage-top">
-                        <span className="stage-number">{stage.number}</span>
-                        <span className="sprint">{stage.sprint}</span>
-                      </div>
-                      <h3>{stage.title}</h3>
-                      <p>{stage.text}</p>
-                      <span className="planned">Sprint 2 Đang triển khai</span>
-                    </article>
-                  ))}
-                </div>
-
-                <div className="bottom-grid">
-                  <BackendStatus />
-                  <section className="scope-card" aria-labelledby="scope-title">
-                    <span className="eyebrow">TIẾN ĐỘ SPRINT 2</span>
-                    <h2 id="scope-title">Giao diện US-01 & US-03 đã sẵn sàng.</h2>
-                    <p>Giao diện Quản lý mục tiêu (US-01) và Lịch học theo ngày (US-03) đã được hiện thực hoàn chỉnh trên branch <code>dev4-sprint2-UI</code> với các endpoint placeholder.</p>
-                    <a className="text-link" href={`${repository}/wiki/Project-Overview`}>Xem phạm vi và kiến trúc <span aria-hidden="true">→</span></a>
-                  </section>
-                </div>
-
-                <footer>Đều đặn mỗi ngày, tiến gần mục tiêu. <span>AI hỗ trợ lập kế hoạch · Bạn làm chủ việc học</span></footer>
-              </>
+              <OverviewPage
+                key={currentUser?.id || currentUser?.email || 'guest'}
+                currentUser={currentUser}
+                checkingAuth={isCheckingAuth}
+                onGoals={() => setActivePage('goals')}
+                onSchedule={() => { setDailyDate(null); setActivePage('daily') }}
+                onLogin={() => setActivePage('auth')}
+              />
             )}
           </main>
         </div>

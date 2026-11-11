@@ -16,7 +16,7 @@ import com.fasterxml.jackson.databind.JsonNode;
  */
 final class GoalRequest {
     private static final Set<String> EDITABLE = Set.of(
-            "subject", "topics", "startDate", "examDate", "minutesPerDay", "timezone");
+            "subject", "topics", "startDate", "examDate", "minutesPerDay", "timezone", "planningScope");
 
     private GoalRequest() {}
 
@@ -31,7 +31,7 @@ final class GoalRequest {
         }
         rejectUnknown(body, Set.of(), errors);
         Fields f = readFields(body, false, errors);
-        return new Create(new GoalPolicy.GoalInput(f.subject, f.topics, f.startDate, f.examDate, f.minutes),
+        return new Create(new GoalPolicy.GoalInput(f.subject, f.topics, f.startDate, f.examDate, f.minutes, planningScope(body,errors)),
                 f.timezone, errors);
     }
 
@@ -62,7 +62,7 @@ final class GoalRequest {
         if (!anyEditable) {
             errors.add(new GoalPolicy.Violation("body", "empty_patch", "Cần gửi ít nhất một trường cần sửa."));
         }
-        return new Patch(new GoalPatch(f.subject, f.topics, f.startDate, f.examDate, f.minutes, f.timezone),
+        return new Patch(new GoalPatch(f.subject, f.topics, f.startDate, f.examDate, f.minutes, f.timezone, planningScope(body,errors)),
                 expectedVersion, errors);
     }
 
@@ -73,6 +73,11 @@ final class GoalRequest {
         LocalDate examDate;
         Integer minutes;
         String timezone;
+    }
+    private static JsonNode planningScope(JsonNode body,List<GoalPolicy.Violation> errors) {
+        if(!body.has("planningScope")) return null;
+        if(!body.get("planningScope").isObject()) {errors.add(new GoalPolicy.Violation("planningScope","invalid_type","Cấu hình kế hoạch phải là đối tượng JSON."));return null;}
+        return body.get("planningScope").deepCopy();
     }
 
     private static Fields readFields(JsonNode body, boolean patch, List<GoalPolicy.Violation> errors) {

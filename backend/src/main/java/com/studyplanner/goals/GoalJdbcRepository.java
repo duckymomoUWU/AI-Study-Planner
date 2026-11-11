@@ -21,7 +21,7 @@ import org.springframework.stereotype.Repository;
 public class GoalJdbcRepository {
     private static final String GOAL_COLUMNS = """
             id, user_id, subject, topics, start_date, exam_date,
-            minutes_per_day, timezone, version, created_at
+            minutes_per_day, timezone, version, created_at, planning_scope::text AS planning_scope
             """;
 
     private static final RowMapper<StoredGoal> GOAL_MAPPER = (rs, rowNum) -> new StoredGoal(
@@ -34,7 +34,7 @@ public class GoalJdbcRepository {
             rs.getInt("minutes_per_day"),
             rs.getString("timezone"),
             rs.getInt("version"),
-            rs.getObject("created_at", OffsetDateTime.class).toInstant()
+            rs.getObject("created_at", OffsetDateTime.class).toInstant(), GoalPlanning.read(rs.getString("planning_scope"))
     );
 
     private final NamedParameterJdbcTemplate jdbc;
@@ -46,7 +46,11 @@ public class GoalJdbcRepository {
     /** Includes owner ID only inside backend domain code, never in the public API response. */
     public record StoredGoal(UUID id, UUID ownerId, String subject, String topics,
                              LocalDate startDate, LocalDate examDate, int minutesPerDay,
-                             String timezone, int version, Instant createdAt) {}
+                             String timezone, int version, Instant createdAt, com.fasterxml.jackson.databind.JsonNode planningScope) {
+        public StoredGoal(UUID id,UUID ownerId,String subject,String topics,LocalDate startDate,LocalDate examDate,int minutesPerDay,String timezone,int version,Instant createdAt) {
+            this(id,ownerId,subject,topics,startDate,examDate,minutesPerDay,timezone,version,createdAt,null);
+        }
+    }
 
     /** One page of the owner's goals, sorted createdAt DESC, id ASC (docs/backend-api-rules.md). */
     public List<StoredGoal> listOwnedPage(UUID trustedOwnerId, int limit, long offset) {
@@ -97,8 +101,8 @@ public class GoalJdbcRepository {
         var params = goalParams(trustedOwnerId, input)
                 .addValue("timezone", serverTimezone);
         var rows = jdbc.query(
-                "INSERT INTO study_goals (user_id, subject, topics, start_date, exam_date, minutes_per_day, timezone) "
-                + "VALUES (:ownerId, :subject, :topics, :startDate, :examDate, :minutesPerDay, :timezone) "
+                "INSERT INTO study_goals (user_id, subject, topics, start_date, exam_date, minutes_per_day, timezone, planning_scope) "
+                + "VALUES (:ownerId, :subject, :topics, :startDate, :examDate, :minutesPerDay, :timezone, CAST(:planningScope AS jsonb)) "
                 + "RETURNING " + GOAL_COLUMNS,
                 params, GOAL_MAPPER
         );
@@ -182,8 +186,13 @@ public class GoalJdbcRepository {
         );
     }
 
+    public void updatePlanningScopeOwned(UUID ownerId,UUID goalId,com.fasterxml.jackson.databind.JsonNode scope,boolean bumpVersion) {
+        jdbc.update("UPDATE study_goals SET planning_scope=CAST(:scope AS jsonb),version=version+:bump WHERE user_id=:ownerId AND id=:goalId",
+            owner(ownerId).addValue("goalId",goalId).addValue("scope",scope==null?"{}":scope.toString()).addValue("bump",bumpVersion?1:0));
+    }
     private static MapSqlParameterSource goalParams(UUID ownerId, GoalPolicy.GoalInput input) {
         return owner(ownerId)
+                .addValue("planningScope",input.planningScope()==null?"{}":input.planningScope().toString())
                 .addValue("subject", input.subject())
                 .addValue("topics", input.topics())
                 .addValue("startDate", input.startDate())

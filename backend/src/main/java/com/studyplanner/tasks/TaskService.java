@@ -19,10 +19,12 @@ import com.studyplanner.goals.GoalService;
 public class TaskService {
     private final TaskJdbcRepository tasks;
     private final GoalJdbcRepository goals;
+    private final com.studyplanner.goals.StudyBudgetService budgets;
 
-    public TaskService(TaskJdbcRepository tasks, GoalJdbcRepository goals) {
+    public TaskService(TaskJdbcRepository tasks, GoalJdbcRepository goals, com.studyplanner.goals.StudyBudgetService budgets) {
         this.tasks = Objects.requireNonNull(tasks, "tasks");
         this.goals = Objects.requireNonNull(goals, "goals");
+        this.budgets = Objects.requireNonNull(budgets, "budgets");
     }
 
     /** One page of tasks plus the total number that match. */
@@ -72,8 +74,10 @@ public class TaskService {
 
     @Transactional
     public TaskJdbcRepository.StoredTask createTask(UUID owner, UUID goalId, TaskPolicy.TaskInput input) {
+        budgets.lock(owner);
         var goal = goals.lockOwned(owner, goalId).orElseThrow(GoalService.GoalNotFoundException::new);
         validateForGoal(owner, goal, input, null);
+        budgets.check(owner,input.scheduledDate(),input.estimatedMinutes(),null);
         var stored = tasks.insertOwned(owner, goalId, input, "manual");
         goals.bumpVersion(owner, goalId);
         return stored;
@@ -81,6 +85,7 @@ public class TaskService {
 
     @Transactional
     public TaskJdbcRepository.StoredTask updateTask(UUID owner, UUID goalId, UUID taskId, TaskPatch patch) {
+        budgets.lock(owner);
         var goal = goals.lockOwned(owner, goalId).orElseThrow(GoalService.GoalNotFoundException::new);
         var current = tasks.findOwned(owner, goalId, taskId).orElseThrow(TaskNotFoundException::new);
         var input = new TaskPolicy.TaskInput(patch.title() == null ? current.title() : patch.title().trim(),
@@ -88,6 +93,8 @@ public class TaskService {
                 patch.estimatedMinutes() == null ? current.estimatedMinutes() : patch.estimatedMinutes());
         boolean completed = patch.completed() == null ? current.completed() : patch.completed();
         validateForGoal(owner, goal, input, taskId);
+        if (!input.scheduledDate().equals(current.scheduledDate()) || input.estimatedMinutes()!=current.estimatedMinutes())
+            budgets.check(owner,input.scheduledDate(),input.estimatedMinutes(),taskId);
         if (input.title().equals(current.title()) && input.scheduledDate().equals(current.scheduledDate())
                 && input.estimatedMinutes() == current.estimatedMinutes() && completed == current.completed()) {
             return current;
@@ -105,6 +112,7 @@ public class TaskService {
 
     @Transactional
     public void deleteTask(UUID owner, UUID goalId, UUID taskId) {
+        budgets.lock(owner);
         goals.lockOwned(owner, goalId).orElseThrow(GoalService.GoalNotFoundException::new);
         if (!tasks.deleteOwned(owner, goalId, taskId)) throw new TaskNotFoundException();
         goals.bumpVersion(owner, goalId);
@@ -122,7 +130,7 @@ public class TaskService {
         if (!errors.isEmpty()) throw new TaskValidationException(errors);
         TaskPolicy.checkDailyBudget(input.scheduledDate(),
                 tasks.dailyMinutes(owner, goal.id(), input.scheduledDate(), excludeId),
-                input.estimatedMinutes(), goal.minutesPerDay());
+                input.estimatedMinutes(), com.studyplanner.goals.GoalPlanning.minutes(goal,input.scheduledDate()));
     }
 
     public record TaskPatch(String title, LocalDate scheduledDate, Integer estimatedMinutes, Boolean completed) {}

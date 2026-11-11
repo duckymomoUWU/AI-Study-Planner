@@ -76,6 +76,22 @@ public class PlanDraftRepository {
         return rows.getFirst();
     }
 
+    public void replaceProposal(UUID id, int version, String proposal, Instant expiresAt) {
+        jdbc.update("UPDATE plan_drafts SET goal_version=:version, proposal=CAST(:proposal AS jsonb), expires_at=:expires WHERE id=:id",
+            new MapSqlParameterSource("id", id).addValue("version", version).addValue("proposal", proposal)
+                .addValue("expires", java.sql.Timestamp.from(expiresAt)));
+    }
+
+    public List<StoredDraft> pending(UUID owner, UUID goalId) {
+        return jdbc.query("""
+            SELECT d.id,d.goal_id,d.goal_version,d.proposal::text AS proposal,d.created_at,d.expires_at
+            FROM plan_drafts d JOIN study_goals g ON g.id=d.goal_id
+            WHERE g.user_id=:owner AND g.id=:goal AND d.proposal->>'backlogOnly'='true'
+            AND NOT EXISTS (SELECT 1 FROM plan_confirmations r WHERE r.draft_id=d.id)
+            ORDER BY d.created_at DESC
+            """, new MapSqlParameterSource("owner",owner).addValue("goal",goalId), DRAFT_MAPPER);
+    }
+
     public Optional<StoredDraft> findDraft(UUID trustedOwnerId, UUID goalId, UUID draftId) {
         Objects.requireNonNull(trustedOwnerId, "trustedOwnerId");
         Objects.requireNonNull(goalId, "goalId");

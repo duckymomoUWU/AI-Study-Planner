@@ -19,7 +19,7 @@
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: #2563eb;
+  color: #285b53;
   text-transform: uppercase;
   margin-bottom: 0.25rem;
 }
@@ -27,13 +27,13 @@
 .daily-title {
   font-size: 1.75rem;
   font-weight: 700;
-  color: #0f172a;
+  color: #253b35;
   margin: 0 0 0.5rem;
 }
 
 .daily-subtitle {
   font-size: 0.9375rem;
-  color: #64748b;
+  color: #66746b;
   margin: 0;
   max-width: 600px;
 }
@@ -82,9 +82,9 @@
 }
 
 .daily-alert--auth {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  color: #1e40af;
+  background: #eeeee4;
+  border: 1px solid #dddcd0;
+  color: #34594e;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -144,7 +144,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem;
-  background: #ffffff;
+  background: var(--surface);
   border-radius: 6px;
   border: 1px solid #fef08a;
 }
@@ -158,8 +158,8 @@
 
 /* Date Navigator Bar */
 .daily-date-bar {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border: 1px solid #dddcd0;
   border-radius: 12px;
   padding: 1rem 1.25rem;
   display: flex;
@@ -184,28 +184,28 @@
 .current-date-heading {
   font-size: 1.125rem;
   font-weight: 700;
-  color: #0f172a;
+  color: #253b35;
   margin: 0;
   text-transform: capitalize;
 }
 
 .date-picker-input {
-  border: 1px solid #cbd5e1;
+  border: 1px solid #dddcd0;
   border-radius: 6px;
   padding: 0.35rem 0.5rem;
   font-size: 0.875rem;
-  color: #334155;
+  color: #34594e;
   outline: none;
 }
 
 .date-picker-input:focus {
-  border-color: #2563eb;
+  border-color: #285b53;
 }
 
 /* Daily Metrics Card */
 .daily-metrics-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border: 1px solid #dddcd0;
   border-radius: 12px;
   padding: 1.25rem 1.5rem;
   display: grid;
@@ -228,7 +228,7 @@
 .metric-divider {
   width: 1px;
   height: 48px;
-  background: #e2e8f0;
+  background: #dddcd0;
 }
 
 .metric-box {
@@ -241,20 +241,20 @@
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.05em;
-  color: #64748b;
+  color: #66746b;
   text-transform: uppercase;
 }
 
 .metric-value {
   font-size: 1.5rem;
   font-weight: 800;
-  color: #0f172a;
+  color: #253b35;
 }
 
 .metric-value span {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #64748b;
+  color: #66746b;
 }
 
 .metric-hint {
@@ -280,7 +280,7 @@
 }
 
 .progress-container {
-  background: #f1f5f9;
+  background: #eeeee4;
   border-radius: 9999px;
   height: 8px;
   width: 100%;
@@ -289,7 +289,7 @@
 }
 
 .progress-bar-fill {
-  background: #2563eb;
+  background: #285b53;
   height: 100%;
   border-radius: 9999px;
   transition: width 0.3s ease;
@@ -298,7 +298,7 @@
 .button-link {
   background: none;
   border: none;
-  color: #2563eb;
+  color: #285b53;
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
@@ -313,8 +313,8 @@
 
 /* Tasks Section */
 .daily-tasks-section {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border: 1px solid #dddcd0;
   border-radius: 12px;
   padding: 1.25rem 1.5rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -326,21 +326,21 @@
   align-items: center;
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #eeeee4;
 }
 
 .tasks-section-header h2 {
   font-size: 1.125rem;
   font-weight: 700;
-  color: #0f172a;
+  color: #253b35;
   margin: 0;
 }
 
 .tasks-count-pill {
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #64748b;
-  background: #f1f5f9;
+  color: #66746b;
+  background: #eeeee4;
   padding: 0.2rem 0.6rem;
   border-radius: 9999px;
 }
@@ -348,26 +348,26 @@
 .tasks-loading {
   text-align: center;
   padding: 2rem;
-  color: #64748b;
+  color: #66746b;
   font-size: 0.9375rem;
 }
 
 .tasks-empty {
   text-align: center;
   padding: 3rem 1rem;
-  color: #64748b;
+  color: #66746b;
 }
 
 .empty-icon {
   font-size: 2rem;
-  color: #cbd5e1;
+  color: #dddcd0;
   display: block;
   margin-bottom: 0.5rem;
 }
 
 .tasks-empty h3 {
   margin: 0 0 0.5rem;
-  color: #334155;
+  color: #34594e;
   font-size: 1.125rem;
 }
 
@@ -388,25 +388,25 @@
   align-items: center;
   gap: 0.875rem;
   padding: 0.875rem 1rem;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: #eeeee4;
+  border: 1px solid #dddcd0;
   border-radius: 8px;
   transition: all 0.15s ease;
 }
 
 .task-row:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
+  background: #eeeee4;
+  border-color: #dddcd0;
 }
 
 .task-row--completed {
-  background: #f8fafc;
+  background: #eeeee4;
   opacity: 0.65;
 }
 
 .task-row--completed .task-title {
   text-decoration: line-through;
-  color: #94a3b8;
+  color: #86988b;
 }
 
 .task-body {
@@ -426,7 +426,7 @@
 .task-title {
   font-size: 0.9375rem;
   font-weight: 600;
-  color: #1e293b;
+  color: #253b35;
 }
 
 .task-source-badge {
@@ -437,15 +437,15 @@
 }
 
 .badge--ai {
-  background: #f5f3ff;
-  color: #7c3aed;
-  border: 1px solid #ddd6fe;
+  background: #eeeee4;
+  color: #285b53;
+  border: 1px solid #dddcd0;
 }
 
 .badge--manual {
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #e2e8f0;
+  background: #eeeee4;
+  color: #34594e;
+  border: 1px solid #dddcd0;
 }
 
 .task-meta {
@@ -453,12 +453,12 @@
   align-items: center;
   gap: 0.75rem;
   font-size: 0.8125rem;
-  color: #64748b;
+  color: #66746b;
 }
 
 .task-subject-tag {
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: #eeeee4;
+  color: #285b53;
   padding: 0.1rem 0.4rem;
   border-radius: 4px;
   font-weight: 500;
@@ -473,7 +473,7 @@
 .task-delete-btn {
   background: none;
   border: none;
-  color: #94a3b8;
+  color: #86988b;
   font-size: 1rem;
   cursor: pointer;
   padding: 0.35rem 0.5rem;
@@ -500,7 +500,7 @@
 }
 
 .modal-card {
-  background: #ffffff;
+  background: var(--surface);
   border-radius: 12px;
   width: 100%;
   max-width: 480px;
@@ -525,14 +525,14 @@
   margin: 0;
   font-size: 1.125rem;
   font-weight: 700;
-  color: #0f172a;
+  color: #253b35;
 }
 
 .modal-close-btn {
   background: none;
   border: none;
   font-size: 1.25rem;
-  color: #64748b;
+  color: #66746b;
   cursor: pointer;
 }
 
@@ -546,21 +546,21 @@
 .modal-field label {
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #334155;
+  color: #34594e;
 }
 
 .modal-input {
-  border: 1px solid #cbd5e1;
+  border: 1px solid #dddcd0;
   border-radius: 6px;
   padding: 0.6rem 0.75rem;
   font-size: 0.9375rem;
-  color: #0f172a;
+  color: #253b35;
   outline: none;
 }
 
 .modal-input:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  border-color: #285b53;
+  box-shadow: 0 0 0 3px rgba(40, 91, 83, 0.12);
 }
 
 .modal-actions {

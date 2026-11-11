@@ -40,7 +40,7 @@ class CombinedFeaturesPostgresIntegrationTest {
         owner = UUID.randomUUID(); stranger = UUID.randomUUID(); goal = UUID.randomUUID();
         today = LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"));
         for (UUID id : List.of(owner, stranger)) jdbc.update(
-                "INSERT INTO app_users (id,email,password_hash) VALUES (?,?,?)", id, id + "@example.test", "unused-hash");
+                "INSERT INTO app_users (id,email,password_hash,study_daily_minutes) VALUES (?,?,?,1440)", id, id + "@example.test", "unused-hash");
         jdbc.update("INSERT INTO study_goals (id,user_id,subject,topics,start_date,exam_date,minutes_per_day) VALUES (?,?,?,?,?,?,?)",
                 goal, owner, "SQL", "JOIN, Index", today.minusDays(1), today.plusDays(3), 60);
         when(generator.generateProposalJson(any())).thenReturn(mapper.writeValueAsString(Map.of("tasks", List.of(item(today, 30)))));
@@ -181,7 +181,7 @@ class CombinedFeaturesPostgresIntegrationTest {
 
     @Test void syllabusQuickfillRequiresAuthCsrfAndDoesNotPersistGoalsOrTasks() throws Exception {
         String path = "/api/v1/goals/parse-syllabus";
-        var body = Map.of("content", "Subject: Databases", "fileName", "course.txt");
+        var body = Map.of("content", "Subject: Databases\n- SQL JOIN", "fileName", "course.txt");
         var fields = new GeminiPlanService.SyllabusData("Databases", "SQL JOIN", today, today.plusDays(30), 90);
         when(generator.extractSyllabus(any(), any(), any(), any())).thenReturn(new GeminiPlanService.SyllabusExtraction(fields, "local"));
         mvc.perform(post(path).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(body)))

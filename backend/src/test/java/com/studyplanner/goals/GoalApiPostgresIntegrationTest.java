@@ -58,6 +58,7 @@ class GoalApiPostgresIntegrationTest {
         var result = mvc.perform(post("/api/v1/auth/login").with(csrf()).contentType(MediaType.APPLICATION_JSON)
                         .content(creds))
                 .andExpect(status().isOk()).andReturn();
+        jdbc.update("UPDATE app_users SET study_daily_minutes=1440 WHERE email=?",email);
         return (MockHttpSession) result.getRequest().getSession(false);
     }
 

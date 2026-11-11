@@ -149,10 +149,10 @@ export default function DailyTasksPage({ onBack, onNavigateGoals, initialDate })
   }
 
   async function handleDelete(task) {
-    if (!window.confirm(`Bạn có chắc muốn xóa công việc "${task.title}"?`)) return
+    if (!window.confirm(`Bạn có chắc muốn xóa công việc "${task.title}"? Sự kiện đã xuất lên Google Calendar cũng sẽ được xóa khi đồng bộ.`)) return
     try {
       await deleteTask(task.goalId, task.id)
-      setTaskFeedback('Đã xóa công việc.')
+      setTaskFeedback('Đã xóa công việc. Nếu đã xuất lên Google Calendar, yêu cầu xóa sự kiện được giữ để đồng bộ.')
       setTimeout(() => setTaskFeedback(''), 3000)
       refreshData(selectedDate)
     } catch (err) {
@@ -212,7 +212,7 @@ export default function DailyTasksPage({ onBack, onNavigateGoals, initialDate })
       {/* Top Header & Navigation */}
       <div className="daily-header">
         <div>
-          <div className="daily-eyebrow">SPRINT 2 · US-03</div>
+          <div className="daily-eyebrow">CÔNG VIỆC HỌC TẬP</div>
           <h1 id="daily-page-title" className="daily-title">Lịch học theo ngày</h1>
           <p className="daily-subtitle">Theo dõi công việc cụ thể hôm nay, kiểm soát thời lượng ôn tập và ghi nhận tiến độ.</p>
         </div>
@@ -419,6 +419,7 @@ export default function DailyTasksPage({ onBack, onNavigateGoals, initialDate })
                   </div>
                   <div className="task-meta">
                     <span className="task-subject-tag">{subjectByGoal[task.goalId] || 'Mục tiêu ôn tập'}</span>
+                    {task.topicTitle && <span>Chủ đề: {task.topicTitle}</span>}
                     <span className="task-duration">⏱️ {task.estimatedMinutes} phút</span>
                   </div>
                 </div>

@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { deleteGoal, GoalApiError, getGoal, listGoals, updateGoal } from '../lib/goals.js'
 import { describeGoalError } from '../lib/goalErrors.js'
-import { createGoalWithPlan } from '../lib/goalPlanning.js'
+import { createGoalWithPlan, startDateError, vietnamToday } from '../lib/goalPlanning.js'
+import { studyDates, requestRevision, applySyllabusFields, planningScopeForForm, savedPlanningScope } from '../lib/planningScope.js'
 import { confirmAndDeleteGoal } from '../lib/goalDelete.js'
 import GoalProgress from '../components/GoalProgress.jsx'
 import PlanDraftPanel from '../components/PlanDraftPanel.jsx'
+import StudyBudgetPanel from '../components/StudyBudgetPanel.jsx'
+import CalendarSyncPanel from '../components/CalendarSyncPanel.jsx'
 import SyllabusUpload from '../components/SyllabusUpload.jsx'
 import './GoalsPage.css'
 
@@ -13,7 +16,7 @@ const emptyForm = {
   topics: '',
   startDate: '',
   examDate: '',
-  minutesPerDay: '90',
+  minutesPerDay: '',
 }
 
 function localDateString(date = new Date()) {
@@ -53,7 +56,7 @@ function FieldError({ formErrors, name }) {
   return messages.map(message => <small className="field-error" key={message}>{message}</small>)
 }
 
-export default function GoalsPage({ onBack, onNavigateDaily }) {
+export default function GoalsPage({ onBack, onNavigateDaily, currentUser, editRequest, onEditRequestHandled }) {
   const [goals, setGoals] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -68,7 +71,32 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
   const [detail, setDetail] = useState(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [automaticPlan, setAutomaticPlan] = useState(null)
+  const [selectedTopics, setSelectedTopics] = useState([])
+  const [topicsConfirmed, setTopicsConfirmed] = useState(false)
+  const [dailyMinutes, setDailyMinutes] = useState({})
+  const [createdFromForm, setCreatedFromForm] = useState(null)
+  const inputRevision = useRef(requestRevision())
   const detailRef = useRef(null)
+  const editFocusRef = useRef(null)
+  const [sharedBudgetFocus, setSharedBudgetFocus] = useState(0)
+  useEffect(() => {
+    if (!editing || !editFocusRef.current) return
+    const field = document.getElementById(editFocusRef.current)
+    field?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    field?.focus({ preventScroll: true })
+    editFocusRef.current = null
+  }, [editing])
+  useEffect(() => {
+    if (!editRequest || !currentUser) return
+    let active = true
+    getGoal(editRequest.id).then(goal => { if (active) { startEditing(goal, editRequest.section); onEditRequestHandled?.() } })
+      .catch(err => { if (active) { setPageError(err.message); onEditRequestHandled?.() } })
+    return () => { active = false }
+  }, [editRequest, currentUser, onEditRequestHandled])
+  useEffect(() => {
+    const gate = inputRevision.current
+    return () => { gate.next() }
+  }, [])
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -115,11 +143,18 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
 
   function changeField(event) {
     const { name, value } = event.target
+    inputRevision.current.next()
+    if (saving) { setAutomaticPlan(null); setDetail(null) }
+    if (name === 'topics') { setSelectedTopics([]); setTopicsConfirmed(false) }
     setForm(current => ({ ...current, [name]: value }))
     setFormErrors(current => ({ ...current, [name]: '' }))
   }
 
-  function startEditing(goal) {
+  function startEditing(goal, section) {
+    editFocusRef.current = section === 'topics' ? 'goal-topics' : section === 'time' ? 'goal-budget' : null
+    inputRevision.current.next()
+    const saved = savedPlanningScope(goal)
+    setTopicsConfirmed(true); setSelectedTopics(saved.selectedTopics); setDailyMinutes(saved.dailyMinutes || {}); setAutomaticPlan(null); setDetail(null); setCreatedFromForm(null)
     setEditing(goal)
     setForm({
       subject: goal.subject || '',
@@ -132,10 +167,13 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
     setConflicts([])
     setPageError('')
     setSuccessMessage('')
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    if (!editFocusRef.current) window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   function resetForm() {
+    inputRevision.current.next()
+    setTopicsConfirmed(false); setSelectedTopics([]); setDailyMinutes({})
+    setCreatedFromForm(null)
     setEditing(null)
     setForm(emptyForm)
     setFormErrors({})
@@ -166,6 +204,13 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
     setFormErrors({})
     setConflicts([])
 
+    const startError = startDateError(form.startDate, Boolean(editing))
+    if (startError) {
+      setFormErrors({ startDate: startError })
+      setSaving(false)
+      return
+    }
+
     // Client-side 90 days guard
     if (form.startDate && form.examDate) {
       const start = new Date(`${form.startDate}T12:00:00`)
@@ -178,13 +223,21 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
       }
     }
 
+    const planningScope = planningScopeForForm(form, selectedTopics, dailyMinutes)
     const payload = {
       subject: form.subject,
       topics: form.topics,
       startDate: form.startDate,
       examDate: form.examDate,
       minutesPerDay: Number(form.minutesPerDay),
+      planningScope,
     }
+
+    if (!editing && !topicsConfirmed) {
+      setFormErrors({ topics: 'Hãy rà soát và xác nhận các chủ đề cần ôn trước khi sinh lịch.' })
+      setSaving(false); return
+    }
+    const ticket = inputRevision.current.next()
 
     try {
       if (editing) {
@@ -192,19 +245,23 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
         if (detail?.id === updated.id) setDetail(updated)
         setSuccessMessage('Đã cập nhật mục tiêu thành công!')
       } else {
-        const result = await createGoalWithPlan(payload, { onCreated: goal => {
-          resetForm()
-          setGoals(previous => [goal, ...previous])
+        const result = await createGoalWithPlan(payload, { planningScope,
+          ...(createdFromForm ? { create: value => updateGoal(createdFromForm.id, value, createdFromForm.version) } : {}),
+          onCreated: goal => {
+          setCreatedFromForm(goal)
+          setGoals(previous => [goal, ...previous.filter(item => item.id !== goal.id)])
+          if (!inputRevision.current.isCurrent(ticket)) return
           setDetail(goal)
-          setAutomaticPlan({ goalId: goal.id, status: 'generating' })
+          setAutomaticPlan({ goalId: goal.id, status: 'generating', scope: planningScope })
           setSuccessMessage('Đã tạo mục tiêu. AI đang sinh bản nháp lịch học để bạn kiểm tra…')
         } })
+        if (!inputRevision.current.isCurrent(ticket)) return
         if (result.planError) {
           const reason = result.planError.status === 503 ? 'AI hiện chưa sẵn sàng.' : result.planError.message
-          setAutomaticPlan({ goalId: result.goal.id, status: 'error', error: `Mục tiêu đã được lưu. Chưa sinh được lịch: ${reason} Hãy thử lại bằng nút Tạo bản nháp AI; không cần tạo lại mục tiêu.` })
+          setAutomaticPlan({ goalId: result.goal.id, status: 'error', scope: planningScope, error: `Mục tiêu đã được lưu. Chưa sinh được lịch: ${reason} Hãy thử lại bằng nút Tạo bản nháp AI; không cần tạo lại mục tiêu.` })
           setSuccessMessage('Đã lưu mục tiêu; lịch học đang chờ sinh bản nháp.')
         } else {
-          setAutomaticPlan({ goalId: result.goal.id, status: 'ready', draft: result.draft })
+          setAutomaticPlan({ goalId: result.goal.id, status: 'ready', draft: result.draft, scope: planningScope })
           setSuccessMessage('Bản nháp lịch học đã sẵn sàng ở Chi tiết mục tiêu. Hãy xem lại rồi bấm Xác nhận và lưu kế hoạch.')
         }
       }
@@ -267,7 +324,7 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button className="button button--secondary" type="button" onClick={onBack}>← Tổng quan</button>
           {onNavigateDaily && (
-            <button className="button button--primary" type="button" onClick={onNavigateDaily}>Xem lịch học hôm nay →</button>
+            <button className="button button--primary" type="button" onClick={() => onNavigateDaily()}>Xem lịch học hôm nay →</button>
           )}
         </div>
       </div>
@@ -322,17 +379,20 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
         </div>
       )}
 
+      {currentUser && <StudyBudgetPanel revision={detail?.version} focusRequest={sharedBudgetFocus} />}
+      {currentUser && <CalendarSyncPanel revision={`${goals.length}:${detail?.version ?? ''}`} onOpenCalendar={() => window.location.assign('/?calendar=manage#daily')} />}
       <div className="goals-layout">
         <section className="goal-form-card" aria-labelledby="goal-form-title">
           <div className="goal-card-heading">
-            <h2 id="goal-form-title">{editing ? 'Chỉnh sửa mục tiêu' : 'Tạo mục tiêu mới'}</h2>
+            <h2 id="goal-form-title">{editing ? 'Chỉnh sửa mục tiêu' : createdFromForm ? 'Điều chỉnh mục tiêu vừa tạo' : 'Tạo mục tiêu mới'}</h2>
             {editing && <span>Phiên bản v{editing.version}</span>}
           </div>
           <SyllabusUpload key={editing?.id || 'new'} disabled={saving} onApply={data => {
-            setForm(previous => ({ ...previous, subject: data.subject, topics: data.topics,
-              startDate: data.startDate, examDate: data.examDate, minutesPerDay: String(data.minutesPerDay) }))
+            inputRevision.current.next()
+            setForm(previous => applySyllabusFields(previous, data))
+            setSelectedTopics(data.selectedTopics); setTopicsConfirmed(true)
             setFormErrors({})
-            setSuccessMessage('Đã điền thông tin từ tài liệu. Hãy kiểm tra rồi bấm lưu mục tiêu.')
+            setSuccessMessage('Đã xác nhận chủ đề. Hãy kiểm tra ngày thi và nhập quỹ phút học rồi tạo bản nháp.')
           }} />
           <form onSubmit={submitForm} noValidate>
             <div className="goal-field">
@@ -347,11 +407,13 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
                 rows={3} placeholder="Ví dụ: SQL, chuẩn hóa, transaction..." required
                 aria-invalid={Boolean(formErrors.topics)} />
               <FieldError formErrors={formErrors} name="topics" />
+              <label><input type="checkbox" disabled={saving} checked={topicsConfirmed} onChange={e => { inputRevision.current.next(); setTopicsConfirmed(e.target.checked) }} /> Tôi xác nhận các chủ đề trên là phạm vi cần ôn.</label>
             </div>
             <div className="goal-date-grid">
               <div className="goal-field">
                 <label htmlFor="goal-start">Ngày bắt đầu</label>
                 <input id="goal-start" type="date" name="startDate" value={form.startDate}
+                  min={editing ? undefined : vietnamToday()}
                   onChange={changeField} required aria-invalid={Boolean(formErrors.startDate)} />
                 <FieldError formErrors={formErrors} name="startDate" />
               </div>
@@ -373,11 +435,22 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
               </div>
               <small className="field-hint">Cho phép từ 15 đến 480 phút mỗi ngày.</small>
               <FieldError formErrors={formErrors} name="minutesPerDay" />
+              <small>Chỉ nhập tổng phút theo ngày; đây không phải một khung giờ liên tục. Các ước lượng của AI có thể chỉnh.</small>
             </div>
+            {studyDates(form.startDate, form.examDate).length > 0 && <details>
+              <summary>Điều chỉnh phút từng ngày (0 = không học)</summary>
+              {studyDates(form.startDate, form.examDate).map(day => <label key={day} className="goal-field">{displayDate(day)}
+                <input type="number" min={0} max={Number(form.minutesPerDay) || 480} step={1} value={dailyMinutes[day] ?? form.minutesPerDay} onChange={e => {
+                  inputRevision.current.next(); if (saving) { setAutomaticPlan(null); setDetail(null) }
+                  setDailyMinutes(previous => ({ ...previous, [day]: e.target.value === '' ? '' : Number(e.target.value) }))
+                }} />
+              </label>)}
+            </details>}
             <div className="goal-form-actions">
               <button className="button button--primary" type="submit" disabled={saving}>
-                {saving ? automaticPlan?.status === 'generating' ? 'Đang sinh lịch học…' : 'Đang lưu…' : editing ? 'Lưu thay đổi' : 'Tạo mục tiêu & sinh lịch AI'}
+                {saving ? automaticPlan?.status === 'generating' ? 'Đang sinh lịch học…' : 'Đang lưu…' : editing ? 'Lưu thay đổi' : createdFromForm ? 'Cập nhật mục tiêu này & sinh lại bản nháp' : 'Tạo mục tiêu & sinh lịch AI'}
               </button>
+              {!editing && createdFromForm && <button className="button button--secondary" type="button" onClick={resetForm} disabled={saving}>Tạo mục tiêu khác</button>}
               {editing && <button className="button button--secondary" type="button" onClick={resetForm} disabled={saving}>Hủy sửa</button>}
             </div>
           </form>
@@ -403,11 +476,21 @@ export default function GoalsPage({ onBack, onNavigateDaily }) {
                 <dt>Phiên bản</dt><dd>v{detail.version}</dd>
               </dl>
               <GoalProgress goalId={detail.id} version={detail.version} />
-              <PlanDraftPanel key={`${detail.id}:${activePlan?.status || 'manual'}:${activePlan?.draft?.id || ''}`} goal={detail}
+              {detail.planningScope?.selectedTopics && <details>
+                <summary>Cấu hình kế hoạch đã lưu</summary>
+                <p>Chủ đề, ưu tiên và quỹ phút được giữ khi mở lại hoặc sinh lịch mới. Các ngày không ghi đè dùng {detail.minutesPerDay} phút.</p>
+                <ul>{detail.planningScope.selectedTopics.map(topic => <li key={topic.id}>{topic.title} · Ưu tiên: {({ HIGH: 'Cao', MEDIUM: 'Trung bình', LOW: 'Thấp' })[topic.priority || 'MEDIUM']}</li>)}</ul>
+                <ul>{Object.entries(detail.planningScope.dailyMinutes || {}).map(([day, minutes]) => <li key={day}>{displayDate(day)}: {minutes} phút{minutes === 0 ? ' (không học)' : ''}</li>)}</ul>
+              </details>}
+              <PlanDraftPanel key={`${detail.id}:${detail.version}:${activePlan?.status || 'manual'}:${activePlan?.draft?.id || ''}`} goal={detail} planningScope={activePlan?.scope}
                 initialDraft={activePlan?.draft} initialError={activePlan?.error} generating={activePlan?.status === 'generating'}
+                onAdjust={async section => { try { startEditing(await getGoal(detail.id), section) } catch (err) { setPageError(err.message) } }}
+                onAdjustSharedBudget={() => setSharedBudgetFocus(value => value + 1)}
+                onViewSchedule={() => onNavigateDaily?.()}
                 onSaved={async (saved, firstDate) => {
                 setAutomaticPlan(null)
-                setSuccessMessage(`Đã lưu ${saved.createdCount} công việc vào lịch học.`)
+                resetForm()
+                setSuccessMessage(`Đã lưu ${saved.createdCount} công việc vào lịch học.${saved.remainingCount ? ` Còn ${saved.remainingCount} việc chưa xếp; mở mục tiêu → Việc chưa xếp đã lưu để xử lý tiếp.` : ''}`)
                 await refresh()
                 try { setDetail(await getGoal(detail.id)) } catch (err) { setPageError(err.message) }
                 if (onNavigateDaily) onNavigateDaily(firstDate)
