@@ -1,5 +1,7 @@
 # Upload tài liệu để điền nhanh mục tiêu
 
+> Bản mở rộng core theo yêu cầu PO ngày 2026-11-10 đã thay luồng mô tả bên dưới: PDF có lớp văn bản đọc cục bộ, duyệt chủ đề có nguồn, ngày thi và phút do người dùng nhập. Xem [hợp đồng mới](syllabus-revision-plan.md) và [kết quả kiểm chứng cuối](../reviews/syllabus-core-2026-11-10.md). Phần dưới lưu lại mốc khôi phục upload ban đầu, không mô tả hành vi bản core hiện tại.
+
 Khôi phục từ sprint3/AIfeat theo yêu cầu người dùng ngày 2026-11-10; phạm vi mở rộng đã được người dùng chấp nhận cho nhánh test.
 
 Trong Mục tiêu có nút **Tải tài liệu / đề cương để điền nhanh**. Người dùng chọn tệp hoặc dán văn bản, đọc kết quả và bấm **Điền vào biểu mẫu để kiểm tra**, sau đó tự bấm tạo/lưu mục tiêu.

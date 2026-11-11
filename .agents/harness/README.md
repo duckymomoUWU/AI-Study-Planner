@@ -1,100 +1,134 @@
 # Development and verification harness
 
-Run commands from repository root unless another directory is specified.
-See [setup.md](../../setup.md) for environment setup and database lifecycle.
+This is the maintained owner of verification commands and known gaps. Environment/startup instructions belong to [setup.md](../../setup.md); product rules belong to [requirements.md](../../requirements.md) and contracts linked in [docs/README.md](../../docs/README.md).
+
+Current implementation includes auth, Goal CRUD, tasks, syllabus extraction, scoped AI drafts/confirmation and Google Calendar. Starter-era statements that only `/actuator/health` exists are obsolete. [Consolidated delivery evidence](../../docs/plans/completed/core-study-calendar-2026-11-11.md) records dated results and remaining limits.
+
+## Working directory and prerequisites
+
+- Java 21, Maven 3.9+, Node.js 22.12+ and npm. Frontend CI uses Node 24.
+- Commands below start at repository root unless otherwise stated. The PO runtime currently uses the integration worktree `C:\project\AI-Study-Planner\.worktrees\core-syllabus`, branch `integration/sprint2-sprint3-all8-test`; check `git status`/branch before operating.
+- Backend explicitly imports root `.env` from root or `backend/`. Shell environment overrides file values. Keep credentials private; never dump `.env`, token rows or provider response bodies into output.
+- Maven output stays in `backend/target`; frontend output stays in `frontend/dist`.
 
 ## Frontend
 
-Requires Node.js 22.12+ and npm. Existing CI uses Node 24:
-[frontend workflow](../../.github/workflows/frontend.yml).
-
 ```powershell
 Set-Location frontend
-npm ci
-npm run lint
-npm test
-npm run build
-npm run dev
+npm.cmd ci
+npm.cmd run lint
+npm.cmd test
+npm.cmd run build
 ```
 
-`src/lib/api.test.js` tests health request handling using mocked fetch.
-It does not test a live backend or browser interactions. No browser or end-to-end tests exist yet.
-CI already runs install, lint, tests and build in `frontend/`; its paths remain valid.
+On Bash use `npm` instead of `npm.cmd`. Install when dependencies are absent/changed; do not rerun install just to report an existing test result.
 
-## Backend
+Tests in `src/lib/*.test.js` exercise logic and HTTP clients using mocks: auth/CSRF, goals, task/progress operations, syllabus, scoped planning, week navigation/aggregation, overview and Calendar selection/export. They do not prove browser layout, OAuth clicks, mobile sync or real provider behavior.
 
-Requires JDK 21 and Maven 3.9+. No Maven Wrapper exists.
+## Backend default checks
 
 ```powershell
-mvn -f backend/pom.xml verify
+mvn -f backend/pom.xml verify -B -ntp
 ```
 
-Output is `backend/target/`. The **ASP-22/ASP-24 development branch** adds
-`backend/src/test/java/com/studyplanner/goals/GoalPolicyTest.java`,
-`backend/src/test/java/com/studyplanner/goals/GoalJdbcRepositoryTest.java`,
-`spring-boot-starter-test` and
-[backend workflow](../../.github/workflows/backend.yml).
-`mvn -f backend/pom.xml verify` should execute these JUnit tests and build the JAR.
-These tests verify pure goal policy and **mocked JDBC statement construction only**; Maven success does not demonstrate
-authentication, business API endpoints, persistence, database connectivity or browser interactions.
-Do not mark ASP-9 Done on unit-test results alone.
-To start with the shared PostgreSQL service, from root:
+This compiles/tests/packages. Several PostgreSQL and personal-PDF cases are opt-in; report skipped counts. Unit/MockMvc checks do not by themselves prove real PostgreSQL, Gemini, Google OAuth or Calendar export.
+
+If Maven cache access is restricted on the local agent, the observed runtime used `-Dmaven.repo.local=C:\Users\ACER\.m2\repository`. This is machine-specific, not a requirement for the team. A retry after a permissions failure is not proof the failing invocation passed.
+
+## PostgreSQL integration boundaries
+
+Use a disposable test database, never the demo/user database. Some auth/goal integration suites clear fixture data; confirm the resolved datasource before running them. Do not use `docker compose down -v` to make tests pass.
+
+The auth/goal suites read test datasource settings from the environment:
 
 ```powershell
-$env:DB_PASSWORD = [System.Net.NetworkCredential]::new('', (Read-Host 'DB password' -AsSecureString)).Password
-docker compose up -d --wait
-mvn -f backend/pom.xml spring-boot:run
+$env:DB_URL='jdbc:postgresql://127.0.0.1:5432/study_planner_test'
+$env:DB_USER='study_planner'
+# Set DB_PASSWORD privately to the disposable test DB password.
+mvn -f backend/pom.xml -Dgoal.integration=true -Dauth.integration=true verify -B -ntp
 ```
 
-Spring reads `DB_URL`, `DB_USER`, `DB_PASSWORD`, and `PORT` from its process environment.
-Compose can read root `.env`; Java does not load that file automatically.
-Flyway migrations live in `backend/src/main/resources/db/migration/`.
-Do not change applied migrations or delete database volumes to make checks pass.
+Calendar integration is separately opt-in:
 
-## Changes affecting both sides
+```powershell
+mvn -f backend/pom.xml '-Dtest=Calendar*Test' '-Dcalendar.integration=true' '-Dcalendar.test-db-url=jdbc:postgresql://127.0.0.1:5432/study_planner_test' test -B -ntp
+```
 
-1. Review backend handlers and configuration together with `frontend/src/lib/api.js`
-   and `frontend/src/lib/api.test.js`. Currently only `/actuator/health` exists as an endpoint;
-   `/api` is reserved for future business endpoints.
-   A **proposed** ASP-9 API contract exists in
-   [ASP-9 goals API](../../docs/product/ASP-9-goals-api.md), but no such HTTP endpoint exists.
-2. Run both sets of checks above. Extend relevant tests for changed behavior.
-3. Start database, backend, and Vite (`npm run dev` from `frontend/`) in separate terminals.
-4. From another PowerShell terminal, compare:
+`CalendarStoreIntegrationTest` currently uses fixed local fixture username/password in its `@SpringBootTest` properties; the test URL is configurable. This command was verified against that isolated local fixture, not arbitrary team/CI credentials. Inspect the test before enabling it elsewhere. It creates/deletes only its own random users; Google is mocked, so these tests create no real calendar events.
 
-   ```powershell
-   Invoke-RestMethod http://localhost:8080/actuator/health
-   Invoke-RestMethod http://localhost:5173/actuator/health
-   ```
+Calendar checks cover ownership/expiry, token encryption, overnight rest and disabled days, exact/subsecond boundaries, unavailable busy calendars, stale tasks/settings, durable outbox recovery after timeout, and simultaneous confirmations without duplicate insertions.
 
-   Both should report `status: UP`. Confirm the frontend connection card and retry behavior in a browser.
-5. Compare method, path, status codes, payload, error handling, and authentication for any new API.
+## Optional real PDFs
 
-Vite proxies `/api` and `/actuator/health` to `BACKEND_URL` (default `http://localhost:8080`).
-Moving Java source does not change these URLs. If `PORT` changes, update
-`frontend/.env.local` using `frontend/.env.example` and restart Vite.
-Vite preview has no backend proxy; production requires a separate reverse proxy.
+```powershell
+mvn -f backend/pom.xml '-Dtest=SyllabusOutlineTest,SyllabusLayoutTest,SyllabusAdhocTest,SyllabusServiceTest' '-Dsyllabus.pdf=<absolute-game-pdf>' '-Dsyllabus.network-pdf=<absolute-network-pdf>' '-Dsyllabus.testing-pdf=<absolute-testing-pdf>' test -B -ntp
+```
 
-## Verification status
+Replace placeholders with files you own locally. These private files are not in Git and their absence is not an automatic parser failure. Synthetic fixtures remain available without the files. Do not send private syllabus contents to Gemini merely to validate a key; a minimal synthetic prompt can test connectivity separately.
 
-The ASP-22 development branch adds backend **policy unit tests** and a backend CI workflow in addition to existing frontend mocked API checks.
-There are still no goal HTTP/DB integration tests or browser end-to-end tests.
-Builds, live database checks, and browser smoke checks must be recorded separately;
-documentation of a command is not evidence that it passed.
-Verified on Windows / PowerShell during restructuring (2026-11-05):
+## Live readiness and manual journeys
 
-- `npm ci`, `npm run lint`, `npm test` (2 passed), and `npm run build` succeeded in `frontend/`.
-- `mvn -f backend/pom.xml verify` succeeded and produced the repackaged JAR;
-  Maven reported no test sources, so this is a build check rather than backend test coverage.
-- `git diff --check` passed. All four moved backend files matched their original
-  contents after normalizing line endings.
-- CI working-directory and cache paths remain correct. Compose only defines PostgreSQL,
-  with no backend build context to change. No tracked Dockerfile, custom script, or VS Code configuration exists.
-- Live database startup, direct/proxied health requests, and browser smoke checks were not run.
-  These remain unverified; frontend API tests use mocks.
+Start resources using setup.md. Default backend port is 8080; the observed PO runtime uses 18083, frontend 5173, PostgreSQL 5432. Substitute the actual configured port:
 
-## ASP-22 local verification notes
+```powershell
+Invoke-RestMethod http://127.0.0.1:18083/actuator/health
+Invoke-RestMethod http://127.0.0.1:5173/actuator/health
+```
 
-- The domain rules class `GoalPolicy.java` is dependency-free. Java 21's `javac` successfully compiled it, and five local boundary probes passed (2026-11-06); these were **not** the JUnit/Maven test suite.
-- JUnit tests are authored in `GoalPolicyTest.java` and scheduled for validation by GitHub Actions backend workflow; report CI results separately from local probes.
-- The API contract describes future behavior only; ASP-12 authentication/ownership must exist before any Goal CRUD endpoint is exposed.
+Both should return `status: UP`. Health does not prove business behavior. Calendar status without a logged-in session should return 401. Do not bypass ownership by replaying another user's browser cookies.
+
+Manual journeys to verify after relevant changes:
+
+1. Sign in; upload syllabus, inspect topics/source/exam date; enter start date/minutes. Yesterday must be rejected for a new goal; an ongoing goal can preserve its original start.
+2. Generate a scoped draft; tasks must not exist before confirmation. Confirm and verify the week/day view; repeated confirmation must not duplicate tasks.
+3. Connect Google as an allowed OAuth test user, choose writable target and busy calendars, set living hours, preview and explicitly confirm. Verify actual event times in the selected Google calendar.
+4. If a selected calendar disappears, it must remain visibly selected/unavailable. User explicitly removes it or restores permission; app must not treat missing busy data as free time.
+5. Check active/hover/keyboard-focus sidebar contrast, Vietnamese diacritics, reduced-motion behavior and narrow-screen layout. Confirm phone visibility in the same Google account/calendar; distinguish this from the local app being reachable on a phone.
+
+Only perform real provider writes with explicit user authorization and a reviewable scenario. Record whether evidence came from HTTP, a connected browser, or the user's screenshot/report.
+
+## CI and enforcement
+
+- `.github/workflows/frontend.yml` declares install/lint/test/build on Node 24 for relevant changes.
+- `.github/workflows/backend.yml` declares Maven verify with `goal.integration` and `auth.integration`, using a PostgreSQL 17 service.
+- Calendar integration is not currently enabled by that workflow; local Calendar proof is not CI proof.
+- Workflow source does not prove an actual successful Actions run or enforced branch protection. Neither was verified or changed by the documentation update.
+- Harness status/doctor validates Harness installation, not application behavior. No Harness upgrade, hook installation or CI policy change is part of this update.
+
+## Evidence ledger and remaining gaps
+
+See the completed handoff for exact dated runs: a full backend verify of 260 executions/55 skipped before the final Calendar selection fix; then 34/34 targeted Calendar tests and 82/82 frontend tests after the fix. Do not aggregate separate runs into a new full-suite result.
+
+Actual Google web/mobile visibility was confirmed by the PO, not automated browser/mobile testing. No connected browser E2E, production OAuth verification/deployment, backup restoration rehearsal, or full-suite rerun after the final selection fix is claimed. Logs/reports in ignored `.tools/` and generated `target/` are local artifacts and can be overwritten; documentation should retain the invocation, scope and limitation of each result without secrets.
+## Partial planning verification (2026-11-11)
+
+[Delivery evidence](../../docs/plans/completed/partial-planning-2026-11-11.md) supersedes the older counts for this change. Full backend test with goal/auth/calendar/planning integration flags: 269 executions, zero failures/errors, three private-PDF skips. After final reason preservation, focused PersistentPlanningPostgresTest and PlanSchedulingTest: 11/11 passed. Frontend: 86/86 tests, lint/build passed; final adjustment-link change received lint/build. Runtime direct/proxy health UP; new pending endpoint through proxy returns 401 without auth. No browser E2E or live provider verification.
+
+Enable planning HTTP/DB and V4-to-V5 rehearsal tests with `-Dplanning.integration=true`; use only disposable study_planner_test. Full-run auth/goal suites also require explicit DB_URL/DB_USER/DB_PASSWORD for that disposable DB. Planning tests use `planning.test-db-url` and the local fixture credentials declared in test source. Do not point any suite at demo/user data. No schema migration is required for partial planning; remainder is stored in existing plan_drafts JSON.
+## Shared daily budget verification (2026-11-11)
+
+Contract: [shared study budget](../../docs/product/shared-study-budget.md). Delivery: [shared-budget evidence](../../docs/plans/completed/shared-budget-2026-11-11.md). V6 requires explicit user setup; no guessed availability for legacy accounts.
+
+After restarting the existing PostgreSQL portable data directory, focused shared/persistent/task-service tests passed 16/16. Full backend invocation with explicit disposable study_planner_test datasource and goal/auth/calendar/planning integration flags: 274 executions, 271 passed, three private-PDF opt-ins skipped, zero failures/errors. Package then succeeded. Frontend: lint, 89/89 tests and build passed. Concurrent manual/confirm and settings/task writes are exercised with real PostgreSQL; provider is mocked.
+
+SharedBudgetPostgresTest is enabled by -Dplanning.integration=true, using the same isolated planning.test-db-url convention as persistent planning tests. Do not use demo/user DBs. V6 preservation is covered by the isolated migration rehearsal. Live demo migration also retained identical read-only fingerprints for goals/tasks/drafts/Calendar exports. Direct/proxy health UP and anonymous budget endpoint through proxy returns 401. No browser E2E, mobile rendering, real provider calls or backup restore claimed. Existing .env unchanged.
+## Draft recovery verification (2026-11-11)
+
+[Delivery record](../../docs/plans/completed/draft-recovery-2026-11-11.md): red loop initially reproduced duplicate-existing-work rejection and confirmed latest read returning 409. Full regression after fixes and DB restart: 277 backend executions, zero failures/errors, three private-PDF skips; goal/auth/calendar/planning flags and explicit disposable study_planner_test datasource. Frontend lint, 90/90 tests and build passed. Package and local restart succeeded. Direct/proxy health UP; anonymous latest API via proxy returns 401.
+
+History reads now return status while confirm/reschedule enforce permissions and usable state separately. Provider validation repair is bounded to one retry and tested with mocked responses; no actual raw failed response from the user's screenshot was captured. No live Gemini/Google call, browser E2E, schema migration, secret edit or production verification claimed.
+## Partial-plan warning UX follow-up (2026-11-11)
+
+Product behavior: [scoped plan contract](../../docs/product/syllabus-revision-plan.md). Focused backend SharedBudgetPostgresTest: 5/5 passed with sharedBudgetLimitedDays metadata assertion. Frontend: 90/90 client tests; final lint and build passed without warnings. Local Vite SSR rendering checked 12/32 partial work and all three actions, total-shortfall versus fragmented-capacity wording, and complete-plan rendering. SSR is not browser click/layout/focus validation. Backend packaged/restarted; direct/proxy health UP. No schema/.env/provider changes or push. The prior full-backend count is historical, not a new full-suite result for this follow-up.
+## Calendar update/delete synchronization (2026-11-11)
+
+Contract: [Google Calendar sync](../../docs/product/google-calendar.md). Decision: [0002](../../docs/decisions/0002-calendar-update-delete.md). Delivery: [V7 sync evidence](../../docs/plans/completed/calendar-sync-2026-11-11.md).
+
+Full backend test with explicit disposable study_planner_test datasource and goal/auth/calendar/planning flags: 295 executions, 292 passed, three private-PDF opt-ins skipped, zero failures/errors. Then a separate CalendarSyncPostgresTest run passed 6/6 after adding the independent-receipt lock proof; do not aggregate these runs. Frontend lint, 91/91 tests and build passed. Google HTTP calls are mocked; test application.properties disables scheduling and the PostgreSQL test asserts the worker bean is absent. Existing default tests do not silently run scheduled provider writes.
+
+Production worker is enabled by default, starts after 30 seconds and polls every 15 seconds, up to 3 jobs/tick. Disable via calendar.sync.enabled=false only when deliberately pausing remote processing; queue remains durable. Test update/delete/lease/revision behavior with -Dcalendar.integration=true and -Dtest=CalendarSync*Test on the disposable database. Never point it at demo/user data.
+
+Local demo schema migrated 6 to 7, package/restart succeeded, direct/proxy health UP and unauthenticated sync endpoint returns 401. Before/after fingerprints match all 3 goals, 58 tasks, 5 drafts and 13 export receipts. No .env change, historical queue backfill, real-provider update/delete verification, browser E2E or Git push. First export still requires explicit preview/confirmation; future user-approved app mutations enqueue synchronization automatically.
+## Failed busy-calendar feedback (2026-11-11)
+
+CalendarBusyTest + CalendarServiceTest: 12/12 passed after adding failedCalendarIds context while retaining fail-closed behavior. Frontend lint, 92/92 client tests and build passed; regression checks error context reaches the UI client. Package/restart succeeded and proxy health UP. UI now names/highlights failed calendars and explains target calendars cannot be bypassed by deselection. No schema/.env changes, actual provider failure capture or browser E2E claimed. The screenshot alone does not establish which selected calendar failed; exact name is shown on the next preview request.

@@ -1,5 +1,11 @@
 # Backend API rules
 
+> Shared-budget update 2026-11-11: [account-wide daily capacity](product/shared-study-budget.md) defines GET/PUT `/api/v1/study-budget`, required setup, aggregate checks and owner-before-goal lock order for reservation writes. PUT replaces the complete settings resource; it is not a partial goal update.
+
+> 2026-11-11: Google Calendar endpoints and error semantics are defined in [the Calendar contract](product/google-calendar.md). The current implementation includes auth, Goal CRUD, tasks, syllabus and AI drafts/confirmation; older starter/future labels below are historical. Commands and evidence are owned by [the verification harness](../.agents/harness/README.md) and [the completed handoff](plans/completed/core-study-calendar-2026-11-11.md).
+
+> Core đề cương cập nhật 2026-11-10: [hợp đồng có selectedTopics/dailyMinutes](product/syllabus-revision-plan.md) bổ sung parse outline, draft có scope, việc chưa xếp và confirm theo ID. Draft/API cũ giữ tương thích; hợp đồng scoped áp dụng cho luồng UI mới. [Review và kiểm chứng](reviews/syllabus-core-2026-11-10.md).
+
 > Integration update 2026-11-08: on `integration/sprint2-sprint3-all8-test`, task create/edit/delete/overdue and AI drafts/confirm are implemented. [Integrated contract](product/integrated-tasks-and-plans.md) supersedes the older **future** status for these features. Scope still comes from requirements. Budget figures use numeric `error.context`; validation keeps `error.details[]`. PATCH tasks now accepts title/scheduledDate/estimatedMinutes/completed. See the linked contract for exact paths, receipts and limits.
 
 Mandatory rules for code under `backend/`. They come from the *Backend API Spec — AI Study Planner* (draft of 2026-11-07) and are the standard that reviews and tests check against. [requirements.md](../requirements.md) still owns product scope; if a rule here conflicts with it, requirements win and this file is fixed.
