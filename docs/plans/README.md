@@ -30,4 +30,4 @@ decision into `docs/decisions/`; keep task-local choices in the plan.
 
 ## Active Plans
 
-No active execution plans are currently indexed.
+- [Study sessions backend and Active Recall UI (2026-11-12)](active/study-sessions-recall-2026-11-12.md): V8 sessions API, recall page and client; Timer UI and recall API integration pending.
