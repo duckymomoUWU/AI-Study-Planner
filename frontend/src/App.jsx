@@ -4,7 +4,6 @@ import GoalsPage from './pages/GoalsPage.jsx'
 import StudyPlanPage from './pages/StudyPlanPage.jsx'
 import AuthPage from './pages/AuthPage.jsx'
 import WeeklyProgressPage from './pages/WeeklyProgressPage.jsx'
-import TaskChecklistPage from './pages/TaskChecklistPage.jsx'
 import { getCurrentUser, logout } from './lib/auth.js'
 import './App.css'
 import './theme.css'
@@ -17,7 +16,6 @@ function getPageFromHash() {
   if (hash === '#goals') return 'goals'
   if (hash === '#daily' || hash === '#tasks') return 'daily'
   if (hash === '#weekly' || hash === '#progress') return 'weekly'
-  if (hash === '#checklist' || hash === '#today') return 'checklist'
   return 'overview'
 }
 
@@ -194,20 +192,6 @@ export default function App() {
             </button>
             <button
               type="button"
-              className={`nav-link ${activePage === 'checklist' ? 'nav-link--active' : ''}`}
-              onClick={() => setActivePage('checklist')}
-              title="Việc cần làm theo ngày: đánh dấu hoàn thành"
-            >
-              <span className="nav-icon" aria-hidden="true">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="9 11 12 14 22 4" />
-                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                </svg>
-              </span>
-              <span className="nav-text">Việc cần làm</span>
-            </button>
-            <button
-              type="button"
               className={`nav-link ${activePage === 'weekly' ? 'nav-link--active' : ''}`}
               onClick={() => setActivePage('weekly')}
               title="Tiến độ theo tuần (US-17)"
@@ -248,7 +232,6 @@ export default function App() {
               {activePage === 'goals' && 'Quản lý mục tiêu'}
               {activePage === 'daily' && 'Lịch học theo tuần'}
               {activePage === 'weekly' && 'Tiến độ theo tuần (US-17)'}
-              {activePage === 'checklist' && 'Việc cần làm theo ngày'}
               {activePage === 'overview' && 'Không gian học tập'}
               {activePage === 'auth' && 'Xác thực tài khoản'}
             </span>
@@ -348,11 +331,6 @@ export default function App() {
                 onBack={() => setActivePage('overview')}
                 onNavigateGoals={() => setActivePage('goals')}
                 onNavigateAuth={() => setActivePage('auth')}
-              />
-            ) : activePage === 'checklist' ? (
-              <TaskChecklistPage
-                onBack={() => setActivePage('overview')}
-                onNavigateGoals={() => setActivePage('goals')}
               />
             ) : activePage === 'weekly' ? (
               <WeeklyProgressPage
