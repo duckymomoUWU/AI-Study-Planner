@@ -1,0 +1,22 @@
+// Contract skeleton only. No @Service implementation is supplied: Person 2 must implement it.
+package com.studyplanner.sessions;
+
+import java.time.Instant;
+import java.util.UUID;
+import com.fasterxml.jackson.databind.JsonNode;
+
+public interface StudySessionService {
+    enum Status { RUNNING, PAUSED, COMPLETED, CANCELLED }
+    record SessionView(UUID id, UUID taskId, UUID goalId, String taskTitle, String subject,
+        Status status, int plannedFocusSeconds, int focusedSeconds, int remainingSeconds,
+        boolean focusComplete, Instant startedAt, Instant lastResumedAt, Instant endedAt,
+        Instant serverNow, int version) {}
+    record ActiveSessionView(SessionView session) {}
+    record WriteResult(SessionView session, boolean replayed) {}
+
+    SessionView active(UUID trustedOwner); // Null means no active session; envelope wraps {session:null}.
+    WriteResult start(UUID trustedOwner, UUID requestKey, JsonNode strictBody);
+    SessionView action(UUID trustedOwner, UUID sessionId, UUID requestKey, JsonNode strictBody);
+    // Implementation: Clock + owner queries + partial unique index + version/receipt transaction.
+    // Never accept owner or measured focus seconds from client. Never return a fake success from TODO.
+}

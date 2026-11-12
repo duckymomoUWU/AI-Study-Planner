@@ -1,0 +1,5 @@
+{
+  "goalId": "33333333-3333-4333-8333-333333333333",
+  "title": "Nguồn tổng hợp minh họa cho fixture, không phải tài liệu người dùng",
+  "content": "Kiểm thử hộp đen đánh giá hành vi đầu vào và đầu ra. Kiểm thử hộp trắng xem xét cấu trúc bên trong chương trình. Ca kiểm thử gồm đầu vào và kết quả mong đợi. Kiểm thử hồi quy kiểm tra chức năng sau thay đổi. Kết quả mong đợi dùng để đối chiếu với kết quả thực tế."
+}
