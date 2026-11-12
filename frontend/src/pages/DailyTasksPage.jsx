@@ -30,7 +30,7 @@ function offsetDate(dateStr, days) {
   return getLocalDateString(date)
 }
 
-export default function DailyTasksPage({ onBack, onNavigateGoals, initialDate }) {
+export default function DailyTasksPage({ onBack, onNavigateGoals, initialDate, onStartTimer }) {
   const [selectedDate, setSelectedDate] = useState(() => initialDate || getLocalDateString())
   const [tasksData, setTasksData] = useState({ items: [], totalEstimatedMinutes: 0, completedCount: 0, totalCount: 0, remainingCount: 0 })
   const [overdueTasks, setOverdueTasks] = useState([])
@@ -275,13 +275,23 @@ export default function DailyTasksPage({ onBack, onNavigateGoals, initialDate })
                 <span className="task-title">{ot.title}</span>
                 <span className="task-date-tag">Lịch: {ot.scheduledDate} · {ot.estimatedMinutes} phút</span>
               </div>
-              <button
-                type="button"
-                className="button button--primary button--sm"
-                onClick={() => handleMoveOverdueToToday(ot)}
-              >
-                Dời sang hôm nay →
-              </button>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className="button button--secondary button--sm"
+                  onClick={() => onStartTimer ? onStartTimer(ot.id) : null}
+                  title="Bắt đầu học Pomodoro với công việc này"
+                >
+                  ⏱ Bắt đầu học
+                </button>
+                <button
+                  type="button"
+                  className="button button--primary button--sm"
+                  onClick={() => handleMoveOverdueToToday(ot)}
+                >
+                  Dời sang hôm nay →
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -425,6 +435,15 @@ export default function DailyTasksPage({ onBack, onNavigateGoals, initialDate })
                 </div>
 
                 <div className="task-actions">
+                  <button
+                    type="button"
+                    className="button button--primary button--sm"
+                    style={{ minHeight: '32px', padding: '4px 10px', fontSize: '13px' }}
+                    onClick={() => onStartTimer ? onStartTimer(task.id) : null}
+                    title="Bắt đầu học Pomodoro với công việc này"
+                  >
+                    ⏱ Bắt đầu học
+                  </button>
                   <button type="button" className="button-link" disabled={pendingIds.has(task.id)} onClick={() => {
                     setEditingTask(task); setTaskDate(task.scheduledDate)
                     setNewTaskForm({ goalId: task.goalId, title: task.title, estimatedMinutes: task.estimatedMinutes })

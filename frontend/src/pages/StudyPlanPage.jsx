@@ -13,7 +13,7 @@ import './StudyPlanPage.css'
 const dateLabel = day => new Intl.DateTimeFormat('vi-VN', { day: 'numeric', month: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${day}T12:00:00Z`))
 const weekdayLabel = day => new Intl.DateTimeFormat('vi-VN', { weekday: 'long', timeZone: 'UTC' }).format(new Date(`${day}T12:00:00Z`))
 
-export default function StudyPlanPage({ initialDate, onNavigateGoals, onNavigateAuth, onEditGoal, ...dailyProps }) {
+export default function StudyPlanPage({ initialDate, onNavigateGoals, onNavigateAuth, onEditGoal, onStartTimer, ...dailyProps }) {
   const [anchor, setAnchor] = useState(() => initialDate || vietnamToday())
   const [days, setDays] = useState([])
   const [goals, setGoals] = useState([])
@@ -67,7 +67,7 @@ export default function StudyPlanPage({ initialDate, onNavigateGoals, onNavigate
   if (dailyDate) return <>
     {dailyProps.currentUser && <CalendarSyncPanel onOpenCalendar={() => { setDailyDate(null); setShowCalendar(true); refresh() }} />}
     <button className="study-back" type="button" onClick={() => { setDailyDate(null); refresh() }}>← Lịch học theo tuần</button>
-    <DailyTasksPage key={dailyDate} {...dailyProps} initialDate={dailyDate} onNavigateGoals={onNavigateGoals} onNavigateAuth={onNavigateAuth} />
+    <DailyTasksPage key={dailyDate} {...dailyProps} initialDate={dailyDate} onNavigateGoals={onNavigateGoals} onNavigateAuth={onNavigateAuth} onStartTimer={onStartTimer} />
   </>
 
   return <section className="study-plan" aria-labelledby="study-plan-title">
@@ -138,9 +138,20 @@ export default function StudyPlanPage({ initialDate, onNavigateGoals, onNavigate
               <div className="study-session-copy"><h3>{task.title}</h3>
                 <p>{goal?.subject || 'Mục tiêu học tập'}{task.topicTitle ? ` · ${task.topicTitle}` : ''}</p>
                 <span>◷ {task.estimatedMinutes} phút{task.completed ? ' · Đã hoàn thành' : ''}</span></div>
-              <button className={task.completed ? 'study-done' : 'study-primary'} type="button" disabled={Boolean(pending)}
-                aria-label={`${task.completed ? 'Đánh dấu chưa xong' : 'Hoàn thành'}: ${task.title}`} onClick={() => complete(task)}>
-                {pending === task.id ? 'Đang lưu…' : task.completed ? '✓ Đã xong' : 'Hoàn thành'}</button>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className="study-timer-btn button button--secondary button--sm"
+                  style={{ minHeight: '34px', padding: '4px 10px', fontSize: '13px', borderRadius: '10px' }}
+                  onClick={() => onStartTimer ? onStartTimer(task.id) : null}
+                  title="Bắt đầu học Pomodoro với công việc này"
+                >
+                  ⏱ Bắt đầu học
+                </button>
+                <button className={task.completed ? 'study-done' : 'study-primary'} type="button" disabled={Boolean(pending)}
+                  aria-label={`${task.completed ? 'Đánh dấu chưa xong' : 'Hoàn thành'}: ${task.title}`} onClick={() => complete(task)}>
+                  {pending === task.id ? 'Đang lưu…' : task.completed ? '✓ Đã xong' : 'Hoàn thành'}</button>
+              </div>
             </article>
           })}</div>
         </section>)}

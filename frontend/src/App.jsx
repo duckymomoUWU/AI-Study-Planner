@@ -3,23 +3,58 @@ import OverviewPage from './pages/OverviewPage.jsx'
 import GoalsPage from './pages/GoalsPage.jsx'
 import StudyPlanPage from './pages/StudyPlanPage.jsx'
 import AuthPage from './pages/AuthPage.jsx'
+import LandingPage from './pages/LandingPage.jsx'
+import StudyTimerPage from './pages/StudyTimerPage.jsx'
 import { getCurrentUser, logout } from './lib/auth.js'
 import './App.css'
 import './theme.css'
 
-const repository = 'https://github.com/duckymomoUWU/AI-Study-Planner'
-function getPageFromHash() {
-  if (typeof window === 'undefined') return 'overview'
-  const hash = window.location.hash.toLowerCase()
-  if (hash === '#auth' || hash === '#login' || hash === '#register') return 'auth'
-  if (hash === '#goals') return 'goals'
-  if (hash === '#daily' || hash === '#tasks') return 'daily'
-  return 'overview'
+function getInitialUser() {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem('ai_study_planner_user')
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function parseHash(user = null) {
+  if (typeof window === 'undefined') return { page: 'landing', taskId: null }
+  const rawHash = window.location.hash || ''
+  const [hashPath, queryString] = rawHash.split('?')
+  const clean = hashPath.toLowerCase()
+
+  let taskId = null
+  if (queryString) {
+    const params = new URLSearchParams(queryString)
+    taskId = params.get('taskId')
+  }
+
+  if (clean.startsWith('#timer/')) {
+    taskId = clean.slice(7)
+    return { page: 'timer', taskId }
+  }
+  if (clean === '#timer') return { page: 'timer', taskId }
+  if (clean === '#landing') return { page: 'landing', taskId: null }
+  if (clean === '#auth' || clean === '#login' || clean === '#register') return { page: 'auth', taskId: null }
+  if (clean === '#goals') return { page: 'goals', taskId: null }
+  if (clean === '#daily' || clean === '#tasks') return { page: 'daily', taskId: null }
+  if (clean === '#overview') return { page: 'overview', taskId: null }
+
+  // Default for empty hash or '/'
+  if (clean === '' || clean === '#') {
+    return { page: user ? 'overview' : 'landing', taskId: null }
+  }
+
+  return { page: user ? 'overview' : 'landing', taskId: null }
 }
 
 export default function App() {
-  const [activePage, setActivePageState] = useState(getPageFromHash) // 'overview' | 'goals' | 'daily' | 'auth'
-  const [currentUser, setCurrentUser] = useState(null)
+  const [currentUser, setCurrentUser] = useState(getInitialUser)
+  const initialRoute = parseHash(currentUser)
+  const [activePage, setActivePageState] = useState(initialRoute.page) // 'landing' | 'overview' | 'goals' | 'daily' | 'auth' | 'timer'
+  const [timerTaskId, setTimerTaskId] = useState(initialRoute.taskId)
   const [dailyDate, setDailyDate] = useState(null)
   const [goalEditRequest, setGoalEditRequest] = useState(null)
   const handleGoalEditRequest = useCallback(() => setGoalEditRequest(null), [])
@@ -28,23 +63,31 @@ export default function App() {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const userMenuRef = useRef(null)
 
-  function setActivePage(page) {
+  function setActivePage(page, taskId = null) {
     setActivePageState(page)
+    setTimerTaskId(taskId)
     setShowUserMenu(false)
-    if (page === 'overview') {
+    if (page === 'landing') {
+      window.location.hash = '#landing'
+    } else if (page === 'overview') {
       window.location.hash = ''
+    } else if (page === 'timer') {
+      window.location.hash = taskId ? `#timer?taskId=${encodeURIComponent(taskId)}` : '#timer'
     } else {
       window.location.hash = `#${page}`
     }
   }
 
+  // Hash change listener
   useEffect(() => {
     function onHashChange() {
-      setActivePageState(getPageFromHash())
+      const parsed = parseHash(currentUser)
+      setActivePageState(parsed.page)
+      setTimerTaskId(parsed.taskId)
     }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
-  }, [])
+  }, [currentUser])
 
   // Close user menu on outside click
   useEffect(() => {
@@ -57,6 +100,7 @@ export default function App() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  // Check auth session
   useEffect(() => {
     let ignore = false
     async function checkSession() {
@@ -68,12 +112,21 @@ export default function App() {
             localStorage.setItem('ai_study_planner_user', JSON.stringify(user))
           } else {
             localStorage.removeItem('ai_study_planner_user')
+            // If on empty hash and logged out, switch to landing
+            const rawHash = window.location.hash || ''
+            if (rawHash === '' || rawHash === '#') {
+              setActivePageState('landing')
+            }
           }
         }
       } catch {
         if (!ignore) {
           setCurrentUser(null)
           localStorage.removeItem('ai_study_planner_user')
+          const rawHash = window.location.hash || ''
+          if (rawHash === '' || rawHash === '#') {
+            setActivePageState('landing')
+          }
         }
       } finally {
         if (!ignore) {
@@ -96,8 +149,9 @@ export default function App() {
     localStorage.removeItem('ai_study_planner_user')
     setCurrentUser(null)
     setGoalEditRequest(null)
+    setTimerTaskId(null)
     setShowUserMenu(false)
-    setActivePage('overview')
+    setActivePage('landing')
   }
 
   function handleAuthSuccess(user) {
@@ -105,7 +159,46 @@ export default function App() {
       localStorage.setItem('ai_study_planner_user', JSON.stringify(user))
     }
     setCurrentUser(user)
+    // LND-01-B: after auth success open goals without losing session
     setActivePage('goals')
+  }
+
+  // Navigation handlers complying with contract
+  const openLogin = () => {
+    window.location.hash = '#login'
+    setActivePageState('auth')
+  }
+
+  const openGoalsOrRegister = () => {
+    if (currentUser) {
+      setActivePage('goals')
+    } else {
+      window.location.hash = '#register'
+      setActivePageState('auth')
+    }
+  }
+
+  const openAuth = () => {
+    window.location.hash = '#login'
+    setActivePageState('auth')
+  }
+
+  const openGoals = () => {
+    setActivePage('goals')
+  }
+
+  // LND-01-A: Guest or #landing route renders LandingPage without workspace sidebar
+  if (activePage === 'landing') {
+    return (
+      <>
+        <a className="skip-link" href="#main">Đến nội dung chính</a>
+        <LandingPage
+          currentUser={currentUser}
+          onLogin={openLogin}
+          onStart={openGoalsOrRegister}
+        />
+      </>
+    )
   }
 
   return (
@@ -122,7 +215,10 @@ export default function App() {
               className="brand"
               href="/"
               aria-label="AI Study Planner — trang chủ"
-              onClick={(e) => { e.preventDefault(); setActivePage('overview'); }}
+              onClick={(e) => {
+                e.preventDefault()
+                setActivePage(currentUser ? 'overview' : 'landing')
+              }}
             >
               <span className="brand-mark" aria-hidden="true">s<span>✦</span></span>
               {!isSidebarCollapsed && (
@@ -188,16 +284,20 @@ export default function App() {
               </span>
               <span className="nav-text">Lịch học</span>
             </button>
-            <a className="nav-link" href={`${repository}/wiki`} title="Tài liệu dự án">
+            <button
+              type="button"
+              className={`nav-link ${activePage === 'timer' ? 'nav-link--active' : ''}`}
+              onClick={() => setActivePage('timer', null)}
+              title="Phiên học"
+            >
               <span className="nav-icon" aria-hidden="true">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
                 </svg>
               </span>
-              <span className="nav-text">Tài liệu</span>
-              <span className="nav-arrow" aria-hidden="true">↗</span>
-            </a>
+              <span className="nav-text">Phiên học</span>
+            </button>
           </nav>
 
           <div className="sidebar-note">
@@ -215,6 +315,7 @@ export default function App() {
               {activePage === 'daily' && 'Lịch học theo tuần'}
               {activePage === 'overview' && 'Không gian học tập'}
               {activePage === 'auth' && 'Xác thực tài khoản'}
+              {activePage === 'timer' && 'Phiên học'}
             </span>
 
             {/* Top-Right Actions: Avatar Icon & Auth */}
@@ -242,6 +343,13 @@ export default function App() {
                           <span className="user-menu-status">✓ Đã xác thực</span>
                         </div>
                         <div className="user-menu-divider" />
+                        <button
+                          type="button"
+                          className="user-menu-item"
+                          onClick={() => setActivePage('timer', null)}
+                        >
+                          <span>⏱️</span> Phiên học
+                        </button>
                         <button
                           type="button"
                           className="user-menu-item"
@@ -293,7 +401,7 @@ export default function App() {
               <AuthPage
                 initialTab={window.location.hash === '#register' ? 'register' : 'login'}
                 onAuthSuccess={handleAuthSuccess}
-                onBack={() => setActivePage('overview')}
+                onBack={() => setActivePage(currentUser ? 'overview' : 'landing')}
               />
             ) : activePage === 'goals' ? (
               <GoalsPage
@@ -302,7 +410,7 @@ export default function App() {
                 onEditRequestHandled={handleGoalEditRequest}
                 onBack={() => setActivePage('overview')}
                 onNavigateDaily={date => { setDailyDate(typeof date === 'string' ? date : null); setActivePage('daily') }}
-                onNavigateAuth={() => setActivePage('auth')}
+                onNavigateAuth={openAuth}
               />
             ) : activePage === 'daily' ? (
               <StudyPlanPage
@@ -310,17 +418,27 @@ export default function App() {
                 onEditGoal={(id, section) => { setGoalEditRequest({ id, section }); setActivePage('goals') }}
                 currentUser={currentUser}
                 onBack={() => setActivePage('overview')}
-                onNavigateGoals={() => setActivePage('goals')}
-                onNavigateAuth={() => setActivePage('auth')}
+                onNavigateGoals={openGoals}
+                onNavigateAuth={openAuth}
+                onStartTimer={(taskId) => setActivePage('timer', taskId)}
+              />
+            ) : activePage === 'timer' ? (
+              <StudyTimerPage
+                key={timerTaskId || 'timer-default'}
+                currentUser={currentUser}
+                initialTaskId={timerTaskId}
+                onNavigateAuth={openAuth}
+                onNavigateGoals={openGoals}
               />
             ) : (
               <OverviewPage
                 key={currentUser?.id || currentUser?.email || 'guest'}
                 currentUser={currentUser}
                 checkingAuth={isCheckingAuth}
-                onGoals={() => setActivePage('goals')}
+                onGoals={openGoals}
                 onSchedule={() => { setDailyDate(null); setActivePage('daily') }}
-                onLogin={() => setActivePage('auth')}
+                onLogin={openAuth}
+                onTimer={(taskId) => setActivePage('timer', taskId)}
               />
             )}
           </main>

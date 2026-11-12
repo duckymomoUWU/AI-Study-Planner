@@ -69,8 +69,19 @@ export default function OverviewPage({ currentUser, checkingAuth, onGoals, onSch
 
       <div className="overview-columns">
         <section className="overview-panel" aria-labelledby="overview-today"><header><div><span className="overview-kicker">GIỮ NHỊP MỖI NGÀY</span><h2 id="overview-today">Việc hôm nay</h2></div><button type="button" className="overview-text-button" onClick={onSchedule}>Xem lịch ↗</button></header>
-          {pendingTasks.length ? <ul className="overview-task-list">{pendingTasks.slice(0, 4).map(task => <li key={task.id}>
-            <span className="overview-task-marker" aria-hidden="true">○</span><div><h3>{task.title}</h3><p>{data.goals.find(goal => goal.id === task.goalId)?.subject || 'Mục tiêu học tập'}</p></div><span className="overview-minutes">{task.estimatedMinutes} phút</span>
+          {pendingTasks.length ? <ul className="overview-task-list">{pendingTasks.slice(0, 4).map(task => <li key={task.id} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span className="overview-task-marker" aria-hidden="true">○</span><div style={{ flex: 1 }}><h3>{task.title}</h3><p>{data.goals.find(goal => goal.id === task.goalId)?.subject || 'Mục tiêu học tập'}</p></div><span className="overview-minutes">{task.estimatedMinutes} phút</span>
+            {onTimer && (
+              <button
+                type="button"
+                className="button button--primary button--sm"
+                style={{ minHeight: '30px', padding: '3px 8px', fontSize: '12px' }}
+                onClick={() => onTimer(task.id)}
+                title="Bắt đầu học Pomodoro"
+              >
+                ⏱ Bắt đầu học
+              </button>
+            )}
           </li>)}</ul> : <div className="overview-empty"><span aria-hidden="true">✧</span><h3>{summary.total ? 'Bạn đã xong việc hôm nay.' : 'Hôm nay còn trống.'}</h3><p>{summary.total ? 'Bạn có thể nghỉ ngơi hoặc xem trước buổi học tiếp theo.' : 'Mở lịch học để tạo hoặc xác nhận kế hoạch cho mục tiêu của bạn.'}</p><button className="overview-text-button" type="button" onClick={onSchedule}>Đến lịch học →</button></div>}
         </section>
         <section className="overview-panel" aria-labelledby="overview-exams"><header><div><span className="overview-kicker">CHUẨN BỊ TỪ SỚM</span><h2 id="overview-exams">Kỳ thi sắp tới</h2></div><button type="button" className="overview-text-button" onClick={onGoals}>Mục tiêu ↗</button></header>
