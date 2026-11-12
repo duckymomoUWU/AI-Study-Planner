@@ -1,6 +1,32 @@
-# Kiểm chứng xem tiến độ theo tuần (ASP-99 → ASP-102, ASP-112)
+# Xem tiến độ theo tuần (ASP-99 → ASP-102, ASP-112) — kế hoạch và bằng chứng
 
-Ngày chạy 2026-11-08, Windows 11, nhánh `sprint4/weekly-progress` (tách từ nhánh sprint 3 của dev1). Mô tả tính năng: [weekly-progress.md](weekly-progress.md). Chỉ ghi "Đạt" cho những kiểm tra đã chạy thật.
+Date: 2026-11-12
+
+## Status
+
+Completed trên nhánh `dev2` (chưa gộp vào `main`, chưa có review độc lập, CI chưa chạy).
+
+## Outcome
+
+Sinh viên xem số việc hoàn thành và tổng số việc theo tuần Thứ Hai–Chủ Nhật, chọn tuần trước/sau, tuần trống hiện 0/0. Hợp đồng: [weekly-progress.md](../../product/weekly-progress.md).
+
+## Progress
+
+- [x] ASP-99 trang tiến độ tuần (frontend)
+- [x] ASP-100 `GET /api/v1/progress/weekly` (backend)
+- [x] ASP-101 test chấp nhận trên PostgreSQL thật và mock
+- [x] ASP-102 tài liệu và `requirements.md`
+- [x] ASP-112 nghiệm thu DoD
+- [x] 2026-11-12: gộp `main`, bỏ trang checklist trùng, chuyển controller sang `ApiResponse`/`ApiExceptionHandler`
+
+## Decisions
+
+- 2026-11-12: bỏ `TaskChecklistPage` vì trang Lịch học (`DailyTasksPage`) đã có đủ đánh dấu, thêm, sửa, dời, xóa và dời việc quá hạn bằng một `PATCH`.
+
+## Validation
+
+
+Ngày chạy 2026-11-08, Windows 11, nhánh `sprint4/weekly-progress` (tách từ nhánh sprint 3 của dev1). Mô tả tính năng: [weekly-progress.md](../../product/weekly-progress.md). Chỉ ghi "Đạt" cho những kiểm tra đã chạy thật.
 
 ## 1. Lệnh và kết quả
 
@@ -32,7 +58,7 @@ Ghi chú: cần `clean` khi chạy Maven sau khi đổi nhánh, vì thư mục `
 | Merge vào `main`, CI | **Chưa làm** | Chưa tạo PR; CI chưa chạy |
 | Có thể demo | Đạt | Mục 3 |
 
-Không khai báo story là Done: thiếu review độc lập, merge và CI, và 3 điểm cần PO xác nhận ở [weekly-progress.md](weekly-progress.md) mục 6 chưa có trả lời.
+Không khai báo story là Done: thiếu review độc lập, merge và CI, và 3 điểm cần PO xác nhận ở [weekly-progress.md](../../product/weekly-progress.md) mục 6 chưa có trả lời.
 
 ## 3. Demo trình duyệt (đã chạy)
 
@@ -52,7 +78,7 @@ Tài khoản thử, công việc tạo bằng SQL (chưa có API tạo hoặc đ
 - Endpoint chỉ đọc; không khóa, không đổi dữ liệu (có test kiểm version giữ nguyên).
 - Ngày được chặn trong khoảng 2000–2100 trước khi tính `plusDays`, tránh tràn ngày (`LocalDate.MAX`).
 - Đã sửa trong lúc làm: bài test PostgreSQL của auth (`AuthPostgresIntegrationTest`) vẫn kiểm cấu trúc phản hồi cũ trong khi controller đã trả `{data: ...}` và `{error: ...}`, nên fail khi bật `-Dauth.integration=true` (CI backend cũng bật cờ này). Chỉ sửa test, không đổi mã chạy thật.
-- Đã biết, chưa xử lý: backend của nhánh này chưa có bộ xử lý lỗi chung (các controller tự trả lỗi), nên endpoint mới tự dựng khuôn `{error: ...}` trong controller; phản hồi 404/405 của đường dẫn không tồn tại vẫn là mặc định của Spring.
+- Cập nhật 2026-11-12: controller đã chuyển sang `ApiResponse` và `ApiExceptionHandler` chung (cùng mã lỗi và khuôn phản hồi, 27 test tuần vẫn đạt).
 
 ## 5. Giới hạn chưa kiểm chứng
 
@@ -70,7 +96,19 @@ Tài khoản thử, công việc tạo bằng SQL (chưa có API tạo hoặc đ
 | --- | --- |
 | Backend `mvn ... -Dgoal.integration=true -Dauth.integration=true test` trên `postgres:17` dùng một lần | **Đạt**: 179 test, 0 lỗi, 0 bỏ qua (gồm 6 test mới `PlanDraftControllerTest` cho các endpoint AI chuyển sang `/api/v1`) |
 | Frontend `npm test`, `npm run lint`, `npm run build` | **Đạt**: 54 test, lint và build sạch |
-| Trình duyệt, luồng mới có thể chạy nhờ gộp: mục tiêu có 3 việc chưa xong → "Tiến độ" hiện 0/3 → trang "Việc cần làm" đánh dấu 2 việc xong (DB `completed = true`) → "Tiến độ" hiện 2/3, 67%, Chủ Nhật 2/3 | **Đạt** |
-| Các trang `#goals`, `#daily`, `#checklist`, `#weekly` mở được, không có yêu cầu API nào thất bại ở lần chạy cuối | **Đạt** |
+| Trình duyệt, luồng mới có thể chạy nhờ gộp: mục tiêu có 3 việc chưa xong → "Tiến độ" hiện 0/3 → trang Lịch học đánh dấu 2 việc xong (DB `completed = true`) → "Tiến độ" hiện 2/3, 67%, Chủ Nhật 2/3 | **Đạt** |
+| Các trang `#goals`, `#daily`, `#weekly` mở được, không có yêu cầu API nào thất bại ở lần chạy cuối | **Đạt** |
 
 Giới hạn còn lại: chưa kiểm tay các tính năng AI của dev1 (đọc đề cương, sinh lịch bằng Gemini) sau khi gộp, vì cần khóa API; chỉ có test cho hợp đồng (phiên, quyền sở hữu, khuôn lỗi) của các endpoint đó.
+
+## 7. Kiểm chứng sau khi gộp `main` vào `dev2` (2026-11-12)
+
+Gộp `main` (29dbf6d) vào `dev2`, giải quyết 15 xung đột bằng cách lấy bản của `main` rồi thêm lại phần tuần; bỏ `TaskChecklistPage` trùng; controller dùng `ApiResponse`.
+
+| Kiểm tra | Lệnh | Kết quả |
+| --- | --- | --- |
+| Backend | `mvn -f backend/pom.xml clean test -Dgoal.integration=true -Dauth.integration=true` (postgres:17 dùng một lần, cổng 55434, DB `study_planner_test`) | **Đạt**: 323 test, 0 lỗi, 25 bỏ qua (cờ calendar, planning, PDF riêng không bật) |
+| Test tuần sau khi đổi controller | `-Dtest='WeeklyProgress*Test'` cùng cờ | **Đạt**: 27/27 |
+| Frontend | `npm run lint`, `npm test`, `npm run build` | **Đạt**: 102 test, lint và build sạch |
+
+Chưa làm: kiểm bằng trình duyệt sau khi gộp, chạy lệnh `verify` đầy đủ, CI, review độc lập. Các lần chạy trên không cộng gộp với số liệu 2026-11-08 ở trên.

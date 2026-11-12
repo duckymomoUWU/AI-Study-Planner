@@ -1,6 +1,6 @@
 # Xem tiến độ theo tuần (US-17 / ASP-33: ASP-99 → ASP-102, ASP-112)
 
-**Trạng thái (2026-11-08):** API và giao diện đã hiện thực trên nhánh `sprint4/weekly-progress` (tách từ nhánh sprint 3 của dev1), được kiểm bằng test MockMvc, PostgreSQL thật và test client frontend (mục 7). Chưa có trên `main`.
+**Trạng thái (2026-11-12):** API và giao diện đã hiện thực trên nhánh `dev2` (đã gộp `main`), được kiểm bằng test MockMvc, PostgreSQL thật và test client frontend (mục 7). Chưa gộp vào `main`. Quy tắc chung: [Backend API rules](../backend-api-rules.md).
 
 User story: "Là sinh viên, tôi muốn xem số việc đã xong theo từng tuần để đánh giá nhịp học." Yêu cầu gốc (requirements.md): "Tiến độ = số công việc hoàn thành / tổng số công việc; không đánh giá mức độ hiểu bài. Chưa có việc thì hiển thị 0/0."
 
@@ -34,7 +34,7 @@ User story: "Là sinh viên, tôi muốn xem số việc đã xong theo từng t
 - Tính trên **mọi mục tiêu** của người dùng; công việc của người khác không bao giờ được đếm (truy vấn nối `study_goals` và lọc `user_id`).
 - `completionRate` = `completedTasks / totalTasks`, từ 0 đến 1; **bằng 0 khi tuần không có việc** (không chia cho 0). `days` luôn đủ 7 ngày, ngày không có việc là 0.
 - Bản nháp AI (`plan_drafts`) không phải công việc nên không được đếm. Đọc không ghi gì và không đổi `version` mục tiêu.
-- Lỗi theo khuôn chung `{ "error": { "code", "message", "details": [ { "field", "issue", "message" } ] } }`:
+- Phản hồi và lỗi đi qua `ApiResponse` và `ApiExceptionHandler` chung. Lỗi theo khuôn chung `{ "error": { "code", "message", "details": [ { "field", "issue", "message" } ] } }`:
 
 | HTTP | `code` | Khi nào |
 | --- | --- | --- |
@@ -44,7 +44,7 @@ User story: "Là sinh viên, tôi muốn xem số việc đã xong theo từng t
 
 ## 4. Giao diện
 
-- Trang `WeeklyProgressPage` (`#weekly` hoặc `#progress`), mục "Tiến độ tuần" trong thanh bên; thành phần Card và Progress theo shadcn/ui (`components/ui/progress.jsx` có `role="progressbar"` và `aria-valuenow`).
+- Trang `WeeklyProgressPage` (`#weekly` hoặc `#progress`), mục "Tiến độ" trong thanh bên; thành phần Card và Progress theo shadcn/ui (`components/ui/progress.jsx` có `role="progressbar"` và `aria-valuenow`).
 - Hiển thị khoảng ngày của tuần ("02/11 – 08/11/2026"), nhãn "Tuần hiện tại" khi đang xem tuần này, thẻ tổng kết, và danh sách 7 ngày (T2 đến CN) mỗi ngày một thanh nhỏ với "x/y".
 - Trạng thái: đang tải; lỗi có nút "Thử lại"; chưa đăng nhập có nút "Đăng nhập ngay"; tuần trống là trạng thái bình thường.
 - Chỉ hiển thị số đếm và phần trăm, kèm dòng ghi chú rằng tiến độ không đánh giá mức độ hiểu bài.
@@ -57,7 +57,7 @@ User story: "Là sinh viên, tôi muốn xem số việc đã xong theo từng t
 | Tiến độ theo tuần của toàn bộ công việc của người dùng | Tiến độ theo từng mục tiêu, tiến độ tổng (US-07 / nhánh khác) |
 | Chọn tuần trước, sau, hiện tại | Lọc theo môn học, thống kê dài hạn (US-18) |
 
-Tiến độ đọc cột `study_tasks.completed`. Trên nhánh `sprint4/weekly-progress` chưa có API đánh dấu hoàn thành, nên test và demo ở đó đặt `completed` bằng SQL. Sau khi gộp vào `dev2` (2026-11-08), API `PATCH /api/v1/goals/{goalId}/tasks/{taskId}` và trang "Việc cần làm" (`#checklist`) có sẵn: đánh dấu xong ở đó thì tiến độ tuần đổi ngay mà không cần sửa gì (đã kiểm, xem [weekly-progress-verification.md](weekly-progress-verification.md) mục 6). Công việc vẫn chỉ xuất hiện nhờ xác nhận bản nháp AI (`confirm`) hoặc SQL, vì API tạo công việc thủ công chưa có.
+Tiến độ đọc cột `study_tasks.completed`. Đánh dấu hoàn thành, thêm, sửa, xóa việc nằm ở trang Lịch học (`#daily`) qua `PATCH /api/v1/goals/{goalId}/tasks/{taskId}`: đánh dấu xong ở đó thì tiến độ tuần đổi ngay mà không cần sửa gì ([bằng chứng](../plans/completed/weekly-progress-2026-11-12.md) mục 6).
 
 ## 6. Điểm cần PO xác nhận
 
@@ -81,4 +81,4 @@ Tiến độ đọc cột `study_tasks.completed`. Trên nhánh `sprint4/weekly-
 
 ## 8. Kết quả kiểm chứng
 
-Xem [weekly-progress-verification.md](weekly-progress-verification.md).
+Xem [weekly-progress-2026-11-12.md](../plans/completed/weekly-progress-2026-11-12.md).
