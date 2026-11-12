@@ -80,6 +80,26 @@ public class ApiExceptionHandler {
                 "Mục tiêu đã được thay đổi ở nơi khác. Hãy tải lại rồi thử lại.", null);
     }
 
+    @ExceptionHandler(com.studyplanner.tasks.TaskValidationException.class)
+    ResponseEntity<ApiErrorResponse> taskValidation(com.studyplanner.tasks.TaskValidationException ex) {
+        return respond(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", MSG_VALIDATION,
+                ex.violations().stream().map(v -> new ErrorDetail(v.field(), v.issue(), v.message())).toList());
+    }
+
+    @ExceptionHandler(com.studyplanner.tasks.DailyBudgetExceededException.class)
+    ResponseEntity<ApiErrorResponse> taskBudget(com.studyplanner.tasks.DailyBudgetExceededException ex) {
+        return ResponseEntity.unprocessableEntity().body(new ApiErrorResponse(new ApiErrorResponse.ApiError(
+                "DAILY_BUDGET_EXCEEDED", ex.getMessage(), null, java.util.Map.of(
+                "scheduledDate", ex.getScheduledDate().toString(), "budgetMinutes", ex.getBudgetMinutes(),
+                "scheduledMinutes", ex.getScheduledMinutes(), "excessMinutes", ex.getExcessMinutes()))));
+    }
+
+    @ExceptionHandler(com.studyplanner.goals.PlanException.class)
+    ResponseEntity<ApiErrorResponse> planError(com.studyplanner.goals.PlanException ex) {
+        return ResponseEntity.status(ex.status()).body(new ApiErrorResponse(new ApiErrorResponse.ApiError(
+                ex.code(), ex.getMessage(), null, ex.context().isEmpty() ? null : ex.context())));
+    }
+
     @ExceptionHandler(RequestValidationException.class)
     ResponseEntity<ApiErrorResponse> requestValidation(RequestValidationException ex) {
         return respond(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", MSG_VALIDATION, ex.details());

@@ -1,145 +1,112 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  generateClientFallbackDraft,
-  getGoalDraftStatus,
-  setGoalDraftStatus,
-  parseHour,
-  parseDuration,
-  findBestFitSlot,
-  applyBestFitToDraftTasks,
-} from './ai-planner.js'
+import { confirmPlanDraft, generatePlanDraft, getLatestPlanDraft, getPendingPlanDrafts, reschedulePlanDraft, draftReview, draftState, PlanApiError, sortDraftTasksByPriority } from './ai-planner.js'
+import { clearCsrfTokenCache } from './auth.js'
 
-test('generateClientFallbackDraft generates repetitive weekly tasks within budget', () => {
-  const goal = {
-    id: 'test-goal-1',
-    subject: 'Giải tích 2',
-    topics: 'Tích phân đường, Tích phân mặt, Chuỗi số',
-    startDate: '2026-11-10',
-    examDate: '2026-12-05',
-    minutesPerDay: 90,
-  }
-
-  const draft = generateClientFallbackDraft(goal)
-  assert.equal(draft.goalId, 'test-goal-1')
-  assert.ok(draft.proposal.tasks.length >= 3)
-
-  for (const t of draft.proposal.tasks) {
-    assert.ok(t.title.includes('Focus Time'))
-    assert.equal(t.recurrence, 'weekly')
-    assert.ok(Array.isArray(t.recurringDays))
-    assert.ok(t.recurringDays.length > 0)
-    assert.equal(t.source, 'ai')
-    assert.equal(t.isDraft, true)
-    assert.ok(t.startHour >= 8 && t.startHour <= 22)
-  }
+test('confirmed or expired history is read-only; stale scoped work can be rescheduled and valid drafts remain editable', () => {
+  assert.equal(draftState({ status: 'CONFIRMED' }).readOnly, true)
+  assert.equal(draftState({ status: 'CONFIRMED' }).canReschedule, false)
+  assert.match(draftState({ status: 'CONFIRMED' }).message, /đã được lưu/)
+  assert.equal(draftState({ status: 'EXPIRED' }).readOnly, true)
+  assert.equal(draftState({ status: 'STALE', proposal: { scope: {} } }).canReschedule, true)
+  assert.equal(draftState({ status: 'STALE', proposal: {} }).canReschedule, false)
+  assert.equal(draftState({}).readOnly, false)
+  assert.equal(draftState({ status: 'DRAFT' }).readOnly, false)
 })
 
-test('setGoalDraftStatus and getGoalDraftStatus manage status cleanly in localStorage', () => {
-  // Mock localStorage in Node
-  const storage = {}
-  globalThis.localStorage = {
-    getItem: (k) => storage[k] || null,
-    setItem: (k, v) => { storage[k] = String(v) },
-    removeItem: (k) => { delete storage[k] },
+test('insufficient budget preserves honest estimates and distinguishes no-day-fits from total shortage', () => {
+  const items = [{ id: 'a', estimatedMinutes: 90, scheduledDate: '2026-11-12' }, { id: 'b', estimatedMinutes: 90, scheduledDate: null }]
+  const before = structuredClone(items)
+  const review = draftReview(items, 120)
+  assert.equal(review.requiredMinutes, 180)
+  assert.equal(review.shortfallMinutes, 60)
+  assert.equal(review.remainingMinutes, 90)
+  assert.equal(review.scheduled.length, 1)
+  assert.equal(draftReview(items, 200).shortfallMinutes, 0)
+  assert.equal(draftReview(items, 200).remaining.length, 1)
+  assert.deepEqual(items, before)
+})
+
+test('partial save explicitly retains edited deferred work; pending reload and reschedule use real API', async t => {
+  clearCsrfTokenCache()
+  const bodies = []
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    if (url.endsWith('/csrf')) return Response.json({ data: { token: 'csrf' } })
+    if (url.endsWith('/pending')) return Response.json({ data: [{ id: 'remaining' }] })
+    if (url.endsWith('/reschedule')) {
+      assert.equal(options.method, 'POST')
+      assert.equal(options.headers['X-CSRF-TOKEN'], 'csrf')
+      return Response.json({ data: { id: 'remaining', goalVersion: 9 } })
+    }
+    bodies.push(JSON.parse(options.body))
+    assert.equal(options.headers['Idempotency-Key'], 'retry-key')
+    return Response.json({ data: { createdCount: 1, remainingCount: 1, remainingDraftId: 'remaining' } })
+  })
+  const scheduled = [{ id: 'a', topicId: 't', title: 'Practice basics', scheduledDate: '2026-11-12', estimatedMinutes: '90' }]
+  const deferredTasks = [{ id: 'b', topicId: 't', title: 'Edited advanced work', estimatedMinutes: '110', reason: 'does not fit' }]
+  for (let i = 0; i < 2; i++) await confirmPlanDraft('g', 'd', scheduled, 7, 'retry-key', { allowPartial: true, deferredTasks })
+  assert.deepEqual(bodies[0], bodies[1])
+  assert.equal(bodies[0].allowPartial, true)
+  assert.deepEqual(bodies[0].deferredTasks, [{ id: 'b', topicId: 't', title: 'Edited advanced work', estimatedMinutes: 110 }])
+  assert.equal((await getPendingPlanDrafts('g'))[0].id, 'remaining')
+  assert.equal((await reschedulePlanDraft('g', 'remaining')).goalVersion, 9)
+})
+
+test('draft generation uses v1 and CSRF without creating or confirming tasks', async t => {
+  clearCsrfTokenCache()
+  const calls = []
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    calls.push(url)
+    if (url.endsWith('/csrf')) return Response.json({ data: { token: 'csrf' } })
+    assert.equal(url, '/api/v1/goals/g%2F1/plan-drafts')
+    assert.equal(options.headers['X-CSRF-TOKEN'], 'csrf')
+    assert.equal(options.credentials, 'same-origin')
+    assert.equal(options.method, 'POST')
+    assert.deepEqual(JSON.parse(options.body), {})
+    return Response.json({ data: { id: 'd1', goalVersion: 7, proposal: { tasks: [] } } }, { status: 201 })
+  })
+  assert.equal((await generatePlanDraft('g/1')).goalVersion, 7)
+  assert.equal(calls.length, 2)
+})
+
+test('confirm retries preserve key, version and edited tasks, stripping client-only fields', async t => {
+  const bodies = []
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.equal(url, '/api/v1/goals/g1/plan-drafts/d1/confirm')
+    assert.equal(options.headers['Idempotency-Key'], 'key1')
+    const body = JSON.parse(options.body)
+    bodies.push(body)
+    assert.deepEqual(body, { expectedGoalVersion: 7, tasks: [{ title: 'SQL', scheduledDate: '2026-11-10', estimatedMinutes: 30 }] })
+    return Response.json({ data: { createdCount: 1 } }, { status: bodies.length === 1 ? 201 : 200 })
+  })
+  const items = [{ title: 'SQL', scheduledDate: '2026-11-10', estimatedMinutes: '30', source: 'manual', id: 'ui' }]
+  await confirmPlanDraft('g1', 'd1', items, 7, 'key1')
+  await confirmPlanDraft('g1', 'd1', items, 7, 'key1')
+  assert.deepEqual(bodies[0], bodies[1])
+})
+
+test('AI and confirm errors stay errors, including expired, stale, auth, budget and network', async t => {
+  for (const [status, code] of [[401, 'UNAUTHORIZED'], [409, 'GOAL_VERSION_CONFLICT'], [410, 'DRAFT_EXPIRED'], [422, 'DAILY_BUDGET_EXCEEDED'], [503, 'AI_UNAVAILABLE']]) {
+    t.mock.method(globalThis, 'fetch', async () => Response.json({ error: { code, message: 'failure', context: { excessMinutes: 5 } } }, { status }))
+    await assert.rejects(generatePlanDraft('g1'), error => error instanceof PlanApiError && error.status === status)
+    await assert.rejects(confirmPlanDraft('g1', 'd1', [], 7, 'key1'), error => error.code === code && error.context.excessMinutes === 5)
   }
-
-  setGoalDraftStatus('g-1', { status: 'generating' })
-  assert.deepEqual(getGoalDraftStatus('g-1'), { status: 'generating' })
-
-  setGoalDraftStatus('g-1', { status: 'ready', taskCount: 4 })
-  assert.equal(getGoalDraftStatus('g-1').status, 'ready')
-  assert.equal(getGoalDraftStatus('g-1').taskCount, 4)
-
-  setGoalDraftStatus('g-1', { status: 'confirmed' })
-  assert.equal(getGoalDraftStatus('g-1').status, 'confirmed')
-
-  setGoalDraftStatus('g-1', null)
-  assert.equal(getGoalDraftStatus('g-1'), null)
+  t.mock.method(globalThis, 'fetch', async () => { throw new TypeError('offline') })
+  await assert.rejects(generatePlanDraft('g1'), /offline/)
+  await assert.rejects(getLatestPlanDraft('g1'), /offline/)
 })
 
-test('parseHour safely parses decimal numbers, formatted string hours, and fallback defaults', () => {
-  assert.equal(parseHour(9), 9)
-  assert.equal(parseHour(9.5), 9.5)
-  assert.equal(parseHour('9'), 9)
-  assert.equal(parseHour('09:00'), 9)
-  assert.equal(parseHour('09:30'), 9.5)
-  assert.equal(parseHour('9h30'), 9.5)
-  assert.equal(parseHour('14:15'), 14.25)
-  assert.equal(parseHour('2026-05-18T09:30:00'), 9.5)
-  assert.equal(parseHour('2026-05-18 14:00'), 14)
-  assert.equal(parseHour('2026-11-07', 9), 9) // Guard against parsing pure date string as 2026
-  assert.equal(parseHour('2:30 PM'), 14.5)
-  assert.equal(parseHour('9:00 AM'), 9)
-  assert.equal(parseHour(null, 10), 10)
-  assert.equal(parseHour(undefined, 8), 8)
-  assert.equal(parseHour('invalid', 9), 9)
-})
 
-test('findBestFitSlot and applyBestFitToDraftTasks choose collision-free slots against existing tasks', () => {
-  const existingTasks = [
-    {
-      id: 'ex-1',
-      title: 'Học trên lớp',
-      scheduledDate: '2026-11-09',
-      recurringDays: [1], // Monday
-      startHour: 9.0,
-      durationHours: 2.0, // 9:00 - 11:00 busy
-    },
-    {
-      id: 'ex-2',
-      title: 'Ăn trưa',
-      scheduledDate: '2026-11-09',
-      recurringDays: [1], // Monday
-      startHour: 11.5,
-      durationHours: 1.5, // 11:30 - 13:00 busy
-    },
+test('draft review sorts by priority without changing dates, minutes, equal-priority order or input', () => {
+  const items = [
+    { title: 'Revision', priority: 'LOW', scheduledDate: '2026-11-12', estimatedMinutes: 30 },
+    { title: 'Practice', priority: 'MEDIUM', scheduledDate: '2026-11-11', estimatedMinutes: 30 },
+    { title: 'Foundations', priority: 'HIGH', scheduledDate: '2026-11-10', estimatedMinutes: 30 },
+    { title: 'Legacy', scheduledDate: '2026-11-11', estimatedMinutes: 15 },
   ]
-
-  const proposedTask = {
-    id: 'draft-1',
-    title: 'Focus Time: Kiến trúc',
-    scheduledDate: '2026-11-09',
-    recurringDays: [1],
-    startHour: 9.0, // Collides with ex-1!
-    durationHours: 1.5,
-  }
-
-  const fit = findBestFitSlot(proposedTask, existingTasks)
-  assert.equal(fit.isBestFit, true)
-  assert.equal(fit.adjusted, true)
-  // Should choose an open daytime candidate (e.g. 14.0)
-  assert.ok(fit.startHour >= 8.0 && fit.startHour <= 18.0)
-  assert.ok(fit.startHour < 9.0 - 1.5 || fit.startHour >= 11.0)
-  assert.ok(fit.startHour < 11.5 - 1.5 || fit.startHour >= 13.0)
-
-  // Multiple tasks placed sequentially without colliding with each other
-  const draftList = [
-    proposedTask,
-    {
-      id: 'draft-2',
-      title: 'Focus Time: Thực hành',
-      scheduledDate: '2026-11-09',
-      recurringDays: [1],
-      startHour: 9.0,
-      durationHours: 1.5,
-    },
-  ]
-
-  const fitted = applyBestFitToDraftTasks(draftList, existingTasks)
-  assert.equal(fitted.length, 2)
-  assert.notEqual(fitted[0].startHour, fitted[1].startHour)
-  // No collision between fitted[0] and fitted[1]
-  const end0 = fitted[0].startHour + fitted[0].durationHours
-  const end1 = fitted[1].startHour + fitted[1].durationHours
-  assert.ok(end0 <= fitted[1].startHour || end1 <= fitted[0].startHour)
-})
-
-test('parseDuration safely parses duration values with minimum threshold', () => {
-  assert.equal(parseDuration(1.5), 1.5)
-  assert.equal(parseDuration('1.5'), 1.5)
-  assert.equal(parseDuration('01:30'), 1.5)
-  assert.equal(parseDuration(0.1), 0.25) // clamped to minimum 0.25
-  assert.equal(parseDuration(null, 2), 2)
-  assert.equal(parseDuration('invalid', 1.5), 1.5)
+  const original = structuredClone(items)
+  const sorted = sortDraftTasksByPriority(items)
+  assert.deepEqual(sorted.map(task => task.title), ['Foundations', 'Practice', 'Legacy', 'Revision'])
+  assert.deepEqual(items, original)
+  for (const task of sorted) assert.deepEqual(task, original.find(item => item.title === task.title))
 })

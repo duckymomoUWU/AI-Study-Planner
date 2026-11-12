@@ -1,0 +1,15 @@
+.syllabus-upload { margin: 0 0 1.25rem; padding: 1rem; border: 1px solid #cce4dc; border-radius: 12px; background: #f5fbf8; }
+.syllabus-upload-body { display: grid; gap: .8rem; margin-top: .8rem; font-size: .875rem; line-height: 1.5; }
+.syllabus-upload-body p { margin: 0; }
+.syllabus-upload-body label { display: grid; gap: .4rem; }
+.syllabus-upload-body input, .syllabus-upload-body textarea { width: 100%; box-sizing: border-box; font: inherit; }
+.syllabus-upload-body textarea { padding: .7rem; border: 1px solid #ccd8d2; border-radius: 8px; resize: vertical; }
+.syllabus-upload-body [role=alert] { color: #a12b20; }
+.syllabus-result { padding: .8rem; border: 1px solid #cce4dc; border-radius: 8px; background: white; }
+.syllabus-result dt { font-weight: 600; }
+.syllabus-result dd { margin: .2rem 0 .65rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.syllabus-upload .button { margin-top: 0; }
+.syllabus-result fieldset { margin: .75rem 0; padding: .75rem; border: 1px solid #cce4dc; border-radius: 8px; min-width: 0; }
+.syllabus-result input:not([type=checkbox]), .syllabus-result select { padding: .5rem; border: 1px solid #ccd8d2; border-radius: 6px; font: inherit; }
+.syllabus-result input[type=checkbox] { width: auto; justify-self: start; }
+.syllabus-result small { overflow-wrap: anywhere; }

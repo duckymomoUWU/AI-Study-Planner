@@ -1,3 +1,4 @@
+import { updateTask } from './tasks.js'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
@@ -87,6 +88,16 @@ test('createTask and deleteTask use the v1 paths and never fall back to demo dat
   await assert.rejects(deleteTask('goal-1', 'task-1'), error => error.status === 405)
 })
 
-test('listOverdueTasks reports nothing because no endpoint exists yet', async () => {
-  assert.deepEqual(await listOverdueTasks(), [])
+test('overdue and update use real v1 endpoints and propagate failures', async t => {
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    if (url === '/api/v1/tasks/overdue') return Response.json({ data: [task('old')] })
+    assert.equal(url, '/api/v1/tasks/task-1')
+    assert.equal(options.method, 'PATCH')
+    assert.deepEqual(JSON.parse(options.body), { title: 'Changed', estimatedMinutes: 60 })
+    return Response.json({ data: task('task-1', { title: 'Changed' }) })
+  })
+  assert.equal((await listOverdueTasks())[0].id, 'old')
+  assert.equal((await updateTask('task-1', { title: 'Changed', estimatedMinutes: 60 })).title, 'Changed')
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ error: { code: 'DAILY_BUDGET_EXCEEDED' } }, { status: 422 }))
+  await assert.rejects(updateTask('task-1', { estimatedMinutes: 480 }), error => error.status === 422)
 })

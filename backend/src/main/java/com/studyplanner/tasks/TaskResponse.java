@@ -6,9 +6,13 @@ import java.util.UUID;
 
 /** API representation of a task (inside the "data" envelope). */
 public record TaskResponse(UUID id, UUID goalId, String title, LocalDate scheduledDate, int estimatedMinutes,
-                           boolean completed, String source, Instant createdAt) {
-    static TaskResponse from(TaskJdbcRepository.StoredTask t) {
+                           boolean completed, String source, Instant createdAt, String topicId, String topicTitle) {
+    public TaskResponse(UUID id, UUID goalId, String title, LocalDate scheduledDate, int estimatedMinutes,
+                        boolean completed, String source, Instant createdAt) {
+        this(id, goalId, title, scheduledDate, estimatedMinutes, completed, source, createdAt, null, null);
+    }
+    public static TaskResponse from(TaskJdbcRepository.StoredTask t) {
         return new TaskResponse(t.id(), t.goalId(), t.title(), t.scheduledDate(), t.estimatedMinutes(),
-                t.completed(), t.source(), t.createdAt());
+                t.completed(), t.source(), t.createdAt(), t.topicId(), t.topicTitle());
     }
 }

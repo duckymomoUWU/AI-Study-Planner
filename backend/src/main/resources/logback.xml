@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Framework DEBUG request/SQL logs can contain credentials and study content. -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter"><level>INFO</level></filter>
+        <encoder><pattern>%d{yyyy-MM-dd'T'HH:mm:ssXXX} %-5level %logger{36} - %msg%n</pattern></encoder>
+    </appender>
+    <logger name="org.springframework.web" level="INFO" />
+    <logger name="org.springframework.jdbc" level="INFO" />
+    <root level="INFO"><appender-ref ref="CONSOLE" /></root>
+</configuration>

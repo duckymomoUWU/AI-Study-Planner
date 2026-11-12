@@ -60,6 +60,8 @@ class TaskApiPostgresIntegrationTest {
                 .andExpect(status().isCreated());
         var result = mvc.perform(post("/api/v1/auth/login").with(csrf()).contentType(MediaType.APPLICATION_JSON)
                         .content(creds)).andExpect(status().isOk()).andReturn();
+        // This suite tests per-goal behavior; explicitly configure a non-binding shared fixture budget.
+        jdbc.update("UPDATE app_users SET study_daily_minutes=1440 WHERE email=?",email);
         return (MockHttpSession) result.getRequest().getSession(false);
     }
 
@@ -207,7 +209,7 @@ class TaskApiPostgresIntegrationTest {
                         .content("{\"completed\":true}"))
                 .andExpect(status().isForbidden()).andExpect(jsonPath("$.error.code").value("CSRF_INVALID"));
         for (String bad : List.of("{}", "{\"completed\":null}", "{\"completed\":\"true\"}", "{\"completed\":1}",
-                "{\"completed\":true,\"title\":\"x\"}", "{\"completed\":true,\"goalId\":\"x\"}")) {
+                "{\"completed\":true,\"title\":null}", "{\"completed\":true,\"goalId\":\"x\"}")) {
             mvc.perform(patch(url(goal, task)).session(s).with(csrf()).contentType(MediaType.APPLICATION_JSON)
                             .content(bad))
                     .andExpect(status().isBadRequest())

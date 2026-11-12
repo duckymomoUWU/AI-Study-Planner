@@ -61,7 +61,12 @@ public class GoalService {
         List<GoalPolicy.Violation> errors = new ArrayList<>();
         ZoneId zone = resolveZone(requestedTimezone, defaultZone, errors);
         errors.addAll(GoalPolicy.validate(input, today(zone == null ? defaultZone : zone)));
+        if (input.startDate() != null && input.startDate().isBefore(today(zone == null ? defaultZone : zone))) {
+            errors.add(new GoalPolicy.Violation("startDate", "must_not_be_in_past",
+                    "Ngày bắt đầu không được trước hôm nay."));
+        }
         validate(errors);
+        if(input.planningScope()!=null) input=withScope(input,GoalPlanning.normalize(input.planningScope(),input));
         return repository.insertOwned(trustedOwnerId, input, zone.getId());
     }
 
@@ -103,10 +108,27 @@ public class GoalService {
         }
         validate(errors);
 
+        var planningScope=GoalPlanning.forPatch(current,merged,patch.planningScope());
+        GoalPlanning.validateExisting(merged,planningScope,repository.listScheduledTasksOwned(trustedOwnerId,goalId));
         if (!repository.updateOwnedIfVersion(trustedOwnerId, goalId, merged, zone.getId(), expectedVersion)) {
             throw new GoalConflictException("stale_goal_version");
         }
+        if(planningScope!=null) repository.updatePlanningScopeOwned(trustedOwnerId,goalId,planningScope,false);
         return repository.findOwned(trustedOwnerId, goalId).orElseThrow(GoalNotFoundException::new);
+    }
+
+    /** Save user-approved planning settings before calling AI; provider failure cannot erase them. */
+    @Transactional
+    public GoalJdbcRepository.StoredGoal savePlanningScope(UUID owner,UUID goalId,com.fasterxml.jackson.databind.JsonNode raw) {
+        var current=repository.lockOwned(owner,goalId).orElseThrow(GoalNotFoundException::new);
+        var input=GoalPlanning.input(current);var normalized=GoalPlanning.normalize(raw,input);
+        GoalPlanning.validateExisting(input,normalized,repository.listScheduledTasksOwned(owner,goalId));
+        if(normalized.equals(current.planningScope())) return current;
+        repository.updatePlanningScopeOwned(owner,goalId,normalized,true);
+        return repository.findOwned(owner,goalId).orElseThrow(GoalNotFoundException::new);
+    }
+    private static GoalPolicy.GoalInput withScope(GoalPolicy.GoalInput input,com.fasterxml.jackson.databind.JsonNode scope) {
+        return new GoalPolicy.GoalInput(input.subject(),input.topics(),input.startDate(),input.examDate(),input.minutesPerDay(),scope);
     }
 
     @Transactional
@@ -141,7 +163,7 @@ public class GoalService {
                 input.topics() == null ? null : input.topics().trim(),
                 input.startDate(),
                 input.examDate(),
-                input.minutesPerDay()
+                input.minutesPerDay(),input.planningScope()
         );
     }
 

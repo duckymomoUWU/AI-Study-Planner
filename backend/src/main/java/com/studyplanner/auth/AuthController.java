@@ -1,6 +1,7 @@
 package com.studyplanner.auth;
 
 import java.util.Objects;
+import java.time.Duration;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -111,6 +112,7 @@ public class AuthController {
                 .path("/")
                 .httpOnly(false)
                 .sameSite("Lax")
+                .maxAge(Duration.ofDays(7))
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }

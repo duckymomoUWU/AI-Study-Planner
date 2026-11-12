@@ -1,8 +1,16 @@
 # Backend API rules
 
+> Shared-budget update 2026-11-11: [account-wide daily capacity](product/shared-study-budget.md) defines GET/PUT `/api/v1/study-budget`, required setup, aggregate checks and owner-before-goal lock order for reservation writes. PUT replaces the complete settings resource; it is not a partial goal update.
+
+> 2026-11-11: Google Calendar endpoints and error semantics are defined in [the Calendar contract](product/google-calendar.md). The current implementation includes auth, Goal CRUD, tasks, syllabus and AI drafts/confirmation; older starter/future labels below are historical. Commands and evidence are owned by [the verification harness](../.agents/harness/README.md) and [the completed handoff](plans/completed/core-study-calendar-2026-11-11.md).
+
+> Core đề cương cập nhật 2026-11-10: [hợp đồng có selectedTopics/dailyMinutes](product/syllabus-revision-plan.md) bổ sung parse outline, draft có scope, việc chưa xếp và confirm theo ID. Draft/API cũ giữ tương thích; hợp đồng scoped áp dụng cho luồng UI mới. [Review và kiểm chứng](reviews/syllabus-core-2026-11-10.md).
+
+> Integration update 2026-11-08: on `integration/sprint2-sprint3-all8-test`, task create/edit/delete/overdue and AI drafts/confirm are implemented. [Integrated contract](product/integrated-tasks-and-plans.md) supersedes the older **future** status for these features. Scope still comes from requirements. Budget figures use numeric `error.context`; validation keeps `error.details[]`. PATCH tasks now accepts title/scheduledDate/estimatedMinutes/completed. See the linked contract for exact paths, receipts and limits.
+
 Mandatory rules for code under `backend/`. They come from the *Backend API Spec — AI Study Planner* (draft of 2026-11-07) and are the standard that reviews and tests check against. [requirements.md](../requirements.md) still owns product scope; if a rule here conflicts with it, requirements win and this file is fixed.
 
-Rules marked **(future)** describe features that are not implemented yet (tasks, AI drafts, confirm, progress). New code for those features must follow them; there is nothing to retrofit today.
+Rules marked **(future)** describe features that are not implemented yet (tasks, AI drafts, confirm). New code for those features must follow them; there is nothing to retrofit today.
 
 ## 1. Paths and methods
 
@@ -24,7 +32,7 @@ Rules marked **(future)** describe features that are not implemented yet (tasks,
 
 3. Partial update uses `PATCH`, never `PUT`. Create returns 201, read and update 200, delete and logout 204 with no body.
 4. Nested resources must check that the child belongs to the `goalId` in the URL.
-5. Task reads and marking a task done or re-opening it are implemented (see [task completion](product/task-completion.md)); completing is `PATCH {"completed": true|false}`, never a toggle. **(future)** Task create/edit/delete (`POST`, `DELETE`, other `PATCH` fields), drafts (`/goals/{goalId}/plan-drafts`, `.../confirm`) and `/goals/{goalId}/progress` follow spec section 7.
+5. Task reads and marking done/re-opening are implemented (see [task completion](product/task-completion.md)). `GET /api/v1/goals/{goalId}/progress` is implemented (see [goal progress](product/goal-progress.md)). Completing is `PATCH {"completed": true|false}`, never a toggle. **(future)** Task create/edit/delete, overdue, AI drafts and confirm follow spec section 7.
 
 ## 2. JSON conventions
 
@@ -136,6 +144,7 @@ Rules marked **(future)** describe features that are not implemented yet (tasks,
 | Auth, `/me`, CSRF | Implemented under `/api/v1` |
 | Goals create, list, detail, patch, delete | Implemented under `/api/v1` |
 | Tasks: read by day or goal, mark done / re-open | Implemented under `/api/v1` ([task completion](product/task-completion.md)) |
-| Tasks: create, edit, delete; overdue; progress | Not implemented (ASP-10, ASP-11, ASP-16/17) |
+| Goal progress (`GET /goals/{id}/progress`) | Implemented under `/api/v1` ([goal progress](product/goal-progress.md)) |
+| Tasks: create, edit, delete; overdue | Not implemented (ASP-10, ASP-11) |
 | AI drafts, confirm, idempotency | Not implemented (ASP-13, ASP-14); needs a new migration |
 | Rate limits, session store and TTL, password policy | Open decisions (spec section 14) |

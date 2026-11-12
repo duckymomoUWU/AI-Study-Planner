@@ -1,18 +1,12 @@
 package com.studyplanner.goals;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-import java.util.Optional;
-import java.util.UUID;
-
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import java.time.Instant;
+import java.util.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -23,105 +17,75 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.studyplanner.auth.*;
 
-import com.studyplanner.auth.AppUserPrincipal;
-import com.studyplanner.auth.AuthUserRepository;
-import com.studyplanner.auth.SecurityConfig;
-
-/**
- * The AI endpoints of a goal (syllabus autofill, plan drafts) moved to /api/v1/goals and the shared envelope when the
- * sprint 3 work of dev1 was merged with the v1 contract. These tests pin that contract: sessions, ownership and the
- * error envelope. The Gemini calls themselves are covered by GeminiPlanServiceTest.
- */
 @WebMvcTest(controllers = PlanDraftController.class)
 @Import(SecurityConfig.class)
 class PlanDraftControllerTest {
-    private static final UUID USER = UUID.fromString("11111111-1111-1111-1111-111111111111");
-    private static final UUID GOAL = UUID.fromString("22222222-2222-2222-2222-222222222222");
-    private static final UUID DRAFT = UUID.fromString("33333333-3333-3333-3333-333333333333");
-    private static final String BASE = "/api/v1/goals/" + GOAL;
-
-    @Autowired
-    private MockMvc mvc;
-
-    @MockBean
-    private GoalService goalService;
-    @MockBean
-    private PlanDraftRepository planDraftRepository;
-    @MockBean
-    private GeminiPlanService geminiPlanService;
-    @MockBean
-    private UserDetailsService userDetailsService;
-    @MockBean
-    private AuthUserRepository authUserRepository;
-
-    private static MockHttpServletRequestBuilder asUser(MockHttpServletRequestBuilder b) {
-        var principal = new AppUserPrincipal(USER, "a@example.com", "hash");
-        return b.with(authentication(new UsernamePasswordAuthenticationToken(
-                principal, null, principal.getAuthorities()))).with(csrf());
+    @Autowired MockMvc mvc;
+    @Autowired ObjectMapper mapper;
+    @MockBean PlanDraftService service;
+    @MockBean UserDetailsService users;
+    @MockBean AuthUserRepository userRepository;
+    final UUID user = UUID.randomUUID(), goal = UUID.randomUUID(), draft = UUID.randomUUID();
+    String base() { return "/api/v1/goals/" + goal + "/plan-drafts"; }
+    MockHttpServletRequestBuilder asUser(MockHttpServletRequestBuilder request) {
+        var p = new AppUserPrincipal(user, "a@example.test", "unused");
+        return request.with(authentication(new UsernamePasswordAuthenticationToken(p, null, p.getAuthorities()))).with(csrf());
     }
-
-    @Test
-    void withoutASessionEveryDraftRouteIs401InTheEnvelope() throws Exception {
-        mvc.perform(post(BASE + "/plan-drafts").with(csrf())).andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
-        mvc.perform(get(BASE + "/plan-drafts/latest")).andExpect(status().isUnauthorized());
-        mvc.perform(get("/api/v1/goals/plan-drafts/" + DRAFT)).andExpect(status().isUnauthorized());
-        mvc.perform(post(BASE + "/plan-drafts/" + DRAFT + "/confirm").with(csrf())
-                .contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(status().isUnauthorized());
-        verifyNoInteractions(goalService, planDraftRepository, geminiPlanService);
+    @Test void requiresSessionAndCsrfAndRejectsClientSuppliedGoalData() throws Exception {
+        mvc.perform(post(base()).with(csrf()).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isUnauthorized());
+        var p = new AppUserPrincipal(user, "a@example.test", "unused");
+        mvc.perform(post(base()).with(authentication(new UsernamePasswordAuthenticationToken(p, null, p.getAuthorities())))
+                .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.error.code").value("CSRF_INVALID"));
+        mvc.perform(asUser(post(base())).contentType(MediaType.APPLICATION_JSON).content("{\"userId\":\"foreign\"}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"));
+        verifyNoInteractions(service);
     }
-
-    @Test
-    void theOldUnversionedPathsAreGone() throws Exception {
-        mvc.perform(asUser(post("/api/goals/" + GOAL + "/plan-drafts"))).andExpect(status().is4xxClientError());
-        verifyNoInteractions(planDraftRepository, geminiPlanService);
+    @Test void generateReturnsDraftEnvelopeAndReadRoutesUseServerOwner() throws Exception {
+        var value = new PlanDraftService.DraftResponse(draft, goal, 4, mapper.readTree("{\"tasks\":[]}"),
+                Instant.parse("2026-11-08T01:00:00Z"), Instant.parse("2026-11-09T01:00:00Z"));
+        when(service.generate(user, goal)).thenReturn(value);
+        mvc.perform(asUser(post(base())).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.data.goalVersion").value(4));
+        when(service.get(user, goal, draft)).thenReturn(value);
+        mvc.perform(asUser(get(base() + "/" + draft))).andExpect(status().isOk()).andExpect(jsonPath("$.data.id").value(draft.toString()));
+        when(service.latest(user, goal)).thenReturn(value);
+        mvc.perform(asUser(get(base() + "/latest"))).andExpect(status().isOk());
     }
-
-    @Test
-    void confirmWithoutCsrfIsForbidden() throws Exception {
-        var principal = new AppUserPrincipal(USER, "a@example.com", "hash");
-        mvc.perform(post(BASE + "/plan-drafts/" + DRAFT + "/confirm")
-                        .with(authentication(new UsernamePasswordAuthenticationToken(
-                                principal, null, principal.getAuthorities())))
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"tasks\":[]}"))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.error.code").value("CSRF_INVALID"));
-        verifyNoInteractions(planDraftRepository);
+    @Test void confirmRequiresUuidKeyAndReturns201Then200ForReceiptReplay() throws Exception {
+        String path = base() + "/" + draft + "/confirm";
+        for (String key : List.of("", "bad", "1-1-1-1-1")) {
+            mvc.perform(asUser(post(path)).header("Idempotency-Key", key).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                    .andExpect(status().isBadRequest());
+        }
+        var value = new PlanDraftService.ConfirmResponse(draft, goal, 5, 1, List.of(UUID.randomUUID()));
+        when(service.confirm(eq(user), eq(goal), eq(draft), any(), any()))
+                .thenReturn(new PlanDraftService.Confirmation(value, false), new PlanDraftService.Confirmation(value, true));
+        String key = UUID.randomUUID().toString();
+        mvc.perform(asUser(post(path)).header("Idempotency-Key", key).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.data.createdCount").value(1));
+        mvc.perform(asUser(post(path)).header("Idempotency-Key", key).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isOk());
     }
-
-    @Test
-    void noDraftYetIsTheSharedNotFoundNotAnOldStyleCode() throws Exception {
-        when(planDraftRepository.findLatestDraft(any(), any())).thenReturn(Optional.empty());
-        mvc.perform(asUser(get(BASE + "/plan-drafts/latest")))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error.code").value("NOT_FOUND"))
-                .andExpect(jsonPath("$.code").doesNotExist());
-        when(planDraftRepository.findDraftById(any(), any())).thenReturn(Optional.empty());
-        mvc.perform(asUser(get("/api/v1/goals/plan-drafts/" + DRAFT)))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
+    @Test void aiErrorsUseSharedEnvelope() throws Exception {
+        when(service.generate(user, goal)).thenThrow(new PlanException(503, "AI_UNAVAILABLE", "Unavailable"));
+        mvc.perform(asUser(post(base())).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.error.code").value("AI_UNAVAILABLE"));
     }
-
-    @Test
-    void aGoalTheCallerDoesNotOwnIsTheSharedNotFound() throws Exception {
-        when(goalService.getGoal(USER, GOAL)).thenThrow(new GoalService.GoalNotFoundException());
-        mvc.perform(asUser(post(BASE + "/plan-drafts")))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
-        mvc.perform(asUser(get(BASE + "/plan-drafts/latest")))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
-        verifyNoInteractions(geminiPlanService);
-    }
-
-    @Test
-    void confirmWithoutTasksIsAValidationErrorWithFieldDetails() throws Exception {
-        mvc.perform(asUser(post(BASE + "/plan-drafts/" + DRAFT + "/confirm"))
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"expectedGoalVersion\":0,\"tasks\":[]}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"))
-                .andExpect(jsonPath("$.error.details[0].field").value("tasks"));
-        verifyNoInteractions(planDraftRepository);
+    @Test void scopedGenerationForwardsOnlyConfirmedScopeAndTrustedOwner() throws Exception {
+        var value = new PlanDraftService.DraftResponse(draft, goal, 0, mapper.readTree("{\"tasks\":[],\"unscheduled\":[]}"),
+                Instant.parse("2026-11-10T01:00:00Z"), Instant.parse("2026-11-11T01:00:00Z"));
+        when(service.generateScoped(eq(user), eq(goal), any())).thenReturn(value);
+        mvc.perform(asUser(post(base())).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"selectedTopics\":[{\"id\":\"collision\",\"title\":\"Collision\"}],\"dailyMinutes\":{}}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.data.proposal.unscheduled").isArray());
+        verify(service).generateScoped(eq(user), eq(goal), argThat(body -> body.path("selectedTopics").get(0).path("id").asText().equals("collision")));
+        mvc.perform(asUser(post(base())).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"selectedTopics\":[],\"userId\":\"foreign\"}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"));
     }
 }

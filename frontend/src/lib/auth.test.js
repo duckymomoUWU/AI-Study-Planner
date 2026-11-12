@@ -6,6 +6,15 @@ beforeEach(() => {
   clearCsrfTokenCache()
 })
 
+function mockDocument(t, cookie) {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'document')
+  Object.defineProperty(globalThis, 'document', { configurable: true, value: { cookie } })
+  t.after(() => {
+    if (original) Object.defineProperty(globalThis, 'document', original)
+    else delete globalThis.document
+  })
+}
+
 const csrfResponse = token => Response.json({ data: { token, headerName: 'X-CSRF-TOKEN' } })
 const user = { id: 'user-uuid-1', email: 'test@example.com', createdAt: '2026-11-07T03:00:00Z' }
 
@@ -147,4 +156,85 @@ test('logout posts to /api/v1/auth/logout with CSRF and clears the cache', async
 
   assert.equal(await logout(), true)
   assert.equal(logoutCalled, true)
+})
+
+
+test('CSRF warmup and submit share one in-flight token request and bypass browser caches', async t => {
+  let finish, count = 0
+  t.mock.method(globalThis, 'fetch', async (_, options) => {
+    count++
+    assert.equal(options.cache, 'no-store')
+    assert.equal(options.headers['Cache-Control'], 'no-cache, no-store')
+    return new Promise(resolve => { finish = () => resolve(csrfResponse('shared')) })
+  })
+  const warmup = getCsrfToken()
+  const submit = getCsrfToken()
+  assert.equal(count, 1)
+  finish()
+  assert.deepEqual(await Promise.all([warmup, submit]), ['shared', 'shared'])
+})
+
+test('login refreshes CSRF and retries exactly once, preserving uppercase error contract', async t => {
+  let tokens = 0, attempts = 0
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    if (url.endsWith('/csrf')) return csrfResponse(++tokens === 1 ? 'stale' : 'fresh')
+    attempts++
+    assert.equal(options.headers['X-CSRF-TOKEN'], attempts === 1 ? 'stale' : 'fresh')
+    if (attempts === 1) return Response.json({ error: { code: 'CSRF_INVALID' } }, { status: 403 })
+    return Response.json({ data: user })
+  })
+  assert.deepEqual(await login('test@example.com', 'password123'), user)
+  assert.equal(attempts, 2)
+  assert.equal(tokens, 2)
+})
+
+test('a second CSRF failure is surfaced without an infinite retry', async t => {
+  let attempts = 0
+  t.mock.method(globalThis, 'fetch', async url => {
+    if (url.endsWith('/csrf')) return csrfResponse('token')
+    attempts++
+    return Response.json({ error: { code: 'CSRF_INVALID' } }, { status: 403 })
+  })
+  await assert.rejects(login('test@example.com', 'password123'), error => error.code === 'CSRF_INVALID')
+  assert.equal(attempts, 2)
+})
+
+test('unrelated 403 and invalid credentials are not retried', async t => {
+  for (const [status, code] of [[403, 'ACCESS_DENIED'], [401, 'INVALID_CREDENTIALS']]) {
+    clearCsrfTokenCache()
+    let attempts = 0
+    t.mock.method(globalThis, 'fetch', async url => {
+      if (url.endsWith('/csrf')) return csrfResponse('token')
+      attempts++
+      return Response.json({ error: { code } }, { status })
+    })
+    await assert.rejects(login('test@example.com', 'wrong'), error => error.code === code)
+    assert.equal(attempts, 1)
+  }
+})
+
+test('cookie fallback handles CSRF endpoint failure and encoded token', async t => {
+  t.mock.method(globalThis, 'fetch', async () => new Response(null, { status: 502 }))
+  mockDocument(t, 'other=1; XSRF-TOKEN=cookie%2Fvalue')
+  assert.equal(await getCsrfToken(), 'cookie/value')
+})
+
+test('malformed cookie and malformed response produce a CSRF error rather than an undefined header', async t => {
+  mockDocument(t, 'XSRF-TOKEN=%E0%A4%A')
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ data: {} }))
+  await assert.rejects(getCsrfToken(), error => error instanceof AuthApiError && error.code === 'CSRF_ERROR')
+})
+
+test('old in-flight warmup cannot overwrite token from a new session', async t => {
+  let finishOld, count = 0
+  t.mock.method(globalThis, 'fetch', async () => {
+    count++
+    if (count === 1) return new Promise(resolve => { finishOld = () => resolve(csrfResponse('old-session')) })
+    return csrfResponse('new-session')
+  })
+  const old = getCsrfToken()
+  assert.equal(await getCsrfToken(true), 'new-session')
+  finishOld()
+  await old
+  assert.equal(await getCsrfToken(), 'new-session')
 })

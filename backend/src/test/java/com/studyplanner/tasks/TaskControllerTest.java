@@ -122,7 +122,7 @@ class TaskControllerTest {
         mvc.perform(asUser(patch(ONE)).contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"))
-                .andExpect(jsonPath("$.error.details[?(@.field=='completed' && @.issue=='required')]").exists());
+                .andExpect(jsonPath("$.error.details[?(@.field=='body' && @.issue=='empty_patch')]").exists());
         mvc.perform(asUser(patch(ONE)).contentType(MediaType.APPLICATION_JSON).content(completed("null")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.details[?(@.field=='completed' && @.issue=='required')]").exists());
@@ -141,13 +141,12 @@ class TaskControllerTest {
     }
 
     @Test
-    void patchRejectsOtherFieldsAsUnknownOrNotSupportedYet() throws Exception {
+    void patchRejectsOwnerFieldsEvenWhenEditingContent() throws Exception {
         mvc.perform(asUser(patch(ONE)).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"completed\":true,\"goalId\":\"x\",\"userId\":\"x\",\"title\":\"đổi\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.details[?(@.field=='goalId' && @.issue=='unknown_field')]").exists())
-                .andExpect(jsonPath("$.error.details[?(@.field=='userId' && @.issue=='unknown_field')]").exists())
-                .andExpect(jsonPath("$.error.details[?(@.field=='title' && @.issue=='not_supported')]").exists());
+                .andExpect(jsonPath("$.error.details[?(@.field=='userId' && @.issue=='unknown_field')]").exists());
         verify(service, never()).setCompleted(any(), any(), any(), anyBoolean());
     }
 
@@ -227,5 +226,18 @@ class TaskControllerTest {
         mvc.perform(asUser(get("/api/v1/goals/" + GOAL + "/tasks")))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
+    }
+
+    @Test void createDeleteAndDirectEditUseSharedEnvelopeAndStrictInputs() throws Exception {
+        when(service.createTask(eq(USER), eq(GOAL), any())).thenReturn(stored(false));
+        mvc.perform(asUser(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/goals/" + GOAL + "/tasks"))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"SQL\",\"scheduledDate\":\"2026-11-10\",\"estimatedMinutes\":30}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.data.id").value(TASK.toString()));
+        mvc.perform(asUser(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete(ONE))).andExpect(status().isNoContent());
+        when(service.updateTaskDirect(eq(USER), eq(TASK), any())).thenReturn(stored(false));
+        mvc.perform(asUser(patch("/api/v1/tasks/" + TASK)).contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"New title\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.id").value(TASK.toString()));
+        mvc.perform(asUser(patch(ONE)).contentType(MediaType.APPLICATION_JSON).content("{\"estimatedMinutes\":30.5}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.details[0].issue").value("invalid_type"));
     }
 }

@@ -64,7 +64,7 @@ public class PlanDraftRepository {
         var rows = jdbc.query(
                 """
                 INSERT INTO plan_drafts (goal_id, goal_version, proposal, expires_at)
-                VALUES (:goalId, :goalVersion, :proposal::jsonb, :expiresAt)
+                VALUES (:goalId, :goalVersion, CAST(:proposal AS jsonb), :expiresAt)
                 RETURNING id, goal_id, goal_version, proposal::text AS proposal, created_at, expires_at
                 """,
                 params, DRAFT_MAPPER
@@ -74,6 +74,22 @@ public class PlanDraftRepository {
             throw new IllegalStateException("Failed to insert plan_draft");
         }
         return rows.getFirst();
+    }
+
+    public void replaceProposal(UUID id, int version, String proposal, Instant expiresAt) {
+        jdbc.update("UPDATE plan_drafts SET goal_version=:version, proposal=CAST(:proposal AS jsonb), expires_at=:expires WHERE id=:id",
+            new MapSqlParameterSource("id", id).addValue("version", version).addValue("proposal", proposal)
+                .addValue("expires", java.sql.Timestamp.from(expiresAt)));
+    }
+
+    public List<StoredDraft> pending(UUID owner, UUID goalId) {
+        return jdbc.query("""
+            SELECT d.id,d.goal_id,d.goal_version,d.proposal::text AS proposal,d.created_at,d.expires_at
+            FROM plan_drafts d JOIN study_goals g ON g.id=d.goal_id
+            WHERE g.user_id=:owner AND g.id=:goal AND d.proposal->>'backlogOnly'='true'
+            AND NOT EXISTS (SELECT 1 FROM plan_confirmations r WHERE r.draft_id=d.id)
+            ORDER BY d.created_at DESC
+            """, new MapSqlParameterSource("owner",owner).addValue("goal",goalId), DRAFT_MAPPER);
     }
 
     public Optional<StoredDraft> findDraft(UUID trustedOwnerId, UUID goalId, UUID draftId) {
@@ -137,56 +153,32 @@ public class PlanDraftRepository {
         ).stream().findFirst();
     }
 
-    @Transactional
-    public List<UUID> confirmDraft(UUID trustedOwnerId, UUID goalId, UUID draftId, List<TaskToCreate> tasks) {
-        Objects.requireNonNull(trustedOwnerId, "trustedOwnerId");
-        Objects.requireNonNull(goalId, "goalId");
-        Objects.requireNonNull(draftId, "draftId");
-        Objects.requireNonNull(tasks, "tasks");
+    public void lockOwner(UUID owner) {
+        jdbc.queryForList("SELECT id FROM app_users WHERE id = :ownerId FOR UPDATE",
+                new MapSqlParameterSource("ownerId", owner));
+    }
 
-        // 1. Verify ownership and draft existence
-        var draft = findDraft(trustedOwnerId, goalId, draftId)
-                .orElseThrow(() -> new GoalService.GoalNotFoundException());
+    public record Receipt(String fingerprint, String responseJson) {}
 
-        // 2. Increment goal version
-        int updated = jdbc.update(
-                """
-                UPDATE study_goals
-                   SET version = version + 1
-                 WHERE user_id = :ownerId AND id = :goalId
-                """,
-                new MapSqlParameterSource()
-                        .addValue("ownerId", trustedOwnerId)
-                        .addValue("goalId", goalId)
-        );
-        if (updated == 0) {
-            throw new GoalService.GoalNotFoundException();
-        }
+    public Optional<Receipt> receipt(UUID owner, UUID key) {
+        return jdbc.query("SELECT fingerprint, response::text AS response FROM plan_confirmations "
+                + "WHERE user_id = :ownerId AND idempotency_key = :key",
+                new MapSqlParameterSource("ownerId", owner).addValue("key", key),
+                (rs, row) -> new Receipt(rs.getString("fingerprint"), rs.getString("response")))
+                .stream().findFirst();
+    }
 
-        // 3. Insert confirmed tasks into study_tasks
-        List<UUID> createdIds = new ArrayList<>();
-        for (TaskToCreate t : tasks) {
-            var params = new MapSqlParameterSource()
-                    .addValue("goalId", goalId)
-                    .addValue("title", t.title())
-                    .addValue("scheduledDate", java.sql.Date.valueOf(t.scheduledDate()))
-                    .addValue("estimatedMinutes", t.estimatedMinutes())
-                    .addValue("source", t.source() != null ? t.source() : "ai");
+    public boolean confirmed(UUID owner, UUID draftId) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM plan_confirmations "
+                + "WHERE user_id = :ownerId AND draft_id = :draftId)",
+                new MapSqlParameterSource("ownerId", owner).addValue("draftId", draftId), Boolean.class));
+    }
 
-            var inserted = jdbc.query(
-                    """
-                    INSERT INTO study_tasks (goal_id, title, scheduled_date, estimated_minutes, completed, source)
-                    VALUES (:goalId, :title, :scheduledDate, :estimatedMinutes, false, :source)
-                    RETURNING id
-                    """,
-                    params,
-                    (rs, rowNum) -> rs.getObject("id", UUID.class)
-            );
-            if (!inserted.isEmpty()) {
-                createdIds.add(inserted.getFirst());
-            }
-        }
-
-        return createdIds;
+    public void saveReceipt(UUID owner, UUID key, UUID draftId, String fingerprint, String responseJson) {
+        jdbc.update("""
+                INSERT INTO plan_confirmations (user_id, idempotency_key, draft_id, fingerprint, response)
+                VALUES (:ownerId, :key, :draftId, :fingerprint, CAST(:response AS jsonb))
+                """, new MapSqlParameterSource("ownerId", owner).addValue("key", key).addValue("draftId", draftId)
+                .addValue("fingerprint", fingerprint).addValue("response", responseJson));
     }
 }
