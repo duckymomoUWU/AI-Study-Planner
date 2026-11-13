@@ -8,9 +8,12 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -26,6 +29,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studyplanner.auth.AppUserPrincipal;
 import com.studyplanner.auth.AuthUserRepository;
 import com.studyplanner.auth.SecurityConfig;
@@ -42,6 +46,8 @@ class StudySessionControllerTest {
 
     @Autowired
     private MockMvc mvc;
+    @Autowired
+    private ObjectMapper mapper;
     @MockBean
     private StudySessionService service;
     @MockBean
@@ -195,5 +201,29 @@ class StudySessionControllerTest {
                 .andExpect(jsonPath("$.data.totalFocusSeconds").value(1800));
         doThrow(StudySessionException.goalNotFound()).when(service).studyTime(USER, SESSION);
         mvc.perform(asUser(get("/api/v1/goals/" + SESSION + "/study-time"))).andExpect(status().isNotFound());
+    }
+
+    private static String fixture(String name) throws IOException {
+        try (var in = StudySessionControllerTest.class.getResourceAsStream("/fixtures/" + name)) {
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+    }
+
+    /** The shared contract fixture is the single source: the response must equal it field for field. */
+    @Test
+    void theActiveSessionResponseMatchesTheSharedFixtureExactly() throws Exception {
+        String json = fixture("session-active.json");
+        var view = mapper.treeToValue(mapper.readTree(json).at("/data/session"), StudySessionService.SessionView.class);
+        when(service.active(USER)).thenReturn(new StudySessionService.ActiveSessionView(view));
+        mvc.perform(asUser(get("/api/v1/study-sessions/active"))).andExpect(status().isOk())
+                .andExpect(content().json(json, true));
+    }
+
+    @Test
+    void theVersionConflictErrorMatchesTheSharedFixtureExactly() throws Exception {
+        doThrow(StudySessionException.versionConflict(2)).when(service).action(any(), any(), any(), any());
+        mvc.perform(write("/api/v1/study-sessions/" + SESSION + "/actions",
+                        "{\"action\":\"PAUSE\",\"expectedVersion\":0}", KEY))
+                .andExpect(status().isConflict()).andExpect(content().json(fixture("api-error.json"), true));
     }
 }

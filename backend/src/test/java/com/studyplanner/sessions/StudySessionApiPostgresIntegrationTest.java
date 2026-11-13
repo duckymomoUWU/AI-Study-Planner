@@ -232,6 +232,82 @@ class StudySessionApiPostgresIntegrationTest {
     }
 
     @Test
+    void simultaneousActionsOnTheSameVersionApplyExactlyOneAndRejectTheRest() throws Exception {
+        var s = login("a@example.com");
+        String id = data(start(s, task(goal(s, "Toán"), "Hai tab"), key()).andExpect(status().isCreated())).get("id").asText();
+        clock.advance(100);
+
+        // Two tabs holding version 0 press different buttons with different keys, several times over.
+        List<String> actions = List.of("PAUSE", "CANCEL", "FINISH", "PAUSE", "CANCEL", "FINISH");
+        ExecutorService pool = Executors.newFixedThreadPool(actions.size());
+        int applied = 0, stale = 0;
+        try {
+            List<Callable<ResultSnapshot>> calls = new java.util.ArrayList<>();
+            for (String action : actions) {
+                calls.add(() -> {
+                    var response = act(s, id, action, 0, key()).andReturn().getResponse();
+                    return new ResultSnapshot(response.getStatus(), response.getContentAsString());
+                });
+            }
+            for (Future<ResultSnapshot> f : pool.invokeAll(calls)) {
+                ResultSnapshot result = f.get();
+                if (result.status() == 200) {
+                    applied++;
+                } else {
+                    assertEquals(409, result.status());
+                    assertEquals("SESSION_VERSION_CONFLICT", mapper.readTree(result.body()).at("/error/code").asText());
+                    assertEquals(1, mapper.readTree(result.body()).at("/error/context/currentVersion").asInt());
+                    stale++;
+                }
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+        assertEquals(1, applied);
+        assertEquals(actions.size() - 1, stale);
+
+        // Exactly one transition happened: version 1, the 100 seconds counted once, one receipt per accepted write.
+        assertEquals(1, jdbc.queryForObject("SELECT version FROM study_sessions WHERE id=?::uuid", Integer.class, id));
+        assertEquals(100, jdbc.queryForObject("SELECT accumulated_focus_seconds FROM study_sessions WHERE id=?::uuid", Integer.class, id));
+        assertEquals(2, jdbc.queryForObject("SELECT count(*) FROM study_session_receipts", Integer.class));
+    }
+
+    @Test
+    void simultaneousRetriesWithTheSameKeyRecordTheChangeOnceAndAgreeOnTheResult() throws Exception {
+        var s = login("a@example.com");
+        String id = data(start(s, task(goal(s, "Toán"), "Retry"), key()).andExpect(status().isCreated())).get("id").asText();
+        clock.advance(240);
+        String finishKey = key();
+
+        ExecutorService pool = Executors.newFixedThreadPool(6);
+        java.util.Set<Integer> seconds = new java.util.HashSet<>();
+        try {
+            List<Callable<ResultSnapshot>> calls = new java.util.ArrayList<>();
+            for (int i = 0; i < 6; i++) {
+                calls.add(() -> {
+                    var response = act(s, id, "FINISH", 0, finishKey).andReturn().getResponse();
+                    return new ResultSnapshot(response.getStatus(), response.getContentAsString());
+                });
+            }
+            for (Future<ResultSnapshot> f : pool.invokeAll(calls)) {
+                ResultSnapshot result = f.get();
+                assertEquals(200, result.status());
+                JsonNode session = mapper.readTree(result.body()).get("data");
+                assertEquals("COMPLETED", session.get("status").asText());
+                seconds.add(session.get("focusedSeconds").asInt());
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+        assertEquals(java.util.Set.of(240), seconds);
+        assertEquals(1, jdbc.queryForObject("SELECT version FROM study_sessions WHERE id=?::uuid", Integer.class, id));
+        assertEquals(2, jdbc.queryForObject("SELECT count(*) FROM study_session_receipts", Integer.class));
+        assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM study_sessions WHERE status='COMPLETED'", Integer.class));
+    }
+
+    private record ResultSnapshot(int status, String body) {}
+
+    @Test
     void retryingWithTheSameKeyReplaysTheResultWithoutAnotherSessionOrDoubleTime() throws Exception {
         var s = login("a@example.com");
         String taskId = task(goal(s, "Toán"), "Replay");
