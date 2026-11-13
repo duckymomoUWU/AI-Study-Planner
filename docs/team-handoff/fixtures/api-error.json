@@ -1,0 +1,8 @@
+{
+  "error": {
+    "code": "SESSION_VERSION_CONFLICT",
+    "message": "Phiên học đã thay đổi ở nơi khác. Hãy tải lại trước khi tiếp tục.",
+    "details": [{ "field": "expectedVersion", "issue": "stale_version" }],
+    "context": { "currentVersion": 2 }
+  }
+}

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Study Planner · Frontend design system</title>
+  <style>
+    @font-face{font-family:Be Vietnam Pro;src:url('../../frontend/src/assets/fonts/BeVietnamPro-Regular.ttf');font-weight:400;font-display:swap}
+    @font-face{font-family:Be Vietnam Pro;src:url('../../frontend/src/assets/fonts/BeVietnamPro-SemiBold.ttf');font-weight:600;font-display:swap}
+    :root{--canvas:#f6f3eb;--surface:#fffefa;--primary:#285b53;--primary-hover:#204a43;--ink:#293c35;--muted:#647267;--line:#e2dfd3;--soft:#e9ede2;--font-ui:'Be Vietnam Pro','Segoe UI',sans-serif}
+    *{box-sizing:border-box}body{margin:0;background:var(--canvas);color:var(--ink);font:14px/1.75 var(--font-ui)}a{color:var(--primary)}
+    .guide-header{border-bottom:1px solid var(--line);padding:20px max(24px,calc((100vw - 1120px)/2));display:flex;justify-content:space-between;gap:20px;align-items:center}
+    .guide-brand{font-weight:600;font-size:18px;letter-spacing:-.4px}.guide-brand span{font-weight:400}.guide-tag{border-radius:100px;background:var(--soft);padding:5px 12px;font-size:12px}
+    main{max-width:1170px;margin:0 auto;padding:48px 24px 80px}.eyebrow{font-size:11px;color:var(--primary);letter-spacing:2px;text-transform:uppercase;margin:0 0 12px}
+    h1{font-size:clamp(30px,5vw,46px);font-weight:400;line-height:1.4;margin:0 0 16px;letter-spacing:-1px}h2{font-size:23px;font-weight:600;margin:0 0 14px}h3{font-size:16px;font-weight:600;margin:0 0 12px}p{margin:0 0 14px}.muted{color:var(--muted)}
+    .intro{max-width:770px;margin-bottom:40px}.guide-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:28px;min-width:0}.wide{grid-column:1/-1}
+    .swatches{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}.swatch{border:1px solid var(--line);border-radius:12px;overflow:hidden}.swatch-color{height:64px;border-bottom:1px solid var(--line)}.swatch div:last-child{padding:10px}.swatch strong,.swatch code{display:block;font-size:12px}.swatch code{color:var(--muted)}
+    button,.button{font:600 13px/1.5 var(--font-ui);padding:11px 16px;min-height:44px;border:1px solid var(--line);border-radius:12px;cursor:pointer;background:var(--surface);color:var(--primary);transition:background .2s,transform .2s,box-shadow .2s;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+    .primary{background:linear-gradient(110deg,#80aca5 0%,#d3ddcc 65%,#f0e7d4 100%);color:#183d36;border-color:#a9c0b2}.secondary{background:var(--soft)}button:hover:not(:disabled),.button:hover{background:var(--soft);box-shadow:0 4px 12px #285b5318}button:active:not(:disabled){transform:translateY(1px)}button:disabled{opacity:.55;cursor:not-allowed}
+    button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid #80aca5;outline-offset:4px}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.row+.row{margin-top:16px}
+    label{display:block;margin:18px 0 7px;font-weight:600}input{font:inherit;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;width:100%;color:var(--ink)}.help{font-size:12px;color:var(--muted);margin-top:6px}
+    .pill{display:inline-block;background:var(--soft);padding:4px 10px;border-radius:100px;color:var(--primary);font-size:12px}.alert{padding:14px 16px;border:1px solid #dbcba9;border-radius:12px;background:#f7f1df;color:#675332;margin:16px 0}.error{background:#fff1e9;border-color:#e4c6b2;color:#81452d}
+    .timer-face{text-align:center;padding:20px 0}.clock{font-size:72px;letter-spacing:-3px;font-variant-numeric:tabular-nums;font-weight:400;line-height:1.4}.timer-face .row{justify-content:center}.rule{border-top:1px solid var(--line);padding-top:18px;margin-top:20px}.quote{padding:14px;border-left:3px solid #adc1ac;background:var(--soft);font-size:13px;margin:16px 0}.recall-flip summary{cursor:pointer;color:var(--primary);font-weight:600;padding:14px 0}.recall-flip[open] summary{border-bottom:1px solid var(--line);margin-bottom:14px}
+    .landing-sample{display:grid;grid-template-columns:1.4fr 1fr;gap:28px;align-items:center}.landing-sample h3{font-size:30px;line-height:1.5;font-weight:400}.sample-side{background:var(--soft);border-radius:14px;padding:24px}.steps{padding-left:20px;margin:0}.steps li{padding:5px 0}.note{font-size:12px;color:var(--muted)}.footer{margin-top:32px;color:var(--muted);font-size:12px}
+    @media(max-width:700px){main{padding-top:28px}.guide-grid,.landing-sample{grid-template-columns:1fr}.swatches{grid-template-columns:repeat(2,minmax(0,1fr))}.card{padding:20px}.guide-header{align-items:flex-start;flex-direction:column;gap:8px}.clock{font-size:62px}}
+    @media(prefers-reduced-motion:reduce){button,.button{transition:none!important;transform:none!important}}
+    @media print{body{font-size:11px}main{padding:20px 0}.card{break-inside:avoid;padding:18px}.guide-header{padding:12px 0}.clock{font-size:48px}button,.button{box-shadow:none!important}h1{font-size:28px}}
+  </style>
+</head>
+<body>
+  <header class="guide-header"><div class="guide-brand">study<span>planner</span> <small> / Design system</small></div><div class="guide-tag">Bảng tham chiếu · không phải app đã triển khai</div></header>
+  <main>
+    <section class="intro"><p class="eyebrow">Học có kế hoạch</p><h1>Một theme chung.<br>Ba phần làm ra phải khớp.</h1><p class="muted">Kem ấm, xanh rêu, chữ Be Vietnam Pro. Bảng này giúp nhóm thống nhất cách vẽ Landing, Timer và Active Recall; không gọi API hoặc lưu dữ liệu.</p><a href="README.md">Mở bộ giao việc</a> · <a href="03-API-CONTRACT.md">API contract v1</a></section>
+    <div class="guide-grid">
+      <section class="card wide"><h2>01 / Token từ frontend hiện tại</h2><p class="muted">Dùng biến trong <code>frontend/src/theme.css</code>, không tạo bảng màu mới cho từng màn hình.</p><div class="swatches">
+        <div class="swatch"><div class="swatch-color" style="background:#f6f3eb"></div><div><strong>--canvas</strong><code>#f6f3eb</code></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#fffefa"></div><div><strong>--surface</strong><code>#fffefa</code></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#285b53"></div><div><strong>--primary</strong><code>#285b53</code></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#204a43"></div><div><strong>--primary-hover</strong><code>#204a43</code></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#293c35"></div><div><strong>--ink</strong><code>#293c35</code></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#647267"></div><div><strong>--muted</strong><code>#647267</code></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#e2dfd3"></div><div><strong>--line</strong><code>#e2dfd3</code></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#e9ede2"></div><div><strong>--soft</strong><code>#e9ede2</code></div></div>
+      </div></section>
+      <section class="card"><h2>02 / Nút, input và focus</h2><p class="note">Nút dưới đây minh họa kiểu dáng; không bắt đầu phiên hoặc gọi backend. Dùng Tab để kiểm tra focus ring.</p><div class="row"><button class="primary" type="button">Bắt đầu học</button><button class="secondary" type="button">Xem lịch học</button><button type="button" disabled>Đang lưu…</button></div><label for="sample-title">Tên bộ thẻ</label><input id="sample-title" value="Ôn kiểm thử phần mềm" aria-describedby="sample-help"><p class="help" id="sample-help">Có label rõ, không chỉ dùng placeholder.</p><div class="alert">Đang chờ xác nhận lưu. Không hiển thị thành công trước phản hồi API.</div><div class="alert error">Chưa lưu được đánh giá. Giữ nội dung để người học thử lại.</div></section>
+      <section class="card"><div class="row"><h2>03 / Timer</h2><span class="pill">Tập trung</span></div><p class="muted">Kiểm tra phần mềm · Ôn kiểm thử hộp đen</p><div class="timer-face"><div class="clock" aria-label="Minh họa 25 phút">25:00</div><p class="note">Ảnh trạng thái tĩnh — chưa triển khai đồng hồ.</p><div class="row"><button class="primary" type="button">Bắt đầu</button><button type="button" disabled>Tạm dừng</button></div></div><p class="rule note">Sau khi kết thúc phiên, lưu thời gian do backend tính. Không tự hoàn thành công việc; không tính 5 phút nghỉ vào thời gian học.</p></section>
+      <section class="card"><h2>04 / Flashcard tự đánh giá</h2><span class="pill">Thẻ minh họa</span><h3 style="margin-top:18px">Kiểm thử hộp đen đánh giá điều gì?</h3><details class="recall-flip"><summary>Xem đáp án</summary><p>Hành vi đầu vào và đầu ra của hệ thống.</p><div class="quote">Dẫn nguồn minh họa: “Kiểm thử hộp đen đánh giá hành vi đầu vào và đầu ra.”</div><div class="row"><button class="primary" type="button">Tôi nhớ</button><button class="secondary" type="button">Chưa nhớ</button></div><p class="note">Nút chỉ minh họa, không ghi review.</p></details><p class="rule note">Người học tự đánh giá sau khi lật đáp án. Không gọi kết quả này là điểm AI chấm.</p></section>
+      <section class="card"><h2>05 / Bố cục và chữ</h2><p>Học từng chút. Tiến xa mỗi ngày.</p><p class="muted">Dòng phụ giải thích hành động tiếp theo, không viết “Sprint UI”, “placeholder” hoặc trạng thái phát triển vào sản phẩm.</p><ul class="steps"><li>Body 14–16px, line-height khoảng 1.65.</li><li>Khoảng cách 8 / 12 / 16 / 24 / 32px.</li><li>Card radius 16px, viền mảnh, nền sáng.</li><li>Nút khoảng 44px vùng chạm, focus nhìn rõ.</li><li>Mỗi nhóm một hành động chính nổi bật.</li></ul><p class="rule note">Test ở 360px / 768px / 1440px, bằng bàn phím và với reduced motion.</p></section>
+      <section class="card wide"><h2>06 / Phác bố cục Landing</h2><div class="landing-sample"><div><p class="eyebrow">AI Study Planner</p><h3>Biến nội dung cần ôn<br>thành từng việc mỗi ngày.</h3><p class="muted">Tải đề cương, kiểm tra kế hoạch, rồi bắt đầu học theo nhịp của bạn.</p><div class="row"><button class="primary" type="button">Bắt đầu lập kế hoạch ↗</button><button type="button">Đăng nhập</button></div></div><div class="sample-side"><ol class="steps"><li>Chọn môn và nội dung cần ôn.</li><li>Duyệt đề xuất trước khi lưu lịch.</li><li>Học tập trung và ôn bằng flashcard.</li></ol><p class="note" style="margin-top:14px">Chỉ giới thiệu Timer/Recall như tính năng đã dùng được sau khi nhóm hoàn tất tích hợp. Không bịa số liệu hoặc đánh giá khách hàng.</p></div></div></section>
+    </div>
+    <p class="footer">Tham chiếu source main / 29dbf6d · Font local theo OFL đi kèm · 11/11/2026 · Style guide độc lập, không sửa ứng dụng.</p>
+  </main>
+</body>
+</html>

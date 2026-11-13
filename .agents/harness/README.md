@@ -141,3 +141,15 @@ On 2026-11-13 the integrated branch passed full backend verify with all four int
 Contract: [weekly progress](../../docs/product/weekly-progress.md). Evidence: [weekly-progress-2026-11-12.md](../../docs/plans/completed/weekly-progress-2026-11-12.md).
 
 After merging main into dev2: full backend `clean test` with explicit disposable study_planner_test datasource and goal/auth flags: 323 executions, 0 failures/errors, 25 opt-in skips (calendar, planning, private PDFs). The 27 WeeklyProgress tests were re-run alone after the controller moved to the shared `ApiResponse`/`ApiExceptionHandler`. Frontend lint, 102/102 tests and build passed. This was `test`, not `verify`; no browser E2E after the merge, no CI run, no independent review claimed. Read-only endpoint, no schema change.
+
+## Dev 3 Recall integration (2026-11-13)
+
+[Delivery and demo](../../docs/plans/completed/dev3-recall-integration-2026-11-13.md).
+Branch integration/dev3-recall-test: backend full test with goal/auth/planning/calendar
+flags on disposable study_planner_test port 55433: 367 executions, 0 failures/errors,
+3 optional PDF skips. Separate verify -DskipTests packaged after that run. Frontend
+lint, 104/104 tests and build passed. RecallPostgresIntegrationTest uses
+-Dplanning.integration=true and -Dplanning.test-db-url, checks test database name,
+and cleans only its own users. Live preview smoke checks persistence, missing-key
+503, anonymous 401 and goal cascade. AI success is mocked; browser/real Gemini
+remain unverified. Local API harness is not shipped Recall UI. No secret edits/push.

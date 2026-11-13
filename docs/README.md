@@ -32,3 +32,5 @@
 Harness status and doctor validate the Harness installation, not application behavior.
 
 - [Task và bản nháp trên nhánh tích hợp](product/integrated-tasks-and-plans.md)
+
+- [Dev 3 Recall integration and test evidence](plans/completed/dev3-recall-integration-2026-11-13.md)
