@@ -4,7 +4,7 @@ import {
   PDF_LIMIT_BYTES, RecallApiError, TEXT_LIMIT, activateDeck, clampCount, createPdfMaterial, createTextMaterial,
   deckProgress, deleteDeck, describeRecallError, firstUnreviewedIndex, generateDeck, getDeck, getProgress,
   isStudyComplete, listDecks, listMaterials, newKey, reviewCard, updateCard, validateCardText, validatePdfFile,
-  validateTextSource,
+  validateTextSource, sourceLabel, deckShortfall, getMaterial,
 } from './recall.js'
 import { deckFixture, materialFixture } from './recallFixtures.js'
 
@@ -240,4 +240,54 @@ test('describeRecallError decides by status and code, not by message text', () =
   assert.equal(describeRecallError(err(504, 'AI_TIMEOUT')).kind, 'retry')
   assert.equal(describeRecallError(new TypeError('Failed to fetch')).kind, 'retry')
   assert.match(describeRecallError(new TypeError('x')).message, /chưa được lưu/)
+})
+
+test('upload problems get fixed Vietnamese wording, never the server text (which can be English parser output)', () => {
+  const bad = (issue, field = 'base64') => new RecallApiError('Cannot decrypt PDF, the password is incorrect at offset 52', {
+    status: 400, code: 'VALIDATION_ERROR', details: [{ field, issue }],
+  })
+  const cases = [
+    ['password_protected', /mật khẩu/], ['corrupted_pdf', /hỏng/], ['too_many_pages', /100 trang/],
+    ['file_too_large', /5 MiB/], ['invalid_base64', /chọn lại/], ['empty_pdf', /trống/],
+  ]
+  for (const [issue, expected] of cases) {
+    const info = describeRecallError(bad(issue))
+    assert.equal(info.kind, 'input')
+    assert.match(info.message, expected)
+    assert.doesNotMatch(info.message, /decrypt|offset|Cannot/)
+  }
+  assert.match(describeRecallError(bad('too_long', 'fileName')).message, /Tên tệp/)
+
+  const unknown = describeRecallError(new RecallApiError('Some English server text', { status: 400, code: 'VALIDATION_ERROR' }))
+  assert.equal(unknown.kind, 'input')
+  assert.doesNotMatch(unknown.message, /English/)
+  const unprocessable = describeRecallError(new RecallApiError('Parser said no', { status: 422, code: 'OTHER' }))
+  assert.doesNotMatch(unprocessable.message, /Parser/)
+})
+
+test('sourceLabel names the page of a PDF quote, and otherwise what kind of source it came from', () => {
+  assert.equal(sourceLabel({ page: 3 }, 'PDF'), 'Trang 3')
+  assert.equal(sourceLabel({ page: null }, 'PDF'), 'Tài liệu PDF')
+  assert.equal(sourceLabel({ page: null }, 'TEXT'), 'Đoạn dán vào')
+  assert.equal(sourceLabel({}, undefined), 'Đoạn dán vào')
+  assert.equal(sourceLabel(undefined, 'PDF'), 'Tài liệu PDF')
+})
+
+test('deckShortfall explains fewer cards than asked for and says nothing otherwise', () => {
+  assert.equal(deckShortfall(10, 10), '')
+  assert.equal(deckShortfall(10, 12), '')
+  const note = deckShortfall(10, 7)
+  assert.match(note, /7 trên 10 thẻ/)
+  assert.match(note, /trích dẫn đúng nguyên văn/)
+})
+
+test('getMaterial reads the preview of the extracted text and rejects a malformed response', async t => {
+  const calls = mockApi(t, () => Response.json({ data: { id: 'm1', kind: 'PDF', pageCount: 2, characterCount: 300, preview: 'Kiểm thử hộp đen', previewTruncated: false } }))
+  const detail = await getMaterial('m/1')
+  assert.equal(detail.preview, 'Kiểm thử hộp đen')
+  assert.equal(calls[0].url, '/api/v1/recall/materials/m%2F1')
+  assert.equal(calls[0].options.method, 'GET')
+  t.mock.restoreAll()
+  mockApi(t, () => Response.json({ data: { id: 'm1' } }))
+  await assert.rejects(getMaterial('m1'), error => error.status === 502 && error.code === 'INVALID_RESPONSE')
 })

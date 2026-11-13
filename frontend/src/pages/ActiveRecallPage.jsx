@@ -6,12 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Label } from '../components/ui/label.jsx'
 import DeckEditor from '../components/recall/DeckEditor.jsx'
 import GenerateForm from '../components/recall/GenerateForm.jsx'
+import MaterialPreview from '../components/recall/MaterialPreview.jsx'
 import PagedList from '../components/recall/PagedList.jsx'
 import SourceForm from '../components/recall/SourceForm.jsx'
 import StudyDeck from '../components/recall/StudyDeck.jsx'
 import { listGoals } from '../lib/goals.js'
 import * as realApi from '../lib/recall.js'
-import { describeRecallError } from '../lib/recall.js'
+import { deckShortfall, describeRecallError } from '../lib/recall.js'
 import './ActiveRecallPage.css'
 
 // The sample-data mock exists only in `npm run dev` and only with ?recallMock=1; a production build never selects it.
@@ -47,6 +48,7 @@ export default function ActiveRecallPage({ currentUser, initialGoalId, onNavigat
   const [expanded, setExpanded] = useState('')
   const [open, setOpen] = useState(null) // { deck, cards } of the deck being edited or studied
   const [opening, setOpening] = useState(false)
+  const [notes, setNotes] = useState({}) // deck id -> why the AI made fewer cards than asked
   const deckTitleRef = useRef(null)
   const pageTitleRef = useRef(null)
   const hadDeck = useRef(false)
@@ -59,6 +61,9 @@ export default function ActiveRecallPage({ currentUser, initialGoalId, onNavigat
     else if (hadDeck.current) pageTitleRef.current?.focus()
     hadDeck.current = Boolean(openDeckId)
   }, [openDeckId, openStatus])
+
+  // The kind of source behind the open deck, so a PDF quote is labelled as such.
+  const sourceKind = open ? materials.find(material => material.id === open.deck.materialId)?.kind : undefined
 
   const markUnauthenticated = useCallback(() => setSessionExpired(true), [])
   const refresh = () => setRevision(value => value + 1)
@@ -196,10 +201,11 @@ export default function ActiveRecallPage({ currentUser, initialGoalId, onNavigat
               </div>
               {open.deck.status === 'DRAFT' ? (
                 <DeckEditor key={open.deck.id} api={api} deck={open.deck} cards={open.cards}
+                  sourceKind={sourceKind} notice={notes[open.deck.id]}
                   onReload={reloadOpenDeck} onActivated={reloadOpenDeck} onDeleted={closeDeck}
                   onUnauthenticated={markUnauthenticated} />
               ) : (
-                <StudyDeck key={open.deck.id} api={api} deck={open.deck} initialCards={open.cards}
+                <StudyDeck key={open.deck.id} api={api} deck={open.deck} initialCards={open.cards} sourceKind={sourceKind}
                   onDeleted={closeDeck} onUnauthenticated={markUnauthenticated} />
               )}
             </div>
@@ -241,9 +247,14 @@ export default function ActiveRecallPage({ currentUser, initialGoalId, onNavigat
                               {expanded === material.id ? 'Đóng' : 'Tạo thẻ'}
                             </Button>
                           </div>
+                          <MaterialPreview api={api} material={material} onUnauthenticated={markUnauthenticated} />
                           {expanded === material.id && (
                             <GenerateForm api={api} material={material} onUnauthenticated={markUnauthenticated}
-                              onGenerated={deck => { setExpanded(''); refresh(); openDeck(deck.id) }} />
+                              onGenerated={(deck, requested) => {
+                                const note = deckShortfall(requested, deck.cardCount)
+                                if (note) setNotes(previous => ({ ...previous, [deck.id]: note }))
+                                setExpanded(''); refresh(); openDeck(deck.id)
+                              }} />
                           )}
                         </li>
                       )} />

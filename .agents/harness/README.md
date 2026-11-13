@@ -1,5 +1,7 @@
 # Development and verification harness
 
+Latest Recall update integration (2026-11-13): [delivery and verification](../../docs/plans/completed/dev2-recall-update-2026-11-13.md). Frontend 150/150; backend 437 passed, three private-PDF skips. Includes live proxy and real Gemini source/replay checks.
+
 ## Landing and Timer frontend (2026-11-13)
 
 [Delivery and pending integration](../../docs/plans/completed/dev1-landing-timer-ui-2026-11-13.md).

@@ -4,19 +4,19 @@ import { Badge } from '../ui/badge.jsx'
 import { Button } from '../ui/button.jsx'
 import { Label } from '../ui/label.jsx'
 import DeleteDeck from './DeleteDeck.jsx'
-import { ANSWER_LIMIT, QUESTION_LIMIT, describeRecallError, validateCardText } from '../../lib/recall.js'
+import { ANSWER_LIMIT, QUESTION_LIMIT, describeRecallError, sourceLabel, validateCardText } from '../../lib/recall.js'
 
-function SourceQuote({ source }) {
+function SourceQuote({ source, kind }) {
   if (!source?.quote) return null
   return (
     <blockquote className="recall-quote">
       “{source.quote}”
-      <footer>{source.page ? `Trang ${source.page}` : 'Đoạn dán vào'}</footer>
+      <footer>{sourceLabel(source, kind)}</footer>
     </blockquote>
   )
 }
 
-function CardEditor({ card, api, disabled, focusEditOnMount, onSaved, onError, onUnauthenticated }) {
+function CardEditor({ card, api, disabled, sourceKind, focusEditOnMount, onSaved, onError, onUnauthenticated }) {
   const [editing, setEditing] = useState(false)
   const [question, setQuestion] = useState(card.question)
   const [answer, setAnswer] = useState(card.answer)
@@ -64,7 +64,7 @@ function CardEditor({ card, api, disabled, focusEditOnMount, onSaved, onError, o
           {card.editedByUser && <Badge variant="outline">Bạn đã sửa</Badge>}
         </div>
         <p className="recall-draft-answer">{card.answer}</p>
-        <SourceQuote source={card.source} />
+        <SourceQuote source={card.source} kind={sourceKind} />
         {card.editedByUser && (
           <p className="recall-help">Nội dung bạn đã sửa chưa được đối chiếu lại với nguồn. Hãy tự kiểm tra trước khi dùng.</p>
         )}
@@ -94,7 +94,7 @@ function CardEditor({ card, api, disabled, focusEditOnMount, onSaved, onError, o
           <p className="recall-help">{answer.length} / {ANSWER_LIMIT} ký tự.</p>
           {errors.answer && <p className="recall-field-error" id={`a-${card.id}-error`}>{errors.answer}</p>}
         </div>
-        <SourceQuote source={card.source} />
+        <SourceQuote source={card.source} kind={sourceKind} />
         <div className="recall-actions">
           <Button type="submit" size="sm" isLoading={saving}>{saving ? 'Đang lưu…' : 'Lưu thẻ'}</Button>
           <Button type="button" size="sm" variant="ghost" disabled={saving} onClick={() => setEditing(false)}>Hủy sửa</Button>
@@ -105,7 +105,7 @@ function CardEditor({ card, api, disabled, focusEditOnMount, onSaved, onError, o
 }
 
 /** A draft deck: read every card with its source, fix wording, then confirm it for study or delete it. */
-export default function DeckEditor({ api, deck, cards, onReload, onActivated, onDeleted, onUnauthenticated }) {
+export default function DeckEditor({ api, deck, cards, sourceKind, notice, onReload, onActivated, onDeleted, onUnauthenticated }) {
   const [error, setError] = useState('')
   const [activating, setActivating] = useState(false)
   const [savedId, setSavedId] = useState('')
@@ -137,10 +137,11 @@ export default function DeckEditor({ api, deck, cards, onReload, onActivated, on
       <Alert role="status"><AlertDescription>
         Đây là bản nháp do AI tạo từ nguồn của bạn. Hãy đọc, sửa nếu cần, rồi xác nhận để bắt đầu ôn. Bộ thẻ chưa được dùng cho đến khi bạn xác nhận.
       </AlertDescription></Alert>
+      {notice && <Alert role="status"><AlertDescription>{notice}</AlertDescription></Alert>}
       {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
       <ol className="recall-draft-list">
         {cards.map(card => (
-          <CardEditor key={`${card.id}:${card.version}`} card={card} api={api} disabled={activating}
+          <CardEditor key={`${card.id}:${card.version}`} card={card} api={api} disabled={activating} sourceKind={sourceKind}
             focusEditOnMount={card.id === savedId}
             onSaved={async id => { setSavedId(id); await onReload() }} onError={setError} onUnauthenticated={onUnauthenticated} />
         ))}

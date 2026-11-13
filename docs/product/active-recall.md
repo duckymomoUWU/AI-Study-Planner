@@ -39,7 +39,7 @@ Hai loại chạy: **mock** (`?recallMock=1`) và **API thật** (backend Spring
 | Tiêu chí | Hiện thực | Đã chạy | Chưa kiểm chứng |
 | --- | --- | --- | --- |
 | RUI-01 chọn mục tiêu thật, PDF hoặc dán, kiểm đầu vào, hiện tên nguồn | `SourceForm`, `validate*` | Test giới hạn. API thật: dán văn bản và **tải PDF có chữ (2 trang, 260 ký tự, trích đúng)** lưu vào PostgreSQL và hiện lại; ảnh `.png` và PDF trên 5 MiB bị chặn ở giao diện, không gửi yêu cầu; PDF không có chữ bị máy chủ từ chối với thông báo rõ và danh sách không đổi | PDF quét ảnh thật, PDF lớn gần 5 MiB hoặc gần 100 trang |
-| RUI-02 lưu nguồn và tạo thẻ là hai trạng thái, lỗi AI không mất nguồn, thử lại không tải thêm nguồn | `GenerateForm`, key giữ theo lần thử | Test mock (lỗi rồi thử lại cùng key chỉ 1 bộ thẻ); trình duyệt với mock: lỗi 503 giữ nguồn, "Thử tạo lại" thành công | Lỗi AI thật: máy chủ hiện tại tự tạo thẻ dự phòng khi thiếu khóa hoặc Gemini lỗi, nên đường báo lỗi chưa gặp được với API thật |
+| RUI-02 lưu nguồn và tạo thẻ là hai trạng thái, lỗi AI không mất nguồn, thử lại không tải thêm nguồn | `GenerateForm`, key giữ theo lần thử | Test mock (lỗi rồi thử lại cùng key chỉ 1 bộ thẻ); trình duyệt với mock: lỗi 503 giữ nguồn, "Thử tạo lại" thành công | Timeout 60 giây và HTTP 429 của Gemini (chưa chạy với nhà cung cấp thật; HTTP 503 thật đã được báo đúng trước khi sửa, xem mục 8) |
 | RUI-03 bản nháp có hỏi, đáp, nguồn; sửa; xác nhận; không báo đang dùng trước khi kích hoạt thành công | `DeckEditor` | API thật: mở bản nháp 10 thẻ, sửa một thẻ (có nhãn đã sửa), xác nhận, chuyển sang "Đang dùng"; dữ liệu đúng trong DB | Sửa đồng thời hai tab |
 | RUI-04 hỏi trước, "Xem đáp án" mới được đánh giá, gọi là tự đánh giá; dùng được bằng bàn phím | `StudyDeck` | Trình duyệt: nút Nhớ/Chưa nhớ chỉ có sau khi lật. **Bàn phím** (mục 6): lưu nguồn, tạo, sửa, xác nhận, lật, chấm chỉ bằng bàn phím, thứ tự Tab hợp lý, focus hiện rõ và không bị mất | Trình đọc màn hình thật (NVDA, VoiceOver); mới kiểm cây truy cập và vùng `status` |
 | RUI-05 chặn bấm trùng, mất mạng thử lại cùng key, tải lại còn bộ thẻ và tiến độ | cờ `saving`, `pending` có key | Mock: lỗi mạng giữ thẻ, "Thử lưu lại" ghi một lần. **API thật: chấm 3 thẻ, tải lại trang, mở lại thì tiếp tục đúng thẻ 4 với 3/10 đã đánh giá** (3 lượt chấm trong DB) | Mất mạng thật trên API thật |
@@ -48,7 +48,7 @@ Hai loại chạy: **mock** (`?recallMock=1`) và **API thật** (backend Spring
 
 ## 5. Giới hạn
 
-- **Gemini chưa được thử:** máy kiểm thử không có khóa. Khi không có khóa hoặc Gemini lỗi chung chung, mã backend (của Người 3) chuyển sang bộ tạo thẻ dự phòng theo heuristic và vẫn trả 201, thay vì báo `AI_UNAVAILABLE` như hợp đồng (RBE-04, E2E-08). Thẻ dự phòng chất lượng thấp, có thẻ cắt giữa chữ. Giao diện chưa gặp được đường báo lỗi AI từ máy chủ thật vì điều này. Đây là việc ở phía backend recall, chưa sửa.
+- **Gemini đã được thử bằng khóa trong `.env` với văn bản tổng hợp** (mục 8). Chưa thử lại sau khi đổi prompt: câu lệnh độc hại ẩn trong tài liệu và tài liệu sát 30.000 ký tự (cả hai đạt trước khi sửa). Chưa thử: PDF dùng font tiếng Việt cũ (VNI, TCVN3), PDF hai cột hoặc có bảng, PDF scan, quota hết (429) và chạy nhiều máy chủ cùng lúc.
 - Chưa có test thành phần React (repo chưa có công cụ); giao diện kiểm bằng test logic thuần và thao tác thủ công trong trình duyệt ở 1024, 768 và 360 px.
 - Trang đã thêm route `#recall` và một nút sidebar vào `App.jsx`; Người 1 sở hữu `App.jsx` nên cần gộp thống nhất.
 - Lúc App đang kiểm tra đăng nhập, trang có thể hiện màn "Đăng nhập" thoáng qua vì App chưa truyền trạng thái đang kiểm tra.
@@ -84,3 +84,33 @@ Thao tác dữ liệu trên giao diện và đối chiếu DB (API thật):
 | Xóa bộ thẻ | Dòng bộ thẻ và các thẻ của nó bị xóa, nguồn vẫn còn (đúng như thông báo xác nhận) |
 
 Giới hạn: danh sách vẫn tải toàn bộ các mục về trình duyệt rồi mới chia 10 mục mỗi lần hiển thị (đủ cho quy mô hiện tại; nếu lên hàng nghìn nguồn cần phân trang phía máy chủ). Thẻ đáp án 1.900 ký tự liền nhau cao khoảng 1.220 px ở 1024 px, dài nhưng nằm trong thẻ.
+
+## 8. Sửa luồng tải tài liệu lên Recall (2026-11-13)
+
+Một thành viên báo luồng "tải tài liệu lên Recall" chưa ổn. Kiểm tra trên ứng dụng thật, PostgreSQL thật và Gemini thật (văn bản và PDF tiếng Việt tổng hợp, font Arial nhúng, nhờ PDFBox tạo) tìm ra các lỗi sau, đã sửa trong `backend/.../recall` và giao diện. Mỗi lỗi có test; hai lỗi quan trọng nhất đã được phá thử để chắc test bắt được.
+
+| Lỗi (trước) | Sửa | Bằng chứng |
+| --- | --- | --- |
+| Lưu bộ thẻ không nguyên tử: `@Transactional` gọi từ chính class nên bị bỏ qua; lỗi khi lưu thẻ để lại bộ thẻ rỗng "5 thẻ" trong danh sách | Dùng `TransactionTemplate`; biên nhận, bộ thẻ và thẻ cùng một giao dịch | PostgreSQL: gây lỗi lưu thẻ thì không còn bộ thẻ hay biên nhận, thử lại cùng key thành công; bỏ giao dịch thì test đỏ |
+| Kích hoạt được bộ thẻ rỗng (dựa vào cột `card_count` lưu sẵn) | Đếm thẻ thật trong DB | `409 DECK_STATE_CONFLICT`; dùng lại cách cũ thì test đỏ (200) |
+| Hai yêu cầu cùng `Idempotency-Key` cùng lúc ra hai bộ thẻ | Khóa theo (người dùng, key) trong tiến trình cho lúc đang gọi AI, thêm biên nhận lưu trước tiên với khóa duy nhất ở DB; bên thua trả lại bộ thẻ của bên thắng | Hai yêu cầu: một `201`, một `409 GENERATION_IN_PROGRESS`, đúng 1 bộ thẻ; thử lại sau đó nhận lại cùng bộ thẻ |
+| Thiếu khóa Gemini hoặc lỗi mạng vẫn trả `201` với thẻ giả theo heuristic; AI trả dưới 5 thẻ thì trộn thẻ giả | Bỏ hẳn bộ tạo thẻ dự phòng: thiếu khóa `503 AI_UNAVAILABLE`, lỗi mạng `503`, dưới 5 thẻ hợp lệ `502 AI_INVALID_RESPONSE` | Test đơn vị và PostgreSQL (lỗi AI không lưu gì); trước khi sửa, HTTP 503 thật của Gemini đã được báo đúng `AI_UNAVAILABLE`, đường mã đó được giữ |
+| Trích dẫn so khớp từng ký tự: PDF dấu tách rời (NFD) mất thẻ (7/10) | Lưu mọi chữ ở dạng NFC và `\n`; so khớp bỏ qua dạng Unicode, dấu nháy và gạch cong, khoảng trắng đặc biệt | Với Gemini thật: PDF NFD ra 10/10 thẻ (trước 7); ký tự đếm vào giới hạn 30.000 giảm từ 1.321 xuống 991 |
+| PDF không có số trang (cả 10 thẻ `page = null`), giao diện ghi "Đoạn dán vào" | Prompt có dấu `[Trang N]`; máy chủ tự tìm trang chứa trích dẫn; giao diện ghi "Trang N" hoặc "Tài liệu PDF" | Gemini thật: thẻ ghi Trang 1, 2, 3 đúng; trích dẫn nằm đúng trang nêu |
+| Thông báo lỗi PDF lộ chữ nội bộ tiếng Anh; PDF có mật khẩu bị gọi là "hỏng" | `password_protected` và `corrupted_pdf` có thông báo cố định; giao diện không bao giờ hiện chữ của máy chủ cho lỗi 400 và 422 | Tải qua giao diện: "Tệp PDF có mật khẩu. Hãy bỏ mật khẩu rồi tải lại." |
+| Tên tệp 300 ký tự gây `500` | `400 fileName too_long` | PostgreSQL |
+| Không biết máy chủ đã đọc chữ gì từ PDF | `GET /api/v1/recall/materials/{id}` và nút "Xem nội dung đã đọc" | Giao diện: "PDF · 3 trang · 1.078 ký tự" và chữ đúng dấu |
+| Nhận 7 thẻ thay vì 10 mà không có lời giải thích | Thông báo "AI chỉ tạo được x trên y thẻ, vì chỉ giữ lại những thẻ có trích dẫn đúng nguyên văn và không trùng câu hỏi" | Test và giao diện (chế độ mẫu) |
+| Câu hỏi trùng nhau; câu trả lời dài bị cắt giữa câu | Loại câu hỏi trùng (không phân biệt hoa thường và khoảng trắng); loại thẻ có câu hỏi trên 300 hoặc đáp án trên 2.000 ký tự thay vì cắt (chỉ trích dẫn được rút gọn, vẫn nguyên văn) | Test đơn vị |
+| Log ghi nội dung trích dẫn và thân phản hồi của Gemini; khóa nằm trong URL | Log chỉ ghi số lượng và mã trạng thái; khóa gửi qua header `x-goog-api-key` | Đọc log: không có nội dung tài liệu, không có chuỗi `key=` |
+| Đường dẫn cũ `/api/recall/...` không có `v1` | Gỡ | `404` |
+
+Chưa đổi: việc tải cùng một tệp nhiều lần vẫn tạo nhiều nguồn (không chống trùng, vì đổi sang trả nguồn cũ là thay đổi hợp đồng `201`); phép đếm ký tự của PDF vẫn do máy chủ tính trên chữ đã chuẩn hóa.
+
+
+## Integration provenance
+
+Section 8 carries the source branch author's evidence from `dev2-sprint4` at `5d31347`.
+It is historical evidence, not a claim that its browser checks were repeated on the integration branch.
+The integration verification and preserved safety rules are recorded in
+[the integration delivery](../plans/completed/dev2-recall-update-2026-11-13.md).

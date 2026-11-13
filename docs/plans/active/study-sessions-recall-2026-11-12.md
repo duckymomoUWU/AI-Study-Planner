@@ -50,7 +50,7 @@ Backend trước (V8 và API phiên học) để Người 1 nối Timer, rồi g
 - [x] Tài liệu sản phẩm và mục Harness
 - [ ] Người 1 nối Timer UI với session API và kiểm tra hai tab, tải lại, mất mạng bằng trình duyệt
 - [x] Người 3 giao API recall; luồng Recall chạy với API thật, tải lại trang còn dữ liệu (trừ bước Gemini, chưa có khóa)
-- [ ] Backend recall: thiếu khóa hoặc Gemini lỗi đang tạo thẻ dự phòng thay vì báo lỗi (việc của Người 3)
+- [x] Backend recall: bỏ thẻ dự phòng, lưu nguyên tử, một bộ thẻ cho mỗi Idempotency-Key, không kích hoạt bộ thẻ rỗng, NFC, số trang cho PDF, lỗi PDF rõ ràng, xem trước nội dung đã đọc (xem active-recall.md mục 8)
 - [x] Kiểm toàn bộ với dữ liệu lớn (130 mục tiêu, 130 bộ thẻ, 130 phiên học): sửa phân trang và chữ dài của trang Ôn tập, lỗi 500 khi tên mục tiêu dài 101 ký tự, `reduced-motion` và nhãn `US-17` (xem harness, mục 2026-11-13)
 - [x] Test đồng thời cho hai tab thao tác (khác key, cùng `expectedVersion`) và thử lại cùng key (commit `cced8c6`)
 - [x] Fixture phiên học dùng chung trong `backend/src/test/resources/fixtures/`, MockMvc so khớp từng trường

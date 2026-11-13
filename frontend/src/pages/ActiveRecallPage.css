@@ -91,3 +91,8 @@
 .recall-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-top: 12px; }
 .recall-pager .recall-help { margin: 0; }
 .recall-material-list > li:focus-visible, .recall-deck-list > li:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+
+/* The text the server read from a source, for checking a PDF before making cards */
+.recall-preview-wrap { margin-top: 8px; }
+.recall-preview { margin-top: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--soft); }
+.recall-preview-text { margin: 8px 0 0; max-height: 260px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 13px; line-height: 1.6; }

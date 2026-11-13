@@ -112,6 +112,7 @@ Sửa question/answer chỉ ở DRAFT; editedByUser=true và tăng card version 
 | --- | --- | --- |
 | POST `/recall/materials` | Một input C1 | Material, 201 |
 | GET `/recall/materials?goalId=&page=1&limit=20` | goalId tùy chọn, nếu có phải thuộc owner | List Material |
+| GET `/recall/materials/{materialId}` | Không body | Material kèm `preview` (tối đa 1.200 ký tự đầu của chữ máy chủ đã đọc, đã chuẩn hóa NFC và xuống dòng `\n`) và `previewTruncated`; 404 nếu không phải của owner. Để người học kiểm tra PDF được đọc có đúng không |
 | POST `/recall/decks` | `{materialId,title,count}` + Idempotency-Key | Deck DRAFT, 201 hoặc replay 200 |
 | GET `/recall/decks?goalId=&page=1&limit=20` | goalId tùy chọn | List Deck, createdAt DESC/id ASC |
 | GET `/recall/decks/{deckId}` | Không body | `{deck, cards:[Card...]}`, tối đa 20 thẻ nên không phân trang cards |
@@ -136,6 +137,8 @@ Xóa goal sẽ cascade material/deck/card/review thuộc goal đó sau xác nh�
 | 409 DECK_VERSION_CONFLICT / CARD_VERSION_CONFLICT | Tải bản mới, không tự ghi đè |
 | 409 DECK_STATE_CONFLICT / MATERIAL_CHANGED | Không review/sửa sai trạng thái; xem lại nguồn/deck |
 | 422 SOURCE_NO_TEXT / SOURCE_TOO_LONG | Yêu cầu PDF văn bản hoặc đoạn text ngắn hơn |
+| 400 VALIDATION_ERROR với `details[].issue` `password_protected`, `corrupted_pdf`, `too_many_pages`, `file_too_large`, `empty_pdf`, `invalid_base64`, `fileName`/`too_long` (tên tệp tối đa 255 ký tự) | Thông báo tiếng Việt cố định; không trả nguyên văn lỗi của thư viện PDF |
+| 409 GENERATION_IN_PROGRESS | Cùng Idempotency-Key đang được xử lý; chờ rồi gửi lại cùng key để nhận kết quả đã lưu |
 | 502 AI_INVALID_RESPONSE | Chưa lưu deck mới; giữ nguồn và các deck cũ |
 | 503 AI_UNAVAILABLE | Quota/key/provider không sẵn sàng; cho thử lại, không fake thẻ |
 | 504 AI_TIMEOUT | Giữ input và retry cùng key; chống request chồng tạo nhiều deck |

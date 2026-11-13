@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -28,6 +29,16 @@ public class RecallMaterialController {
     ) {
         RecallDTOs.MaterialResponse response = recallService.createMaterial(principal.id(), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(new RecallDTOs.SingleDataResponse<>(response));
+    }
+
+    /** One source with the beginning of its extracted text, to check what was read from a file. */
+    @GetMapping("/api/v1/recall/materials/{materialId}")
+    public ResponseEntity<RecallDTOs.SingleDataResponse<RecallDTOs.MaterialDetail>> getMaterial(
+            @AuthenticationPrincipal AppUserPrincipal principal,
+            @PathVariable UUID materialId
+    ) {
+        return ResponseEntity.ok(new RecallDTOs.SingleDataResponse<>(
+                recallService.getMaterialDetail(principal.id(), materialId)));
     }
 
     @GetMapping("/api/v1/recall/materials")
