@@ -21,6 +21,7 @@ test('public home, explicit overview, registration and timer task links stay dis
   assert.equal(pageFromHash('#landing-faq'), 'landing')
   assert.equal(pageFromHash('#landing-main'), 'landing')
   assert.equal(pageFromHash('#overview'), 'overview')
+  assert.equal(pageFromHash('#recall'), 'recall')
   assert.equal(pageFromHash('#register'), 'auth')
   const id = '22222222-2222-4222-8222-222222222222'
   assert.equal(pageFromHash(`#timer?task=${id}`), 'timer')

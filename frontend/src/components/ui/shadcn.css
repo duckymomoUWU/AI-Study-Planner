@@ -431,3 +431,11 @@
   background-color: hsl(var(--shadcn-primary));
   transition: width 0.3s ease;
 }
+
+/* Respect the reduced-motion setting for the checkbox and the progress bar. */
+@media (prefers-reduced-motion: reduce) {
+  .shadcn-checkbox,
+  .shadcn-progress-indicator {
+    transition: none;
+  }
+}

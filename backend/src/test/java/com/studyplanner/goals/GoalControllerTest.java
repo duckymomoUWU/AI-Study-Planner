@@ -79,6 +79,30 @@ class GoalControllerTest {
         return body("\"Toán\"", "\"2026-11-09\"", "\"2026-12-05\"", "90", "");
     }
 
+    @Test
+    @DisplayName("a subject of 101 characters is a 400 too_long on create and patch and never reaches the service; 100 passes validation")
+    void subjectLongerThan100CharactersIs400() throws Exception {
+        String tooLong = "\"" + "S".repeat(101) + "\"";
+        mvc.perform(asUser(post(BASE)).contentType(MediaType.APPLICATION_JSON)
+                        .content(body(tooLong, "\"2026-11-09\"", "\"2026-12-05\"", "90", "")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.error.details[?(@.field=='subject' && @.issue=='too_long')]").exists());
+        mvc.perform(asUser(patch(BASE + "/" + GOAL)).contentType(MediaType.APPLICATION_JSON)
+                        .content(patchBody("\"subject\":" + tooLong + ",\"expectedVersion\":0")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details[?(@.field=='subject' && @.issue=='too_long')]").exists());
+        verifyNoInteractions(service);
+
+        // The boundary itself, with surrounding spaces and emoji counted as one character each, is not a length error.
+        for (String subject : new String[]{"S".repeat(100), "S".repeat(100) + "   ", "\uD83D\uDE00".repeat(100)}) {
+            var result = mvc.perform(asUser(post(BASE)).contentType(MediaType.APPLICATION_JSON)
+                    .content(body("\"" + subject + "\"", "\"2026-11-09\"", "\"2026-12-05\"", "90", ""))).andReturn();
+            org.junit.jupiter.api.Assertions.assertFalse(
+                    result.getResponse().getContentAsString().contains("too_long"), "100 characters must not be too_long");
+        }
+    }
+
     private static String patchBody(String fields) {
         return "{" + fields + "}";
     }

@@ -7,6 +7,7 @@ import WeeklyProgressPage from './pages/WeeklyProgressPage.jsx'
 import LandingPage from './pages/LandingPage.jsx'
 import TimerPage from './pages/TimerPage.jsx'
 import { pageFromHash, taskFromHash } from './lib/navigation.js'
+import ActiveRecallPage from './pages/ActiveRecallPage.jsx'
 import { getCurrentUser, logout } from './lib/auth.js'
 import './App.css'
 import './theme.css'
@@ -212,6 +213,21 @@ export default function App() {
               </span>
               <span className="nav-text">Tiến độ</span>
             </button>
+            <button
+              type="button"
+              className={`nav-link ${activePage === 'recall' ? 'nav-link--active' : ''}`}
+              onClick={() => setActivePage('recall')}
+              title="Ôn tập chủ động bằng thẻ hỏi–đáp"
+            >
+              <span className="nav-icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="5" width="18" height="14" rx="2" ry="2" />
+                  <line x1="7" y1="10" x2="17" y2="10" />
+                  <line x1="7" y1="14" x2="13" y2="14" />
+                </svg>
+              </span>
+              <span className="nav-text">Ôn tập</span>
+            </button>
             <a className="nav-link" href={`${repository}/wiki`} title="Tài liệu dự án">
               <span className="nav-icon" aria-hidden="true">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -243,6 +259,7 @@ export default function App() {
               {activePage === 'weekly' && 'Tiến độ theo tuần'}
               {(activePage === 'overview' || activePage === 'home') && 'Không gian học tập'}
               {activePage === 'timer' && 'Phiên tập trung'}
+              {activePage === 'recall' && 'Ôn tập chủ động'}
               {activePage === 'auth' && 'Xác thực tài khoản'}
             </span>
 
@@ -353,6 +370,12 @@ export default function App() {
                 key={currentUser?.id || currentUser?.email || 'guest'}
                 onBack={() => setActivePage('overview')}
                 onNavigateDaily={() => setActivePage('daily')}
+                onNavigateAuth={() => setActivePage('auth')}
+              />
+            ) : activePage === 'recall' ? (
+              <ActiveRecallPage
+                key={currentUser?.id || currentUser?.email || 'guest'}
+                currentUser={currentUser}
                 onNavigateAuth={() => setActivePage('auth')}
               />
             ) : (

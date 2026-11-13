@@ -167,3 +167,54 @@ remain unverified. Local API harness is not shipped Recall UI. No secret edits/p
 ## Landing visual refresh (2026-11-13)
 
 Branch feature/dev1-landing-timer: frontend lint, 109/109 tests and build passed. SSR structure and live asset serving passed. Vietnamese font cmap checked; generated hero image inspected. Carousel and responsive interactions implemented but no connected browser for rendered/click/motion verification. [Evidence](../../docs/plans/completed/landing-visual-refresh-2026-11-13.md). No backend or secret changes.
+
+## Study sessions and Active Recall UI (2026-11-12)
+
+Contracts: [study sessions](../../docs/product/study-sessions.md) and [Active Recall](../../docs/product/active-recall.md). Plan and evidence: [active plan](../../docs/plans/active/study-sessions-recall-2026-11-12.md). Migration V8 adds `study_sessions` and `study_session_receipts` only.
+
+Backend: focused `StudySessionPolicyTest` 11/11, `StudySessionControllerTest` 11/11 and `StudySessionApiPostgresIntegrationTest` 14/14. The PostgreSQL suite is enabled by `-Dgoal.integration=true` with explicit disposable DB_URL/DB_USER/DB_PASSWORD (study_planner_test); it replaces the Clock with a hand-moved clock, so it never sleeps, and it clears `app_users` first. Full backend `clean test` with goal/auth flags: 332 executions, zero failures/errors, 25 opt-in skips (calendar, planning, private PDFs). This was `test`, not `verify`. `backend.yml` declares `goal.integration`, so CI would run the new suite, but no Actions run was observed.
+
+Frontend: lint, 120/120 tests and build passed; the production bundle contains no development mock. Run the Recall page against sample data with `npm run dev` and open `/?recallMock=1#recall` (`&recallFail=generate,review` forces one failure each for the retry paths). The mock is not evidence about the server. Browser checks used Vite dev with the real backend for sign-in and goals, the Recall API mocked, at desktop and 360 px width.
+
+Not claimed: any run against a real `/api/v1/recall` API (not implemented), the Timer UI, two-tab or offline browser behavior for sessions, a concurrency test for two simultaneous actions on one session, keyboard or screen-reader checks, real PDF upload, independent review or CI. The sessions contract values (25 minutes, seconds as the unit) await PO approval; `requirements.md` was not changed.
+
+### Update 2026-11-13: concurrency, shared fixtures, accessibility and real API
+
+On `dev2` with the recall API (V9) merged, full backend `clean test` with goal/auth flags and the disposable study_planner_test datasource: 396 executions, zero failures/errors, 25 opt-in skips (calendar, planning, private PDFs); `test`, not `verify`. This replaces the 332 above for the merged state only; do not add the runs together. Sessions now have 40 tests: 11 policy, 13 MockMvc (two compare the response field for field with the shared `session-active.json` and `api-error.json` fixtures in `backend/src/test/resources/fixtures/`) and 16 PostgreSQL, including six simultaneous actions on one version (exactly one applies, the rest 409) and six simultaneous retries with one Idempotency-Key (one change, one receipt). Removing the owner lock was tried to confirm the same-key case fails; the source was restored. Frontend lint, 130/130 tests and build passed; no development mock in the bundle.
+
+Browser checks, desktop pane plus 768 px and 360 px, Vite dev with the real backend and PostgreSQL: with the mock, full keyboard-only flow, focus order and focus retention (a loss to the page body was found and fixed), accessibility tree, contrast measurement (the shared success badge is 2.86:1 and is darkened on the Recall page only), no horizontal overflow; against the real recall API, text and a generated two-page PDF upload (pages and text extracted and stored), rejection of an image and of a file over 5 MiB in the client without a request, rejection of a text-less PDF by the server, edit, confirm, three reviews persisted and resumed after reload.
+
+Still not claimed: a real Gemini call (no key on the test machine; the recall backend falls back to a heuristic generator on a missing key or a generic Gemini failure and returns 201, which differs from the contract's AI error codes), a real screen reader, the Timer UI, a 401 mid-flow, independent review or CI.
+
+## Large-data audit of dev2 (2026-11-13)
+
+Environment as the harness requires: a disposable PostgreSQL 17 container, database `study_planner_test` on port 55440 (the shared 5432 instance was not touched), role `study_planner` with the fixture password that the Calendar and planning tests declare in their source; `JAVA_TOOL_OPTIONS=-Duser.timezone=Asia/Ho_Chi_Minh`. Full backend, all four opt-in flags, packaging included:
+
+```powershell
+mvn -f backend/pom.xml -Dgoal.integration=true -Dauth.integration=true -Dplanning.integration=true -Dcalendar.integration=true -Dplanning.test-db-url=jdbc:postgresql://127.0.0.1:55440/study_planner_test -Dcalendar.test-db-url=jdbc:postgresql://127.0.0.1:55440/study_planner_test clean verify -B -ntp
+```
+
+Result after the fix below: 398 executions, zero failures/errors, 3 skipped (the private-PDF opt-ins: SyllabusAdhocTest, SyllabusLayoutTest, SyllabusOutlineTest). The same command before the fix gave 396 executions, zero failures, 3 skipped. This is a new full run of one tree; it is not added to the earlier 332 or 396 counts. Frontend `npm run lint`, `npm test` (132/132) and `npm run build` passed; no development mock and no `US-17` label in the bundle. Live readiness: direct and proxy `/actuator/health` UP; Calendar status without a session returned 401.
+
+Evidence source for the manual part: the connected in-app browser against Vite, Spring Boot and that PostgreSQL, with one account holding 130 goals, 171 tasks (later 1,671), 130 recall sources, 130 decks (650 cards) and 130 study sessions, including 100 to 1,900 character unbroken strings and multi-line text, plus SQL and HTTP checks of every change. Not a user screenshot.
+
+Defects found in code authored by tyn7624 and fixed: recall lists silently stopped at 100 items and had no paging; long unbroken text made the Recall page up to 22,586 px wide; line breaks in cards were collapsed; `POST/PATCH /api/v1/goals` with a 101-character subject answered 500 instead of 400 `too_long` (red/green: the new PostgreSQL case failed with a 500 without the fix); the checkbox and progress bar ignored `prefers-reduced-motion`; the sidebar and topbar showed an `US-17` label.
+
+Defects seen in code that is not tyn7624's, reported and left unchanged: the Goals list renders all goals on one page (33,600 px for 130; `GoalsPage.jsx`, Đức); the weekly schedule overflows to 1,147 px at 1,024 px with 101 sessions (`StudyPlanPage.jsx`, duckymomoUWU); the daily task list overflows to 2,272 px with a 200-character title (`.task-body`/`.task-title` in `DailyTasksPage.css`, tvgb05); the shared success badge is 2.86:1 (`shadcn.css`, tvgb05); recall generation falls back to heuristic cards when the Gemini key is missing (recall backend, tvgb05).
+
+Harness journey 5 (what was checked): sidebar item contrast 6.25:1 idle, 7.31:1 active, badge 5.61:1; Vietnamese diacritics rendering on the Recall and weekly pages (keyboard focus was checked on the Recall page in the earlier 2026-11-13 run, not repeated on the weekly page); narrow screen 360 px and 768 px without horizontal overflow on the weekly and Recall pages with the data above; reduced-motion rules are loaded for the Recall page, checkbox and progress bar (the media query itself was not toggled in the browser).
+
+Still not claimed: journeys 1 to 4 (syllabus upload, scoped draft, Google connection and export; not part of this audit and mostly other authors' work), a real Gemini or Google call, a real screen reader, independent review or CI.
+
+
+## Updated dev2 Recall and Timer integration (2026-11-13)
+
+[Current evidence](../../docs/plans/completed/dev2-recall-timer-integration-2026-11-13.md).
+Branch integration/dev3-recall-test merges dev2-sprint4 10051f8: frontend lint,
+139/139 tests and build passed; full backend test with all four integration flags
+on disposable study_planner_test port 55433: 409 executions, zero failures/errors,
+three optional PDF skips. Separate skipTests verify packaged. Live isolated preview
+Timer lifecycle/persistence/replay/cascade passed. Recall uses real API; actual AI
+success remains unverified without a key. Migration numbering is Recall V8, Timer V9
+on this existing test environment; see delivery note before sharing database histories.
+No browser/real Gemini claim, no secret changes or push.

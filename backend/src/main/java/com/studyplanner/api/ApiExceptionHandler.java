@@ -100,6 +100,13 @@ public class ApiExceptionHandler {
                 ex.code(), ex.getMessage(), null, ex.context().isEmpty() ? null : ex.context())));
     }
 
+    @ExceptionHandler(com.studyplanner.sessions.StudySessionException.class)
+    ResponseEntity<ApiErrorResponse> sessionError(com.studyplanner.sessions.StudySessionException ex) {
+        return ResponseEntity.status(ex.status()).body(new ApiErrorResponse(new ApiErrorResponse.ApiError(
+                ex.code(), ex.getMessage(), ex.details().isEmpty() ? null : ex.details(),
+                ex.context().isEmpty() ? null : ex.context())));
+    }
+
     @ExceptionHandler(RequestValidationException.class)
     ResponseEntity<ApiErrorResponse> requestValidation(RequestValidationException ex) {
         return respond(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", MSG_VALIDATION, ex.details());

@@ -1,0 +1,93 @@
+/* Active Recall. Every selector is scoped to .recall-* so it cannot leak into other pages. */
+.recall-page { max-width: 960px; margin: 0 auto; padding: 24px 16px 48px; display: flex; flex-direction: column; gap: 20px; color: var(--ink); }
+.recall-header h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1.3; letter-spacing: -0.5px; margin: 0 0 8px; font-weight: 700; }
+.recall-header p { margin: 0; line-height: 1.7; color: var(--muted); max-width: 640px; }
+.recall-loading { color: var(--muted); margin: 0; }
+.recall-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.recall-empty p { margin: 0; line-height: 1.7; }
+.recall-link { color: var(--primary); font-weight: 600; }
+
+.recall-goal { display: flex; flex-direction: column; gap: 8px; max-width: 360px; }
+.recall-select { min-height: 44px; }
+
+.recall-form { display: flex; flex-direction: column; gap: 16px; }
+.recall-form--inline { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); flex-direction: row; flex-wrap: wrap; align-items: flex-end; }
+.recall-form--inline .recall-field { flex: 1 1 220px; }
+.recall-form--inline .recall-field--short { flex: 0 0 120px; }
+.recall-form--inline .shadcn-alert { flex: 1 1 100%; }
+.recall-field { display: flex; flex-direction: column; gap: 6px; }
+.recall-textarea { width: 100%; min-height: 96px; padding: 10px 12px; resize: vertical; line-height: 1.6; font: inherit; box-sizing: border-box; }
+.recall-file { padding: 10px 0; font: inherit; }
+.recall-help { margin: 0; font-size: 12px; line-height: 1.6; color: var(--muted); }
+.recall-field-error { margin: 0; font-size: 13px; line-height: 1.5; color: #a63a2c; }
+.recall-choice { display: flex; flex-wrap: wrap; gap: 8px 20px; border: 0; padding: 0; margin: 0; }
+.recall-choice legend { font-size: 14px; font-weight: 600; margin-bottom: 8px; padding: 0; }
+.recall-choice label { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; }
+.recall-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.recall-actions--nav { margin-top: 8px; justify-content: space-between; }
+.recall-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: 0; }
+
+.recall-material-list, .recall-deck-list, .recall-draft-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.recall-material { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.recall-material-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.recall-material-head strong, .recall-deck-item strong { overflow-wrap: anywhere; }
+.recall-deck-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.recall-deck-item > div { flex: 1; min-width: 0; }
+
+.recall-deck-view { display: flex; flex-direction: column; gap: 16px; }
+.recall-deck-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.recall-deck-title h2 { margin: 0; font-size: 22px; line-height: 1.4; flex: 1 1 200px; overflow-wrap: anywhere; }
+
+.recall-draft { display: flex; flex-direction: column; gap: 16px; }
+.recall-draft-card { padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.recall-draft-card .recall-form { width: 100%; }
+.recall-draft-head { display: flex; align-items: flex-start; gap: 10px; justify-content: space-between; width: 100%; }
+.recall-draft-head h3 { margin: 0; font-size: 16px; line-height: 1.5; }
+.recall-draft-answer { margin: 0; line-height: 1.7; }
+.recall-quote { margin: 0; padding: 8px 12px; border-left: 3px solid var(--primary); background: var(--soft); border-radius: 0 8px 8px 0; font-size: 13px; line-height: 1.6; color: var(--ink); width: 100%; box-sizing: border-box; }
+.recall-quote footer { margin-top: 4px; font-size: 12px; color: var(--muted); }
+
+.recall-study { display: flex; flex-direction: column; gap: 16px; }
+.recall-study-top { display: flex; flex-direction: column; gap: 8px; }
+.recall-study-count { margin: 0; font-weight: 600; }
+.recall-flashcard, .recall-summary { padding: 24px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); display: flex; flex-direction: column; gap: 14px; align-items: flex-start; }
+.recall-flashcard h3 { margin: 0; font-size: 22px; line-height: 1.5; }
+.recall-label { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--primary); }
+.recall-answer { display: flex; flex-direction: column; gap: 12px; width: 100%; padding-top: 14px; border-top: 1px dashed var(--line); }
+.recall-answer-text { margin: 0; font-size: 18px; line-height: 1.7; }
+.recall-summary h3 { margin: 0; font-size: 20px; }
+.recall-summary p { margin: 0; line-height: 1.7; color: var(--muted); }
+.recall-flashcard .shadcn-alert { width: 100%; box-sizing: border-box; }
+.recall-flashcard .recall-actions--nav { width: 100%; }
+.recall-study-footer { display: flex; justify-content: flex-start; }
+.recall-draft .shadcn-alert p, .recall-study-footer .shadcn-alert p { margin: 0 0 8px; }
+
+.recall-page button:focus-visible, .recall-page a:focus-visible, .recall-page input:focus-visible,
+.recall-page select:focus-visible, .recall-page textarea:focus-visible, .recall-page [tabindex="-1"]:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
+
+@media (max-width: 600px) {
+  .recall-page { padding: 16px 16px 40px; }
+  .recall-flashcard, .recall-summary { padding: 18px; }
+  .recall-deck-item { flex-wrap: wrap; }
+  .recall-form--inline .recall-field--short { flex: 1 1 100%; }
+  .recall-actions .shadcn-button { flex: 1 1 100%; justify-content: center; }
+  .recall-actions--nav .shadcn-button { flex: 1 1 auto; }
+}
+@media (prefers-reduced-motion: reduce) { .recall-page * { transition: none !important; animation: none !important; } }
+
+/* The shared success badge is 2.9:1; the deck status needs 4.5:1, so darken the text on this page only. */
+.recall-page .shadcn-badge--success { color: #166534; }
+
+/* Long unbroken text (a pasted URL, a 300-letter question) must wrap instead of widening the page,
+   and line breaks the student typed or pasted must stay visible. */
+.recall-page { overflow-wrap: anywhere; }
+.recall-draft-head h3, .recall-draft-answer, .recall-flashcard h3, .recall-answer-text, .recall-quote { white-space: pre-line; }
+.recall-quote footer { white-space: normal; }
+.recall-draft-head > h3 { min-width: 0; flex: 1; }
+.recall-material-head > div { min-width: 0; flex: 1 1 200px; }
+.recall-deck-title h2 { min-width: 0; }
+
+/* "Show more" for long lists of sources and decks */
+.recall-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-top: 12px; }
+.recall-pager .recall-help { margin: 0; }
+.recall-material-list > li:focus-visible, .recall-deck-list > li:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }

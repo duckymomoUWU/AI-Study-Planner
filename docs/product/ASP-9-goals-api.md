@@ -106,7 +106,7 @@ Clients use `code`, `details[].field` and `details[].issue`; `message` is only f
 | 409 | `GOAL_UPDATE_CONFLICT` | Edit breaks existing tasks | one item per task or day, `message` names the task, date and minutes over |
 | 500 | `INTERNAL_SERVER_ERROR` | Unexpected | — |
 
-`issue` values: `required`, `invalid_type`, `invalid_date`, `invalid_timezone`, `unknown_field`, `empty_patch`, `must_not_be_in_past`, `must_be_after_start_date`, `exceeds_90_days`, `out_of_range`, `task_on_or_after_exam_date`, `daily_budget_exceeded`, `invalid_existing_task`. When input errors and task conflicts occur together, the answer is 400.
+`issue` values: `required`, `invalid_type`, `invalid_date`, `invalid_timezone`, `unknown_field`, `empty_patch`, `too_long`, `must_not_be_in_past`, `must_be_after_start_date`, `exceeds_90_days`, `out_of_range`, `task_on_or_after_exam_date`, `daily_budget_exceeded`, `invalid_existing_task`. When input errors and task conflicts occur together, the answer is 400.
 
 Errors and logs never contain stack traces, SQL, passwords or study content.
 
@@ -120,6 +120,7 @@ The goal's `timezone` decides "today" for the past-date rule: `LocalDate.now(clo
 | --- | --- | --- | --- |
 | 1. Create with all five fields | `POST /api/v1/goals` → 201 | Owner from session; trim; validate | Insert into `study_goals` (`user_id`, `timezone`, `version = 0`) |
 | 1. Subject/topics not blank after trim | 400 `required` | Trim, then check | `CHECK length(trim(...)) > 0` |
+| 1. Subject at most 100 characters after trim | 400 `too_long` (not a 500) | Trim, then count Unicode characters (an emoji is one); `GoalRequest` on create and patch | `VARCHAR(100)` |
 | 1. Exam date not past, after start | 400 `must_not_be_in_past`, `must_be_after_start_date` | Compare with today in goal time zone | `CHECK exam_date > start_date` (past-date is service only) |
 | 1. At most 90 days | 400 `exceeds_90_days` | Day difference ≤ 90 | `CHECK exam_date - start_date <= 90` |
 | 1. 15–480 integer minutes | 400 `out_of_range` | Integer in range | `CHECK BETWEEN 15 AND 480` |
