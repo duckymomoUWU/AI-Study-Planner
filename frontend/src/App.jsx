@@ -196,7 +196,7 @@ export default function App() {
               type="button"
               className={`nav-link ${activePage === 'weekly' ? 'nav-link--active' : ''}`}
               onClick={() => setActivePage('weekly')}
-              title="Tiến độ theo tuần (US-17)"
+              title="Tiến độ theo tuần"
             >
               <span className="nav-icon" aria-hidden="true">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -206,7 +206,6 @@ export default function App() {
                 </svg>
               </span>
               <span className="nav-text">Tiến độ</span>
-              <span className="nav-badge">US-17</span>
             </button>
             <button
               type="button"
@@ -248,7 +247,7 @@ export default function App() {
             <span>
               {activePage === 'goals' && 'Quản lý mục tiêu'}
               {activePage === 'daily' && 'Lịch học theo tuần'}
-              {activePage === 'weekly' && 'Tiến độ theo tuần (US-17)'}
+              {activePage === 'weekly' && 'Tiến độ theo tuần'}
               {activePage === 'recall' && 'Ôn tập chủ động'}
               {activePage === 'overview' && 'Không gian học tập'}
               {activePage === 'auth' && 'Xác thực tài khoản'}
