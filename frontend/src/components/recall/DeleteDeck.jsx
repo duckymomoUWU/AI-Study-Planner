@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Alert, AlertDescription } from '../ui/alert.jsx'
 import { Button } from '../ui/button.jsx'
 import { describeRecallError } from '../../lib/recall.js'
@@ -8,6 +8,16 @@ export default function DeleteDeck({ api, deck, disabled, onDeleted, onUnauthent
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
+  const keepRef = useRef(null)
+  const openRef = useRef(null)
+  const wasConfirming = useRef(false)
+
+  // Opening the confirmation moves focus to the safe choice; closing it returns focus to the opener.
+  useEffect(() => {
+    if (confirming) keepRef.current?.focus()
+    else if (wasConfirming.current) openRef.current?.focus()
+    wasConfirming.current = confirming
+  }, [confirming])
 
   async function remove() {
     if (deleting) return
@@ -25,7 +35,7 @@ export default function DeleteDeck({ api, deck, disabled, onDeleted, onUnauthent
   }
 
   if (!confirming) {
-    return <Button variant="outline" disabled={disabled} onClick={() => setConfirming(true)}>Xóa bộ thẻ</Button>
+    return <Button variant="outline" ref={openRef} disabled={disabled} onClick={() => setConfirming(true)}>Xóa bộ thẻ</Button>
   }
   return (
     <Alert variant="destructive">
@@ -34,7 +44,7 @@ export default function DeleteDeck({ api, deck, disabled, onDeleted, onUnauthent
         {error && <p className="recall-field-error">{error}</p>}
         <div className="recall-actions">
           <Button variant="outline" size="sm" isLoading={deleting} onClick={remove}>Xóa bộ thẻ</Button>
-          <Button variant="ghost" size="sm" disabled={deleting} onClick={() => setConfirming(false)}>Giữ lại</Button>
+          <Button variant="ghost" size="sm" ref={keepRef} disabled={deleting} onClick={() => setConfirming(false)}>Giữ lại</Button>
         </div>
       </AlertDescription>
     </Alert>

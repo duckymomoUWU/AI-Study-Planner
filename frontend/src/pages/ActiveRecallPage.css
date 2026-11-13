@@ -63,7 +63,7 @@
 .recall-draft .shadcn-alert p, .recall-study-footer .shadcn-alert p { margin: 0 0 8px; }
 
 .recall-page button:focus-visible, .recall-page a:focus-visible, .recall-page input:focus-visible,
-.recall-page select:focus-visible, .recall-page textarea:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
+.recall-page select:focus-visible, .recall-page textarea:focus-visible, .recall-page [tabindex="-1"]:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
 
 @media (max-width: 600px) {
   .recall-page { padding: 16px 16px 40px; }
@@ -74,3 +74,6 @@
   .recall-actions--nav .shadcn-button { flex: 1 1 auto; }
 }
 @media (prefers-reduced-motion: reduce) { .recall-page * { transition: none !important; animation: none !important; } }
+
+/* The shared success badge is 2.9:1; the deck status needs 4.5:1, so darken the text on this page only. */
+.recall-page .shadcn-badge--success { color: #166534; }

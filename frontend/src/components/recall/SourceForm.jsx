@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Alert, AlertDescription } from '../ui/alert.jsx'
 import { Button } from '../ui/button.jsx'
 import { Input } from '../ui/input.jsx'
@@ -17,6 +17,12 @@ export default function SourceForm({ api, goalId, disabled, onCreated, onUnauthe
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const submitRef = useRef(null)
+  const failed = useRef(false)
+
+  useEffect(() => {
+    if (!saving && failed.current) { failed.current = false; submitRef.current?.focus() }
+  }, [saving])
 
   async function submit(event) {
     event.preventDefault()
@@ -24,7 +30,11 @@ export default function SourceForm({ api, goalId, disabled, onCreated, onUnauthe
     const found = mode === 'text' ? validateTextSource({ title, content }) : validatePdfFile(file, title)
     setErrors(found)
     setError('')
-    if (Object.keys(found).length) return
+    if (Object.keys(found).length) {
+      const first = ['title', 'content', 'file'].find(name => found[name])
+      document.getElementById(`recall-source-${first}`)?.focus()
+      return
+    }
     setSaving(true)
     try {
       const material = mode === 'text'
@@ -38,6 +48,7 @@ export default function SourceForm({ api, goalId, disabled, onCreated, onUnauthe
       const info = describeRecallError(err)
       if (info.kind === 'unauthenticated') onUnauthenticated()
       setError(info.message)
+      failed.current = true
     } finally {
       setSaving(false)
     }
@@ -89,7 +100,7 @@ export default function SourceForm({ api, goalId, disabled, onCreated, onUnauthe
 
       {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
       <div className="recall-actions">
-        <Button type="submit" isLoading={saving} disabled={disabled}>{saving ? 'Đang lưu nguồn…' : 'Lưu nguồn tài liệu'}</Button>
+        <Button type="submit" ref={submitRef} isLoading={saving} disabled={disabled}>{saving ? 'Đang lưu nguồn…' : 'Lưu nguồn tài liệu'}</Button>
       </div>
     </form>
   )

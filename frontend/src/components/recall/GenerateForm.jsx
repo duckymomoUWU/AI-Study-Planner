@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Alert, AlertDescription } from '../ui/alert.jsx'
 import { Button } from '../ui/button.jsx'
 import { Input } from '../ui/input.jsx'
@@ -16,6 +16,16 @@ export default function GenerateForm({ api, material, onGenerated, onUnauthentic
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const attempt = useRef({ signature: '', key: '' })
+  const titleRef = useRef(null)
+  const submitRef = useRef(null)
+  const failed = useRef(false)
+
+  // The form opens right after a source is saved: put the keyboard focus on its first field.
+  useEffect(() => { titleRef.current?.focus() }, [])
+  // The button is disabled while generating, which drops focus; bring it back after a failure.
+  useEffect(() => {
+    if (!busy && failed.current) { failed.current = false; submitRef.current?.focus() }
+  }, [busy])
 
   async function submit(event) {
     event.preventDefault()
@@ -38,6 +48,7 @@ export default function GenerateForm({ api, material, onGenerated, onUnauthentic
       const info = describeRecallError(err)
       if (info.kind === 'unauthenticated') onUnauthenticated()
       setError(info.message)
+      failed.current = true
     } finally {
       setBusy(false)
     }
@@ -48,7 +59,7 @@ export default function GenerateForm({ api, material, onGenerated, onUnauthentic
     <form className="recall-form recall-form--inline" onSubmit={submit} noValidate aria-busy={busy}>
       <div className="recall-field">
         <Label htmlFor={`${id}-title`}>Tên bộ thẻ</Label>
-        <Input id={`${id}-title`} value={title} disabled={busy} onChange={event => setTitle(event.target.value)} />
+        <Input id={`${id}-title`} ref={titleRef} value={title} disabled={busy} onChange={event => setTitle(event.target.value)} />
       </div>
       <div className="recall-field recall-field--short">
         <Label htmlFor={`${id}-count`}>Số thẻ</Label>
@@ -58,7 +69,7 @@ export default function GenerateForm({ api, material, onGenerated, onUnauthentic
       </div>
       {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
       <div className="recall-actions">
-        <Button type="submit" isLoading={busy}>{busy ? 'AI đang tạo bản nháp…' : error ? 'Thử tạo lại' : 'Tạo bản nháp thẻ'}</Button>
+        <Button type="submit" ref={submitRef} isLoading={busy}>{busy ? 'AI đang tạo bản nháp…' : error ? 'Thử tạo lại' : 'Tạo bản nháp thẻ'}</Button>
       </div>
     </form>
   )

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Alert, AlertDescription } from '../ui/alert.jsx'
 import { Badge } from '../ui/badge.jsx'
 import { Button } from '../ui/button.jsx'
@@ -16,12 +16,24 @@ function SourceQuote({ source }) {
   )
 }
 
-function CardEditor({ card, api, disabled, onSaved, onError, onUnauthenticated }) {
+function CardEditor({ card, api, disabled, focusEditOnMount, onSaved, onError, onUnauthenticated }) {
   const [editing, setEditing] = useState(false)
   const [question, setQuestion] = useState(card.question)
   const [answer, setAnswer] = useState(card.answer)
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
+  const editRef = useRef(null)
+  const questionRef = useRef(null)
+  const wasEditing = useRef(false)
+
+  // Keep keyboard focus where the student is working: into the form when it opens, back on the
+  // button when it is cancelled, and on the new button after a save re-creates this card.
+  useEffect(() => {
+    if (editing) questionRef.current?.focus()
+    else if (wasEditing.current) editRef.current?.focus()
+    wasEditing.current = editing
+  }, [editing])
+  useEffect(() => { if (focusEditOnMount) editRef.current?.focus() }, [focusEditOnMount])
 
   async function save(event) {
     event.preventDefault()
@@ -33,12 +45,12 @@ function CardEditor({ card, api, disabled, onSaved, onError, onUnauthenticated }
     try {
       await api.updateCard(card.id, { question: question.trim(), answer: answer.trim() }, card.version)
       setEditing(false)
-      await onSaved()
+      await onSaved(card.id)
     } catch (err) {
       const info = describeRecallError(err)
       if (info.kind === 'unauthenticated') onUnauthenticated()
       onError(info.message)
-      if (info.kind === 'reload') await onSaved()
+      if (info.kind === 'reload') await onSaved(card.id)
     } finally {
       setSaving(false)
     }
@@ -56,7 +68,7 @@ function CardEditor({ card, api, disabled, onSaved, onError, onUnauthenticated }
         {card.editedByUser && (
           <p className="recall-help">Nội dung bạn đã sửa chưa được đối chiếu lại với nguồn. Hãy tự kiểm tra trước khi dùng.</p>
         )}
-        <Button variant="outline" size="sm" disabled={disabled} onClick={() => {
+        <Button variant="outline" size="sm" ref={editRef} disabled={disabled} onClick={() => {
           setQuestion(card.question); setAnswer(card.answer); setErrors({}); setEditing(true)
         }}>Sửa thẻ</Button>
       </li>
@@ -68,7 +80,7 @@ function CardEditor({ card, api, disabled, onSaved, onError, onUnauthenticated }
       <form className="recall-form" onSubmit={save} noValidate aria-busy={saving}>
         <div className="recall-field">
           <Label htmlFor={`q-${card.id}`}>Câu hỏi</Label>
-          <textarea id={`q-${card.id}`} className={`shadcn-input recall-textarea${errors.question ? ' shadcn-input--error' : ''}`}
+          <textarea id={`q-${card.id}`} ref={questionRef} className={`shadcn-input recall-textarea${errors.question ? ' shadcn-input--error' : ''}`}
             rows={2} value={question} disabled={saving} onChange={event => setQuestion(event.target.value)}
             aria-describedby={errors.question ? `q-${card.id}-error` : undefined} />
           <p className="recall-help">{question.length} / {QUESTION_LIMIT} ký tự.</p>
@@ -96,6 +108,13 @@ function CardEditor({ card, api, disabled, onSaved, onError, onUnauthenticated }
 export default function DeckEditor({ api, deck, cards, onReload, onActivated, onDeleted, onUnauthenticated }) {
   const [error, setError] = useState('')
   const [activating, setActivating] = useState(false)
+  const [savedId, setSavedId] = useState('')
+  const activateRef = useRef(null)
+  const activateFailed = useRef(false)
+
+  useEffect(() => {
+    if (!activating && activateFailed.current) { activateFailed.current = false; activateRef.current?.focus() }
+  }, [activating])
 
   async function activate() {
     if (activating) return
@@ -106,6 +125,7 @@ export default function DeckEditor({ api, deck, cards, onReload, onActivated, on
       const info = describeRecallError(err)
       if (info.kind === 'unauthenticated') onUnauthenticated()
       setError(info.message)
+      activateFailed.current = true
       if (info.kind === 'reload') await onReload()
     } finally {
       setActivating(false)
@@ -114,18 +134,19 @@ export default function DeckEditor({ api, deck, cards, onReload, onActivated, on
 
   return (
     <div className="recall-draft">
-      <Alert><AlertDescription>
+      <Alert role="status"><AlertDescription>
         Đây là bản nháp do AI tạo từ nguồn của bạn. Hãy đọc, sửa nếu cần, rồi xác nhận để bắt đầu ôn. Bộ thẻ chưa được dùng cho đến khi bạn xác nhận.
       </AlertDescription></Alert>
       {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
       <ol className="recall-draft-list">
         {cards.map(card => (
           <CardEditor key={`${card.id}:${card.version}`} card={card} api={api} disabled={activating}
-            onSaved={onReload} onError={setError} onUnauthenticated={onUnauthenticated} />
+            focusEditOnMount={card.id === savedId}
+            onSaved={async id => { setSavedId(id); await onReload() }} onError={setError} onUnauthenticated={onUnauthenticated} />
         ))}
       </ol>
       <div className="recall-actions">
-        <Button isLoading={activating} disabled={cards.length === 0} onClick={activate}>
+        <Button ref={activateRef} isLoading={activating} disabled={cards.length === 0} onClick={activate}>
           {activating ? 'Đang xác nhận…' : 'Xác nhận dùng bộ thẻ này'}
         </Button>
         <DeleteDeck api={api} deck={deck} disabled={activating} onDeleted={onDeleted} onUnauthenticated={onUnauthenticated} />

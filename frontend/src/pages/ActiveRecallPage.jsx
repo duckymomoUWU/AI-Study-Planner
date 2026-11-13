@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, AlertDescription } from '../components/ui/alert.jsx'
 import { Badge } from '../components/ui/badge.jsx'
 import { Button } from '../components/ui/button.jsx'
@@ -46,6 +46,18 @@ export default function ActiveRecallPage({ currentUser, initialGoalId, onNavigat
   const [expanded, setExpanded] = useState('')
   const [open, setOpen] = useState(null) // { deck, cards } of the deck being edited or studied
   const [opening, setOpening] = useState(false)
+  const deckTitleRef = useRef(null)
+  const pageTitleRef = useRef(null)
+  const hadDeck = useRef(false)
+
+  // Opening, confirming or leaving a deck swaps the whole view; move focus to the new heading instead of losing it.
+  const openDeckId = open?.deck.id
+  const openStatus = open?.deck.status
+  useEffect(() => {
+    if (openDeckId) deckTitleRef.current?.focus()
+    else if (hadDeck.current) pageTitleRef.current?.focus()
+    hadDeck.current = Boolean(openDeckId)
+  }, [openDeckId, openStatus])
 
   const markUnauthenticated = useCallback(() => setSessionExpired(true), [])
   const refresh = () => setRevision(value => value + 1)
@@ -137,12 +149,12 @@ export default function ActiveRecallPage({ currentUser, initialGoalId, onNavigat
   return (
     <section className="recall-page" aria-labelledby="recall-title">
       <header className="recall-header">
-        <h1 id="recall-title">Ôn tập chủ động</h1>
+        <h1 id="recall-title" ref={pageTitleRef} tabIndex={-1}>Ôn tập chủ động</h1>
         <p>Biến tài liệu của bạn thành thẻ hỏi–đáp, lật đáp án rồi tự đánh giá mình nhớ hay chưa.</p>
       </header>
 
       {MOCK_REQUESTED && (
-        <Alert><AlertDescription>
+        <Alert role="status"><AlertDescription>
           Chế độ dữ liệu mẫu để phát triển: thẻ hiển thị không do máy chủ hay AI tạo và sẽ mất khi tải lại trang.
         </AlertDescription></Alert>
       )}
@@ -176,7 +188,7 @@ export default function ActiveRecallPage({ currentUser, initialGoalId, onNavigat
             <div className="recall-deck-view">
               <div className="recall-deck-title">
                 <Button variant="ghost" size="sm" onClick={closeDeck}>← Danh sách bộ thẻ</Button>
-                <h2>{open.deck.title}</h2>
+                <h2 ref={deckTitleRef} tabIndex={-1}>{open.deck.title}</h2>
                 <Badge variant={open.deck.status === 'ACTIVE' ? 'success' : 'outline'}>
                   {open.deck.status === 'ACTIVE' ? 'Đang dùng' : 'Bản nháp'}
                 </Badge>
