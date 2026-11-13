@@ -50,9 +50,9 @@ Cập nhật 2026-11-10 (nhánh kiểm thử tích hợp `integration/sprint2-sp
 | 3. Tạo, sửa, xóa công việc thủ công; xem công việc theo ngày | Đã có API và UI tạo/sửa/xóa, xem theo ngày/mục tiêu; kiểm tra ngày/ngân sách/ownership ở server |
 | 4. AI đề xuất bản nháp | Đã có chọn chủ đề và nguồn, scope theo ID, ngày có 0 phút, việc chưa xếp kèm lý do. Cần GEMINI_API_KEY/GEMINI_MODEL ở backend; đã smoke với Gemini thật, tách riêng test AI mock |
 | 5. Chỉ lưu kế hoạch sau khi xác nhận | Có confirm nguyên tử, kiểm tra version/expiry/ngân sách, receipt chống lưu trùng; đã test PostgreSQL với AI mock |
-| 6. Đánh dấu hoàn thành/mở lại; số công việc hoàn thành và còn lại | Đã có API và giao diện đánh dấu hoàn thành/mở lại; có số lượng theo ngày và tiến độ theo từng mục tiêu (kể cả 0/0) |
+| 6. Đánh dấu hoàn thành/mở lại; số công việc hoàn thành và còn lại | Đã có API và giao diện đánh dấu hoàn thành/mở lại; có số lượng theo ngày, tiến độ theo từng mục tiêu và **theo từng tuần Thứ Hai–Chủ Nhật** (kể cả 0/0) |
 
-Mô tả tính năng: [đánh dấu hoàn thành](docs/product/task-completion.md) và [tiến độ mục tiêu](docs/product/goal-progress.md).
+Mô tả tính năng: [đánh dấu hoàn thành](docs/product/task-completion.md) [tiến độ mục tiêu](docs/product/goal-progress.md) và [tiến độ theo tuần](docs/product/weekly-progress.md) (bằng chứng ở [weekly-progress-2026-11-12.md](docs/plans/completed/weekly-progress-2026-11-12.md)).
 
 Chi tiết tích hợp: [review 8 branch](docs/reviews/branch-integration-2026-11-08.md) và [hợp đồng task/draft](docs/product/integrated-tasks-and-plans.md).
 

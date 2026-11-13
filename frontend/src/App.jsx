@@ -3,6 +3,7 @@ import OverviewPage from './pages/OverviewPage.jsx'
 import GoalsPage from './pages/GoalsPage.jsx'
 import StudyPlanPage from './pages/StudyPlanPage.jsx'
 import AuthPage from './pages/AuthPage.jsx'
+import WeeklyProgressPage from './pages/WeeklyProgressPage.jsx'
 import { getCurrentUser, logout } from './lib/auth.js'
 import './App.css'
 import './theme.css'
@@ -14,6 +15,7 @@ function getPageFromHash() {
   if (hash === '#auth' || hash === '#login' || hash === '#register') return 'auth'
   if (hash === '#goals') return 'goals'
   if (hash === '#daily' || hash === '#tasks') return 'daily'
+  if (hash === '#weekly' || hash === '#progress') return 'weekly'
   return 'overview'
 }
 
@@ -188,6 +190,21 @@ export default function App() {
               </span>
               <span className="nav-text">Lịch học</span>
             </button>
+            <button
+              type="button"
+              className={`nav-link ${activePage === 'weekly' ? 'nav-link--active' : ''}`}
+              onClick={() => setActivePage('weekly')}
+              title="Tiến độ theo tuần"
+            >
+              <span className="nav-icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="20" x2="18" y2="10" />
+                  <line x1="12" y1="20" x2="12" y2="4" />
+                  <line x1="6" y1="20" x2="6" y2="14" />
+                </svg>
+              </span>
+              <span className="nav-text">Tiến độ</span>
+            </button>
             <a className="nav-link" href={`${repository}/wiki`} title="Tài liệu dự án">
               <span className="nav-icon" aria-hidden="true">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -213,6 +230,7 @@ export default function App() {
             <span>
               {activePage === 'goals' && 'Quản lý mục tiêu'}
               {activePage === 'daily' && 'Lịch học theo tuần'}
+              {activePage === 'weekly' && 'Tiến độ theo tuần'}
               {activePage === 'overview' && 'Không gian học tập'}
               {activePage === 'auth' && 'Xác thực tài khoản'}
             </span>
@@ -311,6 +329,13 @@ export default function App() {
                 currentUser={currentUser}
                 onBack={() => setActivePage('overview')}
                 onNavigateGoals={() => setActivePage('goals')}
+                onNavigateAuth={() => setActivePage('auth')}
+              />
+            ) : activePage === 'weekly' ? (
+              <WeeklyProgressPage
+                key={currentUser?.id || currentUser?.email || 'guest'}
+                onBack={() => setActivePage('overview')}
+                onNavigateDaily={() => setActivePage('daily')}
                 onNavigateAuth={() => setActivePage('auth')}
               />
             ) : (

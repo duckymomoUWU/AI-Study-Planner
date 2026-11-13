@@ -132,3 +132,12 @@ Local demo schema migrated 6 to 7, package/restart succeeded, direct/proxy healt
 ## Failed busy-calendar feedback (2026-11-11)
 
 CalendarBusyTest + CalendarServiceTest: 12/12 passed after adding failedCalendarIds context while retaining fail-closed behavior. Frontend lint, 92/92 client tests and build passed; regression checks error context reaches the UI client. Package/restart succeeded and proxy health UP. UI now names/highlights failed calendars and explains target calendars cannot be bypassed by deselection. No schema/.env changes, actual provider failure capture or browser E2E claimed. The screenshot alone does not establish which selected calendar failed; exact name is shown on the next preview request.
+
+## Weekly progress (2026-11-12)
+
+Integration follow-up: [dev2-sprint4 test delivery](../../docs/plans/completed/dev2-sprint4-integration-2026-11-13.md).
+On 2026-11-13 the integrated branch passed full backend verify with all four integration flags: 323 executions, zero failures/errors, three private-PDF skips on the isolated test database. After two test-only safeguards, WeeklyProgress tests passed 28/28 and verify packaged successfully. Frontend lint, 102/102 tests and build passed. Live proxy smoke used synthetic data in a separate preview database; browser interaction was unavailable. No existing demo secrets or data were used.
+
+Contract: [weekly progress](../../docs/product/weekly-progress.md). Evidence: [weekly-progress-2026-11-12.md](../../docs/plans/completed/weekly-progress-2026-11-12.md).
+
+After merging main into dev2: full backend `clean test` with explicit disposable study_planner_test datasource and goal/auth flags: 323 executions, 0 failures/errors, 25 opt-in skips (calendar, planning, private PDFs). The 27 WeeklyProgress tests were re-run alone after the controller moved to the shared `ApiResponse`/`ApiExceptionHandler`. Frontend lint, 102/102 tests and build passed. This was `test`, not `verify`; no browser E2E after the merge, no CI run, no independent review claimed. Read-only endpoint, no schema change.
