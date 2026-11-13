@@ -9,6 +9,7 @@ spring:
     password: ${DB_PASSWORD}
   flyway:
     enabled: true
+    out-of-order: true
 gemini:
   api-key: ${GEMINI_API_KEY:}
   model: ${GEMINI_MODEL:}

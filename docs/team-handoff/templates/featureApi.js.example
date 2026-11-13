@@ -1,0 +1,41 @@
+// Proposed StudySession client. Copy to frontend/src/lib/studySessions.js.
+// These endpoints do not exist until Person 2 implements the agreed contract.
+import { getCsrfToken } from './auth.js'
+
+export class SessionApiError extends Error {
+  constructor(message, status, code, details = [], context = {}) {
+    super(message)
+    this.name = 'SessionApiError'
+    Object.assign(this, { status, code, details, context })
+  }
+}
+
+async function request(path, { method = 'GET', body, key, signal } = {}) {
+  const headers = { Accept: 'application/json' }
+  if (method !== 'GET') headers['X-CSRF-TOKEN'] = await getCsrfToken()
+  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  if (key) headers['Idempotency-Key'] = key
+  const response = await fetch(`/api/v1${path}`, {
+    method, headers, credentials: 'same-origin', signal,
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  })
+  if (response.status === 204) return null
+  const payload = await response.json().catch(() => null)
+  if (!response.ok) throw new SessionApiError(payload?.error?.message || 'Không tải được phiên học.',
+    response.status, payload?.error?.code, payload?.error?.details, payload?.error?.context)
+  if (!payload || !Object.hasOwn(payload, 'data')) throw new SessionApiError('Phản hồi phiên học chưa hợp lệ.', 502, 'INVALID_RESPONSE')
+  return payload.data
+}
+
+export async function getActiveSession(options = {}) {
+  const data = await request('/study-sessions/active', options)
+  if (!data || !Object.hasOwn(data, 'session')) throw new SessionApiError('Thiếu trạng thái phiên học.', 502, 'INVALID_RESPONSE')
+  return data.session
+}
+export function startSession(taskId, key) {
+  return request('/study-sessions', { method: 'POST', body: { taskId }, key })
+}
+export function actOnSession(id, action, expectedVersion, key) {
+  return request(`/study-sessions/${encodeURIComponent(id)}/actions`, { method: 'POST', body: { action, expectedVersion }, key })
+}
+// Keep the same key AND payload for retries; allocate a fresh key for a different action.

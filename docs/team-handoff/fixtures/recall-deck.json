@@ -1,0 +1,21 @@
+{
+  "data": {
+    "deck": {
+      "id": "55555555-5555-4555-8555-555555555555",
+      "goalId": "33333333-3333-4333-8333-333333333333",
+      "materialId": "66666666-6666-4666-8666-666666666666",
+      "title": "Bộ thẻ minh họa",
+      "status": "DRAFT",
+      "cardCount": 5,
+      "version": 0,
+      "createdAt": "2026-11-11T02:00:00Z"
+    },
+    "cards": [
+      { "id": "44444444-4444-4444-8444-444444444441", "deckId": "55555555-5555-4555-8555-555555555555", "question": "Kiểm thử hộp đen đánh giá điều gì?", "answer": "Hành vi đầu vào và đầu ra.", "source": { "materialId": "66666666-6666-4666-8666-666666666666", "page": null, "quote": "Kiểm thử hộp đen đánh giá hành vi đầu vào và đầu ra." }, "editedByUser": false, "version": 0, "lastRating": null, "lastReviewedAt": null, "reviewCount": 0 },
+      { "id": "44444444-4444-4444-8444-444444444442", "deckId": "55555555-5555-4555-8555-555555555555", "question": "Kiểm thử hộp trắng xem xét phần nào?", "answer": "Cấu trúc bên trong chương trình.", "source": { "materialId": "66666666-6666-4666-8666-666666666666", "page": null, "quote": "Kiểm thử hộp trắng xem xét cấu trúc bên trong chương trình." }, "editedByUser": false, "version": 0, "lastRating": null, "lastReviewedAt": null, "reviewCount": 0 },
+      { "id": "44444444-4444-4444-8444-444444444443", "deckId": "55555555-5555-4555-8555-555555555555", "question": "Hai thành phần được nêu trong một ca kiểm thử là gì?", "answer": "Đầu vào và kết quả mong đợi.", "source": { "materialId": "66666666-6666-4666-8666-666666666666", "page": null, "quote": "Ca kiểm thử gồm đầu vào và kết quả mong đợi." }, "editedByUser": false, "version": 0, "lastRating": null, "lastReviewedAt": null, "reviewCount": 0 },
+      { "id": "44444444-4444-4444-8444-444444444444", "deckId": "55555555-5555-4555-8555-555555555555", "question": "Kiểm thử hồi quy được thực hiện sau tình huống nào?", "answer": "Sau khi có thay đổi, để kiểm tra chức năng.", "source": { "materialId": "66666666-6666-4666-8666-666666666666", "page": null, "quote": "Kiểm thử hồi quy kiểm tra chức năng sau thay đổi." }, "editedByUser": false, "version": 0, "lastRating": null, "lastReviewedAt": null, "reviewCount": 0 },
+      { "id": "44444444-4444-4444-8444-444444444445", "deckId": "55555555-5555-4555-8555-555555555555", "question": "Kết quả mong đợi dùng để làm gì?", "answer": "Đối chiếu với kết quả thực tế.", "source": { "materialId": "66666666-6666-4666-8666-666666666666", "page": null, "quote": "Kết quả mong đợi dùng để đối chiếu với kết quả thực tế." }, "editedByUser": false, "version": 0, "lastRating": null, "lastReviewedAt": null, "reviewCount": 0 }
+    ]
+  }
+}

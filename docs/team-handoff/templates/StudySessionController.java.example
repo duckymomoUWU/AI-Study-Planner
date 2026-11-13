@@ -1,0 +1,51 @@
+// REFERENCE SKELETON, not a delivered endpoint. Implement service/validation/tests before merging.
+package com.studyplanner.sessions;
+
+import java.util.List;
+import java.util.UUID;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.studyplanner.api.*;
+import com.studyplanner.api.ApiErrorResponse.ErrorDetail;
+import com.studyplanner.auth.AppUserPrincipal;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/v1/study-sessions")
+public class StudySessionController {
+    private final StudySessionService service;
+    public StudySessionController(StudySessionService service) { this.service = service; }
+
+    @GetMapping("/active")
+    public ApiResponse<StudySessionService.ActiveSessionView> active(@AuthenticationPrincipal AppUserPrincipal user) {
+        return ApiResponse.of(new StudySessionService.ActiveSessionView(service.active(owner(user))));
+    }
+
+    @PostMapping
+    public ResponseEntity<ApiResponse<StudySessionService.SessionView>> start(
+            @AuthenticationPrincipal AppUserPrincipal user,
+            @RequestHeader(value="Idempotency-Key", required=false) String key,
+            @RequestBody JsonNode body) {
+        var result = service.start(owner(user), key(key), body);
+        return ResponseEntity.status(result.replayed() ? 200 : 201).body(ApiResponse.of(result.session()));
+    }
+
+    @PostMapping("/{id}/actions")
+    public ApiResponse<StudySessionService.SessionView> action(
+            @AuthenticationPrincipal AppUserPrincipal user, @PathVariable UUID id,
+            @RequestHeader(value="Idempotency-Key", required=false) String key,
+            @RequestBody JsonNode body) {
+        return ApiResponse.of(service.action(owner(user), id, key(key), body));
+    }
+
+    private static UUID owner(AppUserPrincipal user) {
+        if (user == null) throw new UnauthenticatedException();
+        return user.id();
+    }
+    private static UUID key(String raw) {
+        try { var key=UUID.fromString(raw); if (!key.toString().equalsIgnoreCase(raw)) throw new IllegalArgumentException(); return key; }
+        catch (Exception ex) { throw new RequestValidationException(List.of(new ErrorDetail("Idempotency-Key", "invalid_type"))); }
+    }
+    // Add the get/history/summary routes from contract. Session owner/strict body checks belong in service too.
+}
