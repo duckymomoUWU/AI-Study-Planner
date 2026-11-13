@@ -1,5 +1,15 @@
 # Development and verification harness
 
+## Landing and Timer frontend (2026-11-13)
+
+[Delivery and pending integration](../../docs/plans/completed/dev1-landing-timer-ui-2026-11-13.md).
+Branch `feature/dev1-landing-timer`: frontend lint without warnings, 109/109 tests and
+build passed. Vite SSR smoke covers rendered page structure only, not effects or UI
+interaction. Live proxy health UP; authenticated session/active API returns 404 and
+anonymous request 401. The Timer backend is absent, so real persistence/reload/offline
+and two-tab acceptance remain pending; no successful session writes are claimed.
+Browser discovery returned no connection. No backend/DB/secret changes for this work.
+
 This is the maintained owner of verification commands and known gaps. Environment/startup instructions belong to [setup.md](../../setup.md); product rules belong to [requirements.md](../../requirements.md) and contracts linked in [docs/README.md](../../docs/README.md).
 
 Current implementation includes auth, Goal CRUD, tasks, syllabus extraction, scoped AI drafts/confirmation and Google Calendar. Starter-era statements that only `/actuator/health` exists are obsolete. [Consolidated delivery evidence](../../docs/plans/completed/core-study-calendar-2026-11-11.md) records dated results and remaining limits.

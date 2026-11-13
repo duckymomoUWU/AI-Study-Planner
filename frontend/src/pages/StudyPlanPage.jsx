@@ -13,7 +13,7 @@ import './StudyPlanPage.css'
 const dateLabel = day => new Intl.DateTimeFormat('vi-VN', { day: 'numeric', month: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${day}T12:00:00Z`))
 const weekdayLabel = day => new Intl.DateTimeFormat('vi-VN', { weekday: 'long', timeZone: 'UTC' }).format(new Date(`${day}T12:00:00Z`))
 
-export default function StudyPlanPage({ initialDate, onNavigateGoals, onNavigateAuth, onEditGoal, ...dailyProps }) {
+export default function StudyPlanPage({ initialDate, onNavigateGoals, onNavigateAuth, onEditGoal, onNavigateTimer, ...dailyProps }) {
   const [anchor, setAnchor] = useState(() => initialDate || vietnamToday())
   const [days, setDays] = useState([])
   const [goals, setGoals] = useState([])
@@ -67,7 +67,7 @@ export default function StudyPlanPage({ initialDate, onNavigateGoals, onNavigate
   if (dailyDate) return <>
     {dailyProps.currentUser && <CalendarSyncPanel onOpenCalendar={() => { setDailyDate(null); setShowCalendar(true); refresh() }} />}
     <button className="study-back" type="button" onClick={() => { setDailyDate(null); refresh() }}>← Lịch học theo tuần</button>
-    <DailyTasksPage key={dailyDate} {...dailyProps} initialDate={dailyDate} onNavigateGoals={onNavigateGoals} onNavigateAuth={onNavigateAuth} />
+    <DailyTasksPage key={dailyDate} {...dailyProps} initialDate={dailyDate} onNavigateGoals={onNavigateGoals} onNavigateAuth={onNavigateAuth} onNavigateTimer={onNavigateTimer} />
   </>
 
   return <section className="study-plan" aria-labelledby="study-plan-title">
@@ -141,6 +141,7 @@ export default function StudyPlanPage({ initialDate, onNavigateGoals, onNavigate
               <button className={task.completed ? 'study-done' : 'study-primary'} type="button" disabled={Boolean(pending)}
                 aria-label={`${task.completed ? 'Đánh dấu chưa xong' : 'Hoàn thành'}: ${task.title}`} onClick={() => complete(task)}>
                 {pending === task.id ? 'Đang lưu…' : task.completed ? '✓ Đã xong' : 'Hoàn thành'}</button>
+              {onNavigateTimer && <button type="button" onClick={() => onNavigateTimer(task)} aria-label={`Tập trung học: ${task.title}`}>◷ Tập trung</button>}
             </article>
           })}</div>
         </section>)}
