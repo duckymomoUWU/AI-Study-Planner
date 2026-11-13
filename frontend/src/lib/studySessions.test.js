@@ -17,6 +17,9 @@ test('focus countdown uses elapsed time, clamps at zero, and freezes paused sess
 test('public home, explicit overview, registration and timer task links stay distinct', () => {
   assert.equal(pageFromHash(''), 'home')
   assert.equal(pageFromHash('#landing-steps'), 'landing')
+  assert.equal(pageFromHash('#landing-features'), 'landing')
+  assert.equal(pageFromHash('#landing-faq'), 'landing')
+  assert.equal(pageFromHash('#landing-main'), 'landing')
   assert.equal(pageFromHash('#overview'), 'overview')
   assert.equal(pageFromHash('#register'), 'auth')
   const id = '22222222-2222-4222-8222-222222222222'

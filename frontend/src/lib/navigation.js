@@ -5,7 +5,7 @@ export function pageFromHash(hash = '') {
   if (['#daily', '#tasks'].includes(route)) return 'daily'
   if (['#weekly', '#progress'].includes(route)) return 'weekly'
   if (route === '#timer') return 'timer'
-  if (['#landing', '#landing-steps'].includes(route)) return 'landing'
+  if (['#landing', '#landing-main', '#landing-steps', '#landing-features', '#landing-faq'].includes(route)) return 'landing'
   if (route === '#overview') return 'overview'
   return 'home'
 }

@@ -163,3 +163,7 @@ lint, 104/104 tests and build passed. RecallPostgresIntegrationTest uses
 and cleans only its own users. Live preview smoke checks persistence, missing-key
 503, anonymous 401 and goal cascade. AI success is mocked; browser/real Gemini
 remain unverified. Local API harness is not shipped Recall UI. No secret edits/push.
+
+## Landing visual refresh (2026-11-13)
+
+Branch feature/dev1-landing-timer: frontend lint, 109/109 tests and build passed. SSR structure and live asset serving passed. Vietnamese font cmap checked; generated hero image inspected. Carousel and responsive interactions implemented but no connected browser for rendered/click/motion verification. [Evidence](../../docs/plans/completed/landing-visual-refresh-2026-11-13.md). No backend or secret changes.
