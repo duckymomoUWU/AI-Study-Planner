@@ -100,14 +100,20 @@ export async function listTasksByDate(date = getTodayString(), { signal } = {}) 
   }
 }
 
-/**
- * Marks a task done or re-opens it: PATCH /api/v1/goals/{goalId}/tasks/{taskId} with the target state
- * (never a toggle, so a repeated request cannot flip the state). Returns the task as stored.
- */
-export async function setTaskCompleted(goalId, taskId, completed, { signal } = {}) {
+/** Reads the current owned task before offering completion after a saved study session. */
+export async function getTask(goalId, taskId, { signal } = {}) {
+  const { data } = await request(`${BASE}/goals/${encodeURIComponent(goalId)}/tasks/${encodeURIComponent(taskId)}`, { signal })
+  if (!data || data.id !== taskId || typeof data.completed !== 'boolean') {
+    throw new TaskApiError('Phản hồi công việc không đúng định dạng.', { status: 502 })
+  }
+  return data
+}
+
+/** Explicit target state, never a toggle: repeating a confirmation cannot reopen a task. */
+export async function setTaskCompleted(goalId, taskId, completed, { signal, csrfToken } = {}) {
   const { data } = await request(
     `${BASE}/goals/${encodeURIComponent(goalId)}/tasks/${encodeURIComponent(taskId)}`,
-    { method: 'PATCH', body: { completed: Boolean(completed) }, signal },
+    { method: 'PATCH', body: { completed: Boolean(completed) }, signal, csrfToken },
   )
   if (!data || typeof data.id !== 'string') {
     throw new TaskApiError('Phản hồi công việc không đúng định dạng.', { status: 502 })

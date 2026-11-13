@@ -78,3 +78,7 @@ Test PostgreSQL gồm: 6 yêu cầu bắt đầu đồng thời với key khác 
 - Chưa có chỉ mục hay đo hiệu năng cho lịch sử rất dài; chưa có dọn biên nhận cũ.
 - Chưa có chống gian lận, đo mức tập trung thật, hay nhắc việc nền (ngoài phạm vi).
 - Hợp đồng và các tham số (25 phút, giây là đơn vị) là đề xuất của bộ giao việc, **chờ PO/nhóm duyệt**; chưa sửa `requirements.md`.
+
+## Explicit completion after Timer (2026-11-13)
+
+The integrated Timer UI now offers task completion only after a saved COMPLETED session and a fresh incomplete-task read. Confirm uses the existing task PATCH with completed=true; defer writes nothing. Already completed/deleted tasks and cancelled sessions do not prompt. FINISH itself still never changes tasks. Task write failures retain the session and allow retry. [Evidence](../plans/completed/timer-task-completion-2026-11-13.md).

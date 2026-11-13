@@ -218,3 +218,7 @@ Timer lifecycle/persistence/replay/cascade passed. Recall uses real API; actual 
 success remains unverified without a key. Migration numbering is Recall V8, Timer V9
 on this existing test environment; see delivery note before sharing database histories.
 No browser/real Gemini claim, no secret changes or push.
+
+## Timer task completion (2026-11-13)
+
+[Evidence](../../docs/plans/completed/timer-task-completion-2026-11-13.md): frontend lint, 142/142 tests and build passed. SSR smoke and live isolated preview API flow passed (FINISH does not mark tasks; explicit true persists and repeats safely). Browser interaction not verified. Backend unchanged; no full backend rerun or secret changes.

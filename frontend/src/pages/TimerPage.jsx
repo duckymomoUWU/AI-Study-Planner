@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { getTodayString, listTasksByDate } from '../lib/tasks.js'
 import { getActiveSession, getStudySession, listStudySessions, startStudySession, actOnStudySession, remainingFocus, formatSeconds, sessionError } from '../lib/studySessions.js'
 import './TimerPage.css'
+import SessionTaskCompletion from '../components/SessionTaskCompletion.jsx'
 
 const labels = { RUNNING: 'Đang tập trung', PAUSED: 'Đang tạm dừng', COMPLETED: 'Đã lưu phiên học', CANCELLED: 'Đã hủy phiên học' }
 export default function TimerPage({ currentUser, initialTaskId, onLogin, onSchedule }) {
@@ -112,7 +113,11 @@ export default function TimerPage({ currentUser, initialTaskId, onLogin, onSched
       <div className="timer-dial" style={{ '--timer-progress': `${100 * (1 - remaining / (breakEnd ? 300 : 1500))}%` }}><div><span className="timer-count" role="timer" aria-live="off" aria-label={`Còn ${formatSeconds(remaining)}`}>{formatSeconds(remaining)}</span><small>{breakEnd ? 'thả lỏng một chút' : 'chỉ cần bắt đầu một việc'}</small></div></div>
       <h2>{active ? snapshot.taskTitle : breakEnd ? 'Hít thở. Đứng dậy. Uống nước.' : snapshot?.status === 'COMPLETED' ? 'Bạn đã dành thời gian cho việc học.' : 'Một bước nhỏ cũng là tiến bộ.'}</h2>
       {active && <p>{snapshot.subject}</p>}
-      {snapshot?.status === 'COMPLETED' && !breakEnd && <p>Đã lưu {formatSeconds(snapshot.focusedSeconds)} tập trung. Công việc chưa tự được đánh dấu hoàn thành.</p>}
+      {snapshot?.status === 'COMPLETED' && !breakEnd && <p>Đã lưu {formatSeconds(snapshot.focusedSeconds)} tập trung.</p>}
+      {snapshot?.status === 'COMPLETED' && <div hidden={Boolean(breakEnd)}>
+        <SessionTaskCompletion key={snapshot.id} session={snapshot} onLogin={onLogin}
+          onCompleted={task => setTasks(previous => previous.map(item => item.id === task.id ? task : item))} />
+      </div>}
       {snapshot?.status === 'CANCELLED' && <p>Phiên hủy không được tính vào tổng thời gian học đã hoàn tất.</p>}
       <div className="timer-actions">
         {breakEnd ? <button className="button button--primary" onClick={() => setBreakEnd(null)}>Quay lại tập trung</button> : active ? <>
