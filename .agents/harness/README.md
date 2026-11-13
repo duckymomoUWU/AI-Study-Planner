@@ -177,3 +177,15 @@ Harness journey 5 (what was checked): sidebar item contrast 6.25:1 idle, 7.31:1 
 
 Still not claimed: journeys 1 to 4 (syllabus upload, scoped draft, Google connection and export; not part of this audit and mostly other authors' work), a real Gemini or Google call, a real screen reader, independent review or CI.
 
+## Recall upload and generation fixes (2026-11-13)
+
+Product record: [active-recall.md section 8](../../docs/product/active-recall.md). Scope: everything under `backend/.../recall`, the Recall page and the API contract note; authors other than tyn7624 (the recall backend is tvgb05's) were changed on the user's explicit instruction.
+
+Same environment as the large-data audit above (disposable PostgreSQL 17, `study_planner_test`, port 55440, fixture role) and the same command. Full backend `clean verify` with `-Dgoal.integration`, `-Dauth.integration`, `-Dplanning.integration` and `-Dcalendar.integration`: 428 executions, zero failures/errors, 3 skipped (the private-PDF opt-ins). That is a new full run of this tree and is not added to the earlier 398. Recall now has 63 tests: 14 `GeminiRecallServiceTest`, 10 `RecallTextExtractorTest`, 22 `RecallServiceTest`, 10 MockMvc and 7 `RecallPostgresIntegrationTest` (enabled by `-Dgoal.integration=true`; Gemini is stubbed there). Frontend `npm run lint`, `npm test` (137/137) and `npm run build` passed.
+
+Mutation checks: with the transaction removed and the card count read from the cached column again, `generationIsAtomic` failed (a deck was left behind) and `emptyDeckCannotBeActivated` failed (200 instead of 409); the source was restored and diffed.
+
+Real-stack evidence (HTTP and the connected browser, not a user screenshot): generated PDFs with embedded Arial Vietnamese text, decomposed-diacritics text, 101 pages, over 30,000 characters, exactly 5 MiB and 5 MiB + 1 byte, password-protected, not a PDF, blank, a 300-character file name; real Gemini calls with the key from the user's `.env` (the value was never printed) on synthetic Vietnamese text, after the fixes: 9 and 10 cards with pages 1 to 3 from the NFC PDF, 10 cards from the NFD PDF (7 before), 10 and 20 cards created from the page; two simultaneous requests with one key gave one deck and one `409`; a forced card-insert failure left no deck. Before the fixes the same session also showed an HTTP 503 from Gemini reported as `AI_UNAVAILABLE` with nothing stored, a hidden instruction in a document not followed and 20 cards from a 29,899-character text in 5.3 s; the prompt was changed afterwards and those two were not repeated. The backend log was checked for document text and for the key (counts only; none).
+
+Not claimed: the prompt-injection and long-document results after the prompt change, PDFs using legacy Vietnamese fonts (VNI, TCVN3), two-column or table PDFs, scanned PDFs, Gemini HTTP 429 and the 60 s timeout against the real provider, a concurrent-key race across two server instances (the database guard is covered by a unit test that simulates the duplicate-key error), a real screen reader, independent review, CI.
+
