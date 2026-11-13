@@ -25,7 +25,7 @@ public class RecallDeckController {
         this.recallService = recallService;
     }
 
-    @PostMapping({"/api/v1/recall/decks", "/api/recall/decks"})
+    @PostMapping("/api/v1/recall/decks")
     public ResponseEntity<RecallDTOs.SingleDataResponse<RecallDTOs.DeckResponse>> createDeck(
             @AuthenticationPrincipal AppUserPrincipal principal,
             @RequestHeader(value = "Idempotency-Key", required = false) String rawKey,
@@ -36,7 +36,7 @@ public class RecallDeckController {
         return ResponseEntity.status(HttpStatus.CREATED).body(new RecallDTOs.SingleDataResponse<>(response));
     }
 
-    @GetMapping({"/api/v1/recall/decks", "/api/recall/decks"})
+    @GetMapping("/api/v1/recall/decks")
     public ResponseEntity<RecallDTOs.PagedResponse<RecallDTOs.DeckResponse>> listDecks(
             @AuthenticationPrincipal AppUserPrincipal principal,
             @RequestParam(required = false) UUID goalId,
@@ -49,7 +49,7 @@ public class RecallDeckController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping({"/api/v1/recall/decks/{deckId}", "/api/recall/decks/{deckId}"})
+    @GetMapping("/api/v1/recall/decks/{deckId}")
     public ResponseEntity<RecallDTOs.SingleDataResponse<RecallDTOs.DeckDetail>> getDeck(
             @AuthenticationPrincipal AppUserPrincipal principal,
             @PathVariable UUID deckId
@@ -58,7 +58,7 @@ public class RecallDeckController {
         return ResponseEntity.ok(new RecallDTOs.SingleDataResponse<>(detail));
     }
 
-    @PatchMapping({"/api/v1/recall/cards/{cardId}", "/api/recall/cards/{cardId}"})
+    @PatchMapping("/api/v1/recall/cards/{cardId}")
     public ResponseEntity<RecallDTOs.SingleDataResponse<RecallDTOs.CardResponse>> updateCard(
             @AuthenticationPrincipal AppUserPrincipal principal,
             @PathVariable UUID cardId,
@@ -68,7 +68,7 @@ public class RecallDeckController {
         return ResponseEntity.ok(new RecallDTOs.SingleDataResponse<>(response));
     }
 
-    @PostMapping({"/api/v1/recall/decks/{deckId}/activate", "/api/recall/decks/{deckId}/activate"})
+    @PostMapping("/api/v1/recall/decks/{deckId}/activate")
     public ResponseEntity<RecallDTOs.SingleDataResponse<RecallDTOs.DeckResponse>> activateDeck(
             @AuthenticationPrincipal AppUserPrincipal principal,
             @PathVariable UUID deckId,
@@ -78,7 +78,7 @@ public class RecallDeckController {
         return ResponseEntity.ok(new RecallDTOs.SingleDataResponse<>(response));
     }
 
-    @DeleteMapping({"/api/v1/recall/decks/{deckId}", "/api/recall/decks/{deckId}"})
+    @DeleteMapping("/api/v1/recall/decks/{deckId}")
     public ResponseEntity<Void> deleteDeck(
             @AuthenticationPrincipal AppUserPrincipal principal,
             @PathVariable UUID deckId

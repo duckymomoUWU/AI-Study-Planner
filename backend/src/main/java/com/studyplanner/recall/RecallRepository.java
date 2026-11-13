@@ -293,6 +293,12 @@ public class RecallRepository {
         return updated > 0;
     }
 
+    /** The cards actually stored for a deck (the card_count column is only a cached copy). */
+    public int countCardsInDeck(UUID deckId) {
+        Integer count = jdbcTemplate.queryForObject("SELECT count(*) FROM recall_cards WHERE deck_id = ?", Integer.class, deckId);
+        return count == null ? 0 : count;
+    }
+
     public boolean deleteDeck(UUID deckId, UUID userId) {
         String sql = "DELETE FROM recall_decks WHERE id = ? AND user_id = ?";
         int deleted = jdbcTemplate.update(sql, deckId, userId);

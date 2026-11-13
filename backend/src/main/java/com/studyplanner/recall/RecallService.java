@@ -10,9 +10,14 @@ import java.util.Collections;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -23,15 +28,23 @@ public class RecallService {
     private final RecallRepository repository;
     private final GeminiRecallService geminiRecallService;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate tx;
+    /** Requests (user and Idempotency-Key) whose Gemini call is running, so a second copy cannot start another deck. */
+    private final Set<String> generationsInFlight = ConcurrentHashMap.newKeySet();
+
+    private static final int PREVIEW_CHARS = 1200;
+    private static final int FILE_NAME_MAX = 255;
 
     public RecallService(
             RecallRepository repository,
             GeminiRecallService geminiRecallService,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            PlatformTransactionManager transactionManager
     ) {
         this.repository = Objects.requireNonNull(repository, "repository must not be null");
         this.geminiRecallService = Objects.requireNonNull(geminiRecallService, "geminiRecallService must not be null");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
+        this.tx = new TransactionTemplate(Objects.requireNonNull(transactionManager, "transactionManager must not be null"));
     }
 
     // ==========================================
@@ -77,7 +90,7 @@ public class RecallService {
 
         if (hasText) {
             kind = "TEXT";
-            extractedText = request.content().trim();
+            extractedText = RecallTextExtractor.normalizeText(request.content()).trim();
             characterCount = extractedText.length();
             if (characterCount > RecallTextExtractor.MAX_TEXT_LENGTH) {
                 throw RecallException.sourceTooLong("Nội dung văn bản vượt quá 30.000 ký tự ("
@@ -88,6 +101,9 @@ public class RecallService {
             fileName = request.fileName() != null && !request.fileName().isBlank()
                     ? request.fileName().trim()
                     : "document.pdf";
+            if (fileName.length() > FILE_NAME_MAX) {
+                throw RecallException.validation("fileName", "too_long", "Tên tệp tối đa " + FILE_NAME_MAX + " ký tự.");
+            }
             byte[] pdfBytes;
             try {
                 pdfBytes = Base64.getDecoder().decode(request.base64().trim());
@@ -101,8 +117,8 @@ public class RecallService {
             characterCount = extracted.characterCount();
             try {
                 pagesJson = objectMapper.writeValueAsString(extracted.pages());
-            } catch (Exception e) {
-                pagesJson = null;
+            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                throw new IllegalStateException("Cannot store the pages of the PDF", e);
             }
         }
 
@@ -168,48 +184,73 @@ public class RecallService {
         // Check idempotency receipt
         var existingReceipt = repository.findReceipt(userId, requestKey, "GENERATE_DECK");
         if (existingReceipt.isPresent()) {
-            var receipt = existingReceipt.get();
-            if (receipt.payloadHash().equals(payloadHash)) {
-                try {
-                    return objectMapper.readValue(receipt.responseBody(), RecallDTOs.DeckResponse.class);
-                } catch (Exception e) {
-                    throw RecallException.aiInvalidResponse("Không thể đọc kết quả lưu trữ trước đó.");
-                }
-            } else {
-                throw RecallException.idempotencyConflict("Idempotency-Key đã được sử dụng cho một yêu cầu khác.");
+            return replay(existingReceipt.get(), payloadHash);
+        }
+
+        // One generation per key at a time: a copy of the request that arrives while Gemini is still working is told
+        // to wait instead of starting a second deck. The receipt's unique key below is the guard across servers.
+        String flightKey = userId + ":" + requestKey;
+        if (!generationsInFlight.add(flightKey)) {
+            throw RecallException.generationInProgress();
+        }
+        try {
+            var settled = repository.findReceipt(userId, requestKey, "GENERATE_DECK");
+            if (settled.isPresent()) {
+                return replay(settled.get(), payloadHash);
             }
-        }
 
-        // Validate material ownership
-        var materialOpt = repository.findMaterialByIdAndUserId(request.materialId(), userId);
-        if (materialOpt.isEmpty()) {
-            throw RecallException.notFound("Tài liệu không tồn tại hoặc không thuộc về bạn.");
-        }
-        var material = materialOpt.get();
+            // Validate material ownership
+            var materialOpt = repository.findMaterialByIdAndUserId(request.materialId(), userId);
+            if (materialOpt.isEmpty()) {
+                throw RecallException.notFound("Tài liệu không tồn tại hoặc không thuộc về bạn.");
+            }
+            var material = materialOpt.get();
 
-        List<RecallTextExtractor.PageText> pages = Collections.emptyList();
-        if (material.pagesJson() != null && !material.pagesJson().isBlank()) {
+            List<RecallTextExtractor.PageText> pages = Collections.emptyList();
+            if (material.pagesJson() != null && !material.pagesJson().isBlank()) {
+                try {
+                    pages = objectMapper.readValue(material.pagesJson(),
+                            new TypeReference<List<RecallTextExtractor.PageText>>() {});
+                } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                    throw new IllegalStateException("Cannot read the stored pages of the PDF", e);
+                }
+            }
+
+            // REMOTE CALL GEMINI OUTSIDE OF DB TRANSACTION (AC RBE-06)
+            List<GeminiRecallService.GeneratedCard> generated = geminiRecallService.generateCards(
+                    material.extractedText(), pages, title, count
+            );
+
+            if (generated.isEmpty()) {
+                throw RecallException.aiInvalidResponse("AI không tạo được thẻ hợp lệ nào từ tài liệu.");
+            }
+
+            // Receipt, deck and cards commit together or not at all.
             try {
-                pages = objectMapper.readValue(material.pagesJson(),
-                        new TypeReference<List<RecallTextExtractor.PageText>>() {});
-            } catch (Exception ignored) {}
+                return tx.execute(status -> persistGeneratedDeck(userId, requestKey, payloadHash, material, title, generated));
+            } catch (DuplicateKeyException lostRace) {
+                var winner = repository.findReceipt(userId, requestKey, "GENERATE_DECK")
+                        .orElseThrow(RecallException::generationInProgress);
+                return replay(winner, payloadHash);
+            }
+        } finally {
+            generationsInFlight.remove(flightKey);
         }
-
-        // REMOTE CALL GEMINI OUTSIDE OF DB TRANSACTION (AC RBE-06)
-        List<GeminiRecallService.GeneratedCard> generated = geminiRecallService.generateCards(
-                material.extractedText(), pages, title, count
-        );
-
-        if (generated.isEmpty()) {
-            throw RecallException.aiInvalidResponse("AI không tạo được thẻ hợp lệ nào từ tài liệu.");
-        }
-
-        // Persist deck and cards inside transaction
-        return persistGeneratedDeck(userId, requestKey, payloadHash, material, title, generated);
     }
 
-    @Transactional
-    protected RecallDTOs.DeckResponse persistGeneratedDeck(
+    private RecallDTOs.DeckResponse replay(RecallRepository.ReceiptRecord receipt, String payloadHash) {
+        if (!receipt.payloadHash().equals(payloadHash)) {
+            throw RecallException.idempotencyConflict("Idempotency-Key đã được sử dụng cho một yêu cầu khác.");
+        }
+        try {
+            return objectMapper.readValue(receipt.responseBody(), RecallDTOs.DeckResponse.class);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw RecallException.aiInvalidResponse("Không thể đọc kết quả lưu trữ trước đó.");
+        }
+    }
+
+    /** Runs inside the transaction opened by {@link #generateDeck}. */
+    private RecallDTOs.DeckResponse persistGeneratedDeck(
             UUID userId,
             UUID requestKey,
             String payloadHash,
@@ -224,32 +265,38 @@ public class RecallService {
 
         UUID deckId = UUID.randomUUID();
         int cardCount = generated.size();
+        RecallDTOs.DeckResponse deckResponse = new RecallDTOs.DeckResponse(
+                deckId, material.goalId(), material.id(), title, "DRAFT", cardCount, 0, Instant.now()
+        );
+
+        // The receipt goes first: when two requests race on one key the loser fails here, before any deck is written.
+        try {
+            repository.saveReceipt(userId, requestKey, "GENERATE_DECK", payloadHash, objectMapper.writeValueAsString(deckResponse));
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new IllegalStateException("Cannot store the receipt of the generated deck", e);
+        }
         repository.saveDeck(deckId, userId, material.goalId(), material.id(), title, "DRAFT", cardCount, 0);
 
         List<RecallRepository.CardEntity> cardEntities = new ArrayList<>();
         int order = 0;
         for (GeminiRecallService.GeneratedCard gc : generated) {
-            UUID cardId = UUID.randomUUID();
             cardEntities.add(new RecallRepository.CardEntity(
-                    cardId, deckId, gc.question(), gc.answer(), material.id(),
+                    UUID.randomUUID(), deckId, gc.question(), gc.answer(), material.id(),
                     gc.page(), gc.quote(), false, 0, order++, null, null, 0, Instant.now()
             ));
         }
-
         repository.saveCards(cardEntities);
-
-        RecallDTOs.DeckResponse deckResponse = new RecallDTOs.DeckResponse(
-                deckId, material.goalId(), material.id(), title, "DRAFT", cardCount, 0, Instant.now()
-        );
-
-        try {
-            String responseJson = objectMapper.writeValueAsString(deckResponse);
-            repository.saveReceipt(userId, requestKey, "GENERATE_DECK", payloadHash, responseJson);
-        } catch (Exception e) {
-            // Receipt saving is best-effort alongside transaction
-        }
-
         return deckResponse;
+    }
+
+    public RecallDTOs.MaterialDetail getMaterialDetail(UUID userId, UUID materialId) {
+        var material = repository.findMaterialByIdAndUserId(materialId, userId)
+                .orElseThrow(() -> RecallException.notFound("Tài liệu không tồn tại hoặc không thuộc về bạn."));
+        String text = material.extractedText() == null ? "" : material.extractedText();
+        boolean truncated = text.length() > PREVIEW_CHARS;
+        String preview = truncated ? text.substring(0, PREVIEW_CHARS) : text;
+        return new RecallDTOs.MaterialDetail(material.id(), material.goalId(), material.title(), material.fileName(),
+                material.kind(), material.pageCount(), material.characterCount(), material.createdAt(), preview, truncated);
     }
 
     public RecallDTOs.PagedResponse<RecallDTOs.DeckResponse> listDecks(
@@ -367,7 +414,7 @@ public class RecallService {
             throw RecallException.deckVersionConflict(deck.version());
         }
 
-        if (deck.cardCount() == 0) {
+        if (repository.countCardsInDeck(deckId) == 0) {
             throw RecallException.deckStateConflict("Không thể kích hoạt bộ thẻ rỗng.");
         }
 

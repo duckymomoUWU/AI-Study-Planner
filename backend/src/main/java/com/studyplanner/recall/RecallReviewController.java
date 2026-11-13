@@ -21,7 +21,7 @@ public class RecallReviewController {
         this.recallService = recallService;
     }
 
-    @PostMapping({"/api/v1/recall/cards/{cardId}/reviews", "/api/recall/cards/{cardId}/reviews"})
+    @PostMapping("/api/v1/recall/cards/{cardId}/reviews")
     public ResponseEntity<RecallDTOs.SingleDataResponse<RecallDTOs.CardReviewResponse>> recordReview(
             @AuthenticationPrincipal AppUserPrincipal principal,
             @PathVariable UUID cardId,
@@ -33,7 +33,7 @@ public class RecallReviewController {
         return ResponseEntity.ok(new RecallDTOs.SingleDataResponse<>(response));
     }
 
-    @GetMapping({"/api/v1/recall/decks/{deckId}/progress", "/api/recall/decks/{deckId}/progress"})
+    @GetMapping("/api/v1/recall/decks/{deckId}/progress")
     public ResponseEntity<RecallDTOs.SingleDataResponse<RecallDTOs.DeckProgressResponse>> getProgress(
             @AuthenticationPrincipal AppUserPrincipal principal,
             @PathVariable UUID deckId
