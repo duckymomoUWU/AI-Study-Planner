@@ -138,3 +138,13 @@ CalendarBusyTest + CalendarServiceTest: 12/12 passed after adding failedCalendar
 Contract: [weekly progress](../../docs/product/weekly-progress.md). Evidence: [weekly-progress-2026-11-12.md](../../docs/plans/completed/weekly-progress-2026-11-12.md).
 
 After merging main into dev2: full backend `clean test` with explicit disposable study_planner_test datasource and goal/auth flags: 323 executions, 0 failures/errors, 25 opt-in skips (calendar, planning, private PDFs). The 27 WeeklyProgress tests were re-run alone after the controller moved to the shared `ApiResponse`/`ApiExceptionHandler`. Frontend lint, 102/102 tests and build passed. This was `test`, not `verify`; no browser E2E after the merge, no CI run, no independent review claimed. Read-only endpoint, no schema change.
+
+## Study sessions and Active Recall UI (2026-11-12)
+
+Contracts: [study sessions](../../docs/product/study-sessions.md) and [Active Recall](../../docs/product/active-recall.md). Plan and evidence: [active plan](../../docs/plans/active/study-sessions-recall-2026-11-12.md). Migration V8 adds `study_sessions` and `study_session_receipts` only.
+
+Backend: focused `StudySessionPolicyTest` 11/11, `StudySessionControllerTest` 11/11 and `StudySessionApiPostgresIntegrationTest` 14/14. The PostgreSQL suite is enabled by `-Dgoal.integration=true` with explicit disposable DB_URL/DB_USER/DB_PASSWORD (study_planner_test); it replaces the Clock with a hand-moved clock, so it never sleeps, and it clears `app_users` first. Full backend `clean test` with goal/auth flags: 332 executions, zero failures/errors, 25 opt-in skips (calendar, planning, private PDFs). This was `test`, not `verify`. `backend.yml` declares `goal.integration`, so CI would run the new suite, but no Actions run was observed.
+
+Frontend: lint, 120/120 tests and build passed; the production bundle contains no development mock. Run the Recall page against sample data with `npm run dev` and open `/?recallMock=1#recall` (`&recallFail=generate,review` forces one failure each for the retry paths). The mock is not evidence about the server. Browser checks used Vite dev with the real backend for sign-in and goals, the Recall API mocked, at desktop and 360 px width.
+
+Not claimed: any run against a real `/api/v1/recall` API (not implemented), the Timer UI, two-tab or offline browser behavior for sessions, a concurrency test for two simultaneous actions on one session, keyboard or screen-reader checks, real PDF upload, independent review or CI. The sessions contract values (25 minutes, seconds as the unit) await PO approval; `requirements.md` was not changed.

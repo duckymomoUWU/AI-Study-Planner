@@ -15,8 +15,11 @@
 - [Weekly progress (US-17)](product/weekly-progress.md): completed and total tasks per Monday-to-Sunday week (API `GET /api/v1/progress/weekly`, UI, 0/0 rule, open PO points); evidence in [weekly-progress-2026-11-12.md](plans/completed/weekly-progress-2026-11-12.md).
 - [ASP-9 verification evidence](product/ASP-9-verification.md): AC-to-test traceability with the results that were actually run and the limits not verified.
 - [Syllabus and scoped planning](product/syllabus-revision-plan.md): extracted topics, source review, per-day minutes, AI draft and confirmation.
+- [Study sessions (Pomodoro)](product/study-sessions.md): durable focus sessions with server-computed time, idempotent actions and ownership (backend only; the Timer UI is separate).
+- [Active Recall](product/active-recall.md): flashcard page, API client and development mock; the recall API is not implemented yet.
 - [Google Calendar](product/google-calendar.md): OAuth, busy calendars, living hours, preview/confirm and retry behavior.
 - [Current handoff and verification](plans/completed/core-study-calendar-2026-11-11.md): consolidated work through 2026-11-11; historical test runs, user observations and remaining limits.
+- [Study sessions and Active Recall plan](plans/active/study-sessions-recall-2026-11-12.md): active work for the Timer backend and Recall UI, with progress, open integration items and evidence.
 - [Core verification history](reviews/syllabus-core-2026-11-10.md): earlier evidence; current commands remain in the verification harness.
 
 ## Repository Harness
