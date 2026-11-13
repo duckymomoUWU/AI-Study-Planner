@@ -157,3 +157,23 @@ Browser checks, desktop pane plus 768 px and 360 px, Vite dev with the real back
 
 Still not claimed: a real Gemini call (no key on the test machine; the recall backend falls back to a heuristic generator on a missing key or a generic Gemini failure and returns 201, which differs from the contract's AI error codes), a real screen reader, the Timer UI, a 401 mid-flow, independent review or CI.
 
+## Large-data audit of dev2 (2026-11-13)
+
+Environment as the harness requires: a disposable PostgreSQL 17 container, database `study_planner_test` on port 55440 (the shared 5432 instance was not touched), role `study_planner` with the fixture password that the Calendar and planning tests declare in their source; `JAVA_TOOL_OPTIONS=-Duser.timezone=Asia/Ho_Chi_Minh`. Full backend, all four opt-in flags, packaging included:
+
+```powershell
+mvn -f backend/pom.xml -Dgoal.integration=true -Dauth.integration=true -Dplanning.integration=true -Dcalendar.integration=true -Dplanning.test-db-url=jdbc:postgresql://127.0.0.1:55440/study_planner_test -Dcalendar.test-db-url=jdbc:postgresql://127.0.0.1:55440/study_planner_test clean verify -B -ntp
+```
+
+Result after the fix below: 398 executions, zero failures/errors, 3 skipped (the private-PDF opt-ins: SyllabusAdhocTest, SyllabusLayoutTest, SyllabusOutlineTest). The same command before the fix gave 396 executions, zero failures, 3 skipped. This is a new full run of one tree; it is not added to the earlier 332 or 396 counts. Frontend `npm run lint`, `npm test` (132/132) and `npm run build` passed; no development mock and no `US-17` label in the bundle. Live readiness: direct and proxy `/actuator/health` UP; Calendar status without a session returned 401.
+
+Evidence source for the manual part: the connected in-app browser against Vite, Spring Boot and that PostgreSQL, with one account holding 130 goals, 171 tasks (later 1,671), 130 recall sources, 130 decks (650 cards) and 130 study sessions, including 100 to 1,900 character unbroken strings and multi-line text, plus SQL and HTTP checks of every change. Not a user screenshot.
+
+Defects found in code authored by tyn7624 and fixed: recall lists silently stopped at 100 items and had no paging; long unbroken text made the Recall page up to 22,586 px wide; line breaks in cards were collapsed; `POST/PATCH /api/v1/goals` with a 101-character subject answered 500 instead of 400 `too_long` (red/green: the new PostgreSQL case failed with a 500 without the fix); the checkbox and progress bar ignored `prefers-reduced-motion`; the sidebar and topbar showed an `US-17` label.
+
+Defects seen in code that is not tyn7624's, reported and left unchanged: the Goals list renders all goals on one page (33,600 px for 130; `GoalsPage.jsx`, Đức); the weekly schedule overflows to 1,147 px at 1,024 px with 101 sessions (`StudyPlanPage.jsx`, duckymomoUWU); the daily task list overflows to 2,272 px with a 200-character title (`.task-body`/`.task-title` in `DailyTasksPage.css`, tvgb05); the shared success badge is 2.86:1 (`shadcn.css`, tvgb05); recall generation falls back to heuristic cards when the Gemini key is missing (recall backend, tvgb05).
+
+Harness journey 5 (what was checked): sidebar item contrast 6.25:1 idle, 7.31:1 active, badge 5.61:1; Vietnamese diacritics rendering on the Recall and weekly pages (keyboard focus was checked on the Recall page in the earlier 2026-11-13 run, not repeated on the weekly page); narrow screen 360 px and 768 px without horizontal overflow on the weekly and Recall pages with the data above; reduced-motion rules are loaded for the Recall page, checkbox and progress bar (the media query itself was not toggled in the browser).
+
+Still not claimed: journeys 1 to 4 (syllabus upload, scoped draft, Google connection and export; not part of this audit and mostly other authors' work), a real Gemini or Google call, a real screen reader, independent review or CI.
+

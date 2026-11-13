@@ -53,3 +53,29 @@ Hai loại chạy: **mock** (`?recallMock=1`) và **API thật** (backend Spring
 - **Cây truy cập:** có landmark, tiêu đề, nhãn gắn đúng với ô nhập, thanh tiến độ có tên và giá trị, kết quả lưu đọc qua vùng `status`. Các hộp thông tin (mock, ghi chú bản nháp) dùng `role="status"`, chỉ lỗi mới dùng `alert`.
 - **Tương phản:** chữ thường, chữ phụ, nhãn, nút chính và nút phụ đạt AA (từ 4.57:1). Nhãn "Đang dùng" dùng biến thể `success` dùng chung chỉ đạt 2.86:1, đã tối lại thành 6.19:1 **chỉ trên trang này**; biến thể dùng chung ở các trang khác chưa được sửa.
 - **Bố cục:** không tràn ngang ở 1024, 768 và 360 px (study, danh sách, bản nháp, form sửa, form tạo bộ thẻ).
+
+## 7. Dữ liệu lớn, chữ dài và nhiều dòng (kiểm 2026-11-13)
+
+Chạy trên ứng dụng thật (Vite, Spring Boot, PostgreSQL 17 dùng một lần) với một tài khoản có 130 mục tiêu, 130 nguồn, 130 bộ thẻ (650 thẻ) và 130 phiên học, trong đó có tên 100 ký tự không dấu cách, câu hỏi 300 ký tự liền nhau, đáp án 1.900 ký tự liền nhau, trích dẫn 484 ký tự liền nhau và đáp án nhiều dòng.
+
+Lỗi tìm thấy rồi sửa (đều trong phần Ôn tập):
+
+| Lỗi | Trước | Sau |
+| --- | --- | --- |
+| Danh sách nguồn và bộ thẻ chỉ lấy trang đầu của API | 100 trên 130 mục, 30 mục mất im lặng; trang cao 18.078 px | Client đi qua mọi trang (`meta.totalPages`); danh sách hiện 10 mục, "Xem thêm 10 bộ thẻ" mở thêm, có dòng "Đang hiển thị x / n", focus vào mục mới đầu tiên; trang cao 3.149 px; ra đủ 131 nguồn và 129 bộ thẻ |
+| Chữ dài liền nhau làm vỡ bố cục | Trang rộng 20.098 px (bản nháp) và 22.586 px (ôn tập) | `overflow-wrap: anywhere` cho cả trang; không tràn ngang ở 1024, 768 và 360 px ở danh sách, bản nháp, ôn tập, đáp án, hộp xác nhận xóa |
+| Xuống dòng bị mất khi hiển thị | Đáp án 3 dòng và một đoạn hiện thành một dòng (dữ liệu trong DB vẫn đúng) | `white-space: pre-line` cho câu hỏi, đáp án và trích dẫn |
+
+Thao tác dữ liệu trên giao diện và đối chiếu DB (API thật):
+
+| Thao tác | Kết quả trong DB |
+| --- | --- |
+| Lưu nguồn văn bản dài 30.000 ký tự nhiều đoạn, tên 120 ký tự | Một dòng `recall_materials` (lưu 29.999 vì máy chủ cắt dòng trống cuối), còn xuống dòng. 30.001 ký tự bị chặn ở giao diện |
+| Tải PDF thật 2 trang | `kind=PDF`, 2 trang, 260 ký tự, chữ trích đúng; ảnh và tệp trên 5 MiB bị chặn không gửi yêu cầu; PDF không chữ bị máy chủ từ chối |
+| Sửa đáp án nhiều dòng | Lưu đúng ký tự xuống dòng, `edited_by_user = true`, `version = 1` |
+| Kích hoạt bộ thẻ | `status` chuyển sang `ACTIVE` |
+| Chấm Nhớ/Chưa nhớ | Một dòng `recall_reviews` mỗi lượt, thẻ giữ đánh giá cuối |
+| Xóa bộ thẻ | Dòng bộ thẻ và các thẻ của nó bị xóa, nguồn vẫn còn (đúng như thông báo xác nhận) |
+
+Giới hạn: danh sách vẫn tải toàn bộ các mục về trình duyệt rồi mới chia 10 mục mỗi lần hiển thị (đủ cho quy mô hiện tại; nếu lên hàng nghìn nguồn cần phân trang phía máy chủ). Thẻ đáp án 1.900 ký tự liền nhau cao khoảng 1.220 px ở 1024 px, dài nhưng nằm trong thẻ.
+
