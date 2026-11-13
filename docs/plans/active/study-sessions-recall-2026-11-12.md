@@ -49,8 +49,12 @@ Backend trước (V8 và API phiên học) để Người 1 nối Timer, rồi g
 - [x] `lib/recall.js`, mock, test (22 ca) và trang Ôn tập (commit `a0bab8b`)
 - [x] Tài liệu sản phẩm và mục Harness
 - [ ] Người 1 nối Timer UI với session API và kiểm tra hai tab, tải lại, mất mạng bằng trình duyệt
-- [ ] Người 3 giao API recall; chạy lại luồng Recall với API thật, kiểm tải lại trang còn dữ liệu
-- [ ] Test đồng thời cho hai tab thao tác (khác key, cùng `expectedVersion`) trên phiên học
+- [x] Người 3 giao API recall; luồng Recall chạy với API thật, tải lại trang còn dữ liệu (trừ bước Gemini, chưa có khóa)
+- [ ] Backend recall: thiếu khóa hoặc Gemini lỗi đang tạo thẻ dự phòng thay vì báo lỗi (việc của Người 3)
+- [x] Test đồng thời cho hai tab thao tác (khác key, cùng `expectedVersion`) và thử lại cùng key (commit `cced8c6`)
+- [x] Fixture phiên học dùng chung trong `backend/src/test/resources/fixtures/`, MockMvc so khớp từng trường
+- [x] Kiểm bàn phím, cây truy cập, tương phản, 768 px và tải PDF thật; sửa mất focus và tương phản (commit `72f4de5`)
+- [x] Gộp API recall của Người 3 vào `dev2` (V9, bỏ `out-of-order`) và chạy giao diện với API thật
 - [ ] Gộp `App.jsx` với Người 1, bỏ mock khỏi đường demo (D5)
 - [ ] PO duyệt hợp đồng v1, rồi cập nhật `requirements.md`
 - [ ] Review độc lập và CI trên GitHub
@@ -64,7 +68,7 @@ Backend trước (V8 và API phiên học) để Người 1 nối Timer, rồi g
 ## Validation
 
 - Focused proof: `StudySessionPolicyTest` 11/11; `StudySessionControllerTest` 11/11; `StudySessionApiPostgresIntegrationTest` 14/14 (`-Dtest=... -Dgoal.integration=true`, PostgreSQL 17 dùng một lần, DB `study_planner_test`, cổng 55434).
-- Full backend sau V8: `mvn -f backend/pom.xml clean test -Dgoal.integration=true -Dauth.integration=true`: **332 test, 0 lỗi, 25 bỏ qua** (cờ calendar, planning và PDF riêng không bật). Là `test`, không phải `verify`.
-- Frontend: `npm run lint` sạch, `npm test` **120/120**, `npm run build` đạt; gói đầu ra không chứa mock.
-- Trình duyệt (Vite dev, backend và PostgreSQL thật cho đăng nhập và mục tiêu, Recall bằng mock): kiểm form, tạo, sửa, xác nhận, ôn tập, ôn lại, lỗi tạo rồi thử lại, lỗi đánh giá rồi thử lại, 360 px không tràn ngang; không mock thì báo lỗi thật, không hiện thẻ mẫu.
-- Chưa có: Timer UI, API recall thật, kiểm bàn phím và trình đọc màn hình, tải tệp PDF thật, review độc lập, CI. Các lần chạy trên không cộng gộp với số liệu của nhánh khác.
+- Full backend trên `dev2` đã gộp API recall (V8 và V9): `mvn -f backend/pom.xml clean test -Dgoal.integration=true -Dauth.integration=true`: **396 test, 0 lỗi, 25 bỏ qua** (cờ calendar, planning và PDF riêng không bật). Là `test`, không phải `verify`. Gồm 40 test phiên học (11 policy, 13 MockMvc, 16 PostgreSQL) và 33 test recall của Người 3.
+- Frontend: `npm run lint` sạch, `npm test` **130/130**, `npm run build` đạt; gói đầu ra không chứa mock.
+- Trình duyệt: (a) mock, 1024 và 360 px (luồng đầy đủ và các đường thử lại); (b) **API thật** (Vite, Spring Boot, PostgreSQL): lưu nguồn văn bản và PDF thật, sửa, kích hoạt, ôn tập, tải lại còn tiến độ, PDF không chữ bị từ chối; (c) bàn phím, cây truy cập, tương phản và 768 px (chi tiết trong `docs/product/active-recall.md` mục 4 và 6).
+- Chưa có: Timer UI, bước gọi Gemini thật (không có khóa), trình đọc màn hình thật, đường 401 giữa chừng, review độc lập, CI. Các lần chạy trên không cộng gộp với số liệu của nhánh khác.

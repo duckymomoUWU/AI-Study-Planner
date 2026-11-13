@@ -1,6 +1,6 @@
 # Ôn tập chủ động (flashcard): giao diện và client
 
-**Trạng thái (2026-11-12):** giao diện `#recall`, client `lib/recall.js` và mock phát triển đã hiện thực trên nhánh `feat/study-sessions-recall-ui`. **API `/api/v1/recall` chưa có** (việc của Người 3), nên chưa có kiểm tra nào với máy chủ thật. Chưa gộp vào `main`. Hợp đồng API là mục C của bộ giao việc nhóm (`03-API-CONTRACT.md`, ngoài repo), đang là đề xuất chờ nhóm và PO duyệt.
+**Trạng thái (2026-11-13):** giao diện `#recall`, client `lib/recall.js` và mock phát triển đã hiện thực trên nhánh `dev2` (nhánh remote `dev2-sprint4`). API `/api/v1/recall` do Người 3 làm đã được gộp vào `dev2` (migration V9) và giao diện đã được chạy với API thật ở mục 4, **trừ bước gọi Gemini** (xem mục 5). Chưa gộp vào `main`. Hợp đồng API là mục C của bộ giao việc nhóm (`docs/team-handoff/03-API-CONTRACT.md`), đang là đề xuất chờ nhóm và PO duyệt.
 
 Phạm vi MVP: thẻ hỏi–đáp, người học **tự đánh giá** nhớ hay chưa nhớ. Không AI chấm bài, không lặp ngắt quãng, không trắc nghiệm.
 
@@ -28,19 +28,28 @@ Chỉ khi chạy `npm run dev` và mở `/?recallMock=1#recall`, trang dùng `li
 
 ## 4. Đối chiếu tiêu chí (AR-UI-01) và bằng chứng
 
+Hai loại chạy: **mock** (`?recallMock=1`) và **API thật** (backend Spring Boot, PostgreSQL 17 dùng một lần, không mock, đăng nhập thật).
+
 | Tiêu chí | Hiện thực | Đã chạy | Chưa kiểm chứng |
 | --- | --- | --- | --- |
-| RUI-01 chọn mục tiêu thật, PDF hoặc dán, kiểm đầu vào, hiện tên nguồn | `SourceForm`, `validate*` | Test giới hạn; trình duyệt với mock: dán văn bản, báo lỗi trống, hiện nguồn đã lưu | Chọn tệp PDF thật trong trình duyệt; tải lên API thật |
-| RUI-02 lưu nguồn và tạo thẻ là hai trạng thái, lỗi AI không mất nguồn, thử lại không tải thêm nguồn | `GenerateForm`, key giữ theo lần thử | Test mock (lỗi rồi thử lại cùng key chỉ 1 bộ thẻ); trình duyệt: lỗi 503 giữ nguồn, "Thử tạo lại" thành công | Timeout và 502 thật của Gemini |
-| RUI-03 bản nháp có hỏi, đáp, nguồn; sửa; xác nhận; không báo đang dùng trước khi kích hoạt thành công | `DeckEditor` | Trình duyệt với mock: sửa thẻ, nhãn đã sửa, xác nhận chuyển sang "Đang dùng" | Phiên bản thật khi sửa đồng thời |
-| RUI-04 hỏi trước, "Xem đáp án" mới được đánh giá, gọi là tự đánh giá | `StudyDeck` | Trình duyệt: nút Nhớ/Chưa nhớ chỉ có sau khi lật | Kiểm bằng bàn phím và trình đọc màn hình |
-| RUI-05 chặn bấm trùng, mất mạng thử lại cùng key, tải lại còn bộ thẻ và tiến độ | cờ `saving`, `pending` có key | Trình duyệt: lỗi mạng giữ thẻ, "Thử lưu lại" ghi một lần; test mock đánh giá một lần | **Tải lại trang còn dữ liệu** (mock mất khi tải lại, cần API thật) |
+| RUI-01 chọn mục tiêu thật, PDF hoặc dán, kiểm đầu vào, hiện tên nguồn | `SourceForm`, `validate*` | Test giới hạn. API thật: dán văn bản và **tải PDF có chữ (2 trang, 260 ký tự, trích đúng)** lưu vào PostgreSQL và hiện lại; ảnh `.png` và PDF trên 5 MiB bị chặn ở giao diện, không gửi yêu cầu; PDF không có chữ bị máy chủ từ chối với thông báo rõ và danh sách không đổi | PDF quét ảnh thật, PDF lớn gần 5 MiB hoặc gần 100 trang |
+| RUI-02 lưu nguồn và tạo thẻ là hai trạng thái, lỗi AI không mất nguồn, thử lại không tải thêm nguồn | `GenerateForm`, key giữ theo lần thử | Test mock (lỗi rồi thử lại cùng key chỉ 1 bộ thẻ); trình duyệt với mock: lỗi 503 giữ nguồn, "Thử tạo lại" thành công | Lỗi AI thật: máy chủ hiện tại tự tạo thẻ dự phòng khi thiếu khóa hoặc Gemini lỗi, nên đường báo lỗi chưa gặp được với API thật |
+| RUI-03 bản nháp có hỏi, đáp, nguồn; sửa; xác nhận; không báo đang dùng trước khi kích hoạt thành công | `DeckEditor` | API thật: mở bản nháp 10 thẻ, sửa một thẻ (có nhãn đã sửa), xác nhận, chuyển sang "Đang dùng"; dữ liệu đúng trong DB | Sửa đồng thời hai tab |
+| RUI-04 hỏi trước, "Xem đáp án" mới được đánh giá, gọi là tự đánh giá; dùng được bằng bàn phím | `StudyDeck` | Trình duyệt: nút Nhớ/Chưa nhớ chỉ có sau khi lật. **Bàn phím** (mục 6): lưu nguồn, tạo, sửa, xác nhận, lật, chấm chỉ bằng bàn phím, thứ tự Tab hợp lý, focus hiện rõ và không bị mất | Trình đọc màn hình thật (NVDA, VoiceOver); mới kiểm cây truy cập và vùng `status` |
+| RUI-05 chặn bấm trùng, mất mạng thử lại cùng key, tải lại còn bộ thẻ và tiến độ | cờ `saving`, `pending` có key | Mock: lỗi mạng giữ thẻ, "Thử lưu lại" ghi một lần. **API thật: chấm 3 thẻ, tải lại trang, mở lại thì tiếp tục đúng thẻ 4 với 3/10 đã đánh giá** (3 lượt chấm trong DB) | Mất mạng thật trên API thật |
 | RUI-06 trạng thái trống, đang tải, lỗi, hết phiên có nội dung và hành động; mock chỉ để phát triển | từng màn hình | Trình duyệt: đang tải, chưa có mục tiêu/bộ thẻ, lỗi khi API thiếu; bundle không chứa mock | Hết phiên đăng nhập giữa chừng (đường 401) |
-| RUI-07 thống kê theo đánh giá cuối, không vượt tổng | `deckProgress` | Test; trình duyệt: ôn lại thẻ chưa nhớ giữ 5/5 đã đánh giá | Số liệu từ máy chủ thật |
+| RUI-07 thống kê theo đánh giá cuối, không vượt tổng | `deckProgress` | Test; mock: ôn lại thẻ chưa nhớ giữ 5/5; API thật: số liệu tiến độ đúng sau tải lại | Số liệu khi hai tab chấm cùng một thẻ |
 
 ## 5. Giới hạn
 
-- Chưa chạy với API recall thật nên mọi kết quả ở trên là với mock; mock tuân theo hợp đồng nhưng không chứng minh máy chủ làm đúng.
-- Chưa có test thành phần React (repo chưa có công cụ), phần giao diện kiểm bằng test logic thuần và thao tác thủ công trong trình duyệt ở 1024 và 360 px.
+- **Gemini chưa được thử:** máy kiểm thử không có khóa. Khi không có khóa hoặc Gemini lỗi chung chung, mã backend (của Người 3) chuyển sang bộ tạo thẻ dự phòng theo heuristic và vẫn trả 201, thay vì báo `AI_UNAVAILABLE` như hợp đồng (RBE-04, E2E-08). Thẻ dự phòng chất lượng thấp, có thẻ cắt giữa chữ. Giao diện chưa gặp được đường báo lỗi AI từ máy chủ thật vì điều này. Đây là việc ở phía backend recall, chưa sửa.
+- Chưa có test thành phần React (repo chưa có công cụ); giao diện kiểm bằng test logic thuần và thao tác thủ công trong trình duyệt ở 1024, 768 và 360 px.
 - Trang đã thêm route `#recall` và một nút sidebar vào `App.jsx`; Người 1 sở hữu `App.jsx` nên cần gộp thống nhất.
 - Lúc App đang kiểm tra đăng nhập, trang có thể hiện màn "Đăng nhập" thoáng qua vì App chưa truyền trạng thái đang kiểm tra.
+
+## 6. Trợ năng và bố cục (kiểm 2026-11-13)
+
+- **Bàn phím:** thứ tự Tab: mục tiêu, lựa chọn nguồn, tên, nội dung, nút lưu. Sau mỗi bước focus đi đến phần kế tiếp thay vì rơi về đầu trang: ô đầu của form tạo bộ thẻ, tên bộ thẻ, ô câu hỏi khi sửa, nút "Sửa thẻ" khi hủy hoặc lưu, nút "Giữ lại" khi hỏi xóa, câu hỏi mới, phần đáp án vừa lật, bản tổng kết, nút thử lại sau lỗi, ô lỗi đầu tiên khi nhập sai. Lỗi này đã được phát hiện khi kiểm và đã sửa.
+- **Cây truy cập:** có landmark, tiêu đề, nhãn gắn đúng với ô nhập, thanh tiến độ có tên và giá trị, kết quả lưu đọc qua vùng `status`. Các hộp thông tin (mock, ghi chú bản nháp) dùng `role="status"`, chỉ lỗi mới dùng `alert`.
+- **Tương phản:** chữ thường, chữ phụ, nhãn, nút chính và nút phụ đạt AA (từ 4.57:1). Nhãn "Đang dùng" dùng biến thể `success` dùng chung chỉ đạt 2.86:1, đã tối lại thành 6.19:1 **chỉ trên trang này**; biến thể dùng chung ở các trang khác chưa được sửa.
+- **Bố cục:** không tràn ngang ở 1024, 768 và 360 px (study, danh sách, bản nháp, form sửa, form tạo bộ thẻ).

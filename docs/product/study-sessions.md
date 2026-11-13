@@ -1,6 +1,6 @@
 # Phiên học tập trung (Pomodoro): backend
 
-**Trạng thái (2026-11-12):** backend đã hiện thực trên nhánh `feat/study-sessions-recall-ui` (tách từ `main` 29dbf6d), kiểm bằng test đơn vị, MockMvc và PostgreSQL thật. **Chưa có giao diện Timer** (việc của Người 1) và chưa gộp vào `main`. Hợp đồng gốc: bộ giao việc nhóm, `03-API-CONTRACT.md` mục B (ngoài repo). Quy tắc chung: [Backend API rules](../backend-api-rules.md).
+**Trạng thái (2026-11-13):** backend đã hiện thực trên nhánh `dev2` (remote `dev2-sprint4`, tách từ `main` 29dbf6d), kiểm bằng test đơn vị, MockMvc và PostgreSQL thật. **Chưa có giao diện Timer** (việc của Người 1) và chưa gộp vào `main`. Hợp đồng gốc: bộ giao việc nhóm, `03-API-CONTRACT.md` mục B (ngoài repo). Quy tắc chung: [Backend API rules](../backend-api-rules.md).
 
 Mục tiêu: lưu bền thời gian học thật của một công việc. Thời gian do **máy chủ** tính bằng `Clock`, không nhận số giây từ client, nên tải lại trang, hai tab hay đóng tab không làm sai số.
 
@@ -59,15 +59,15 @@ Body nghiêm ngặt: trường lạ (kể cả `userId`, `elapsedSeconds`), `nul
 | Phần | Mã | Test |
 | --- | --- | --- |
 | Quy tắc thời gian và trạng thái | `StudySessionPolicy` | `StudySessionPolicyTest` (11 ca, thời gian cố định, không `sleep`) |
-| Hợp đồng HTTP | `StudySessionController`, `StudySessionRequest`, `ApiExceptionHandler` | `StudySessionControllerTest` (11 ca MockMvc) |
-| Giao dịch, khóa, replay, sở hữu | `StudySessionService`, `StudySessionRepository`, V8 | `StudySessionApiPostgresIntegrationTest` (14 ca, PostgreSQL thật, đồng hồ chỉnh tay) |
+| Hợp đồng HTTP | `StudySessionController`, `StudySessionRequest`, `ApiExceptionHandler` | `StudySessionControllerTest` (13 ca MockMvc, gồm 2 ca so khớp từng trường với fixture dùng chung `session-active.json` và `api-error.json` trong `backend/src/test/resources/fixtures/`) |
+| Giao dịch, khóa, replay, sở hữu | `StudySessionService`, `StudySessionRepository`, V8 | `StudySessionApiPostgresIntegrationTest` (16 ca, PostgreSQL thật, đồng hồ chỉnh tay) |
 
-Test PostgreSQL gồm: 6 yêu cầu bắt đầu đồng thời với key khác nhau chỉ tạo đúng 1 phiên; replay cùng key; key dùng cho yêu cầu khác; `expectedVersion` cũ không đổi dữ liệu; chuyển trạng thái sai; mở quá 8 giờ vẫn tối đa 1500 giây và `GET` không ghi; `CANCEL` và mục tiêu khác không vào tổng; tài khoản khác nhận 404 ở mọi đường; xóa việc hoặc mục tiêu vẫn giữ lịch sử; việc đã hoàn thành vẫn học lại được; xóa tài khoản xóa phiên; phân trang, sắp xếp, lọc theo việc; 401, 403 và 400 không để lại dữ liệu.
+Test PostgreSQL gồm: 6 yêu cầu bắt đầu đồng thời với key khác nhau chỉ tạo đúng 1 phiên; **6 thao tác đồng thời (PAUSE, CANCEL, FINISH) cùng `expectedVersion` với key khác nhau chỉ áp dụng đúng 1, 5 cái còn lại nhận 409 `SESSION_VERSION_CONFLICT` với `currentVersion` 1, số giây chỉ tính một lần; 6 lần thử lại `FINISH` đồng thời cùng key đều nhận 200 cùng kết quả, chỉ một thay đổi và một biên nhận (bỏ khóa chủ sở hữu thì ca này đỏ, ca khác key vẫn an toàn nhờ kiểm tra phiên bản)**; replay cùng key; key dùng cho yêu cầu khác; `expectedVersion` cũ không đổi dữ liệu; chuyển trạng thái sai; mở quá 8 giờ vẫn tối đa 1500 giây và `GET` không ghi; `CANCEL` và mục tiêu khác không vào tổng; tài khoản khác nhận 404 ở mọi đường; xóa việc hoặc mục tiêu vẫn giữ lịch sử; việc đã hoàn thành vẫn học lại được; xóa tài khoản xóa phiên; phân trang, sắp xếp, lọc theo việc; 401, 403 và 400 không để lại dữ liệu.
 
 ## 7. Giới hạn chưa kiểm chứng
 
 - Chưa có giao diện Timer nên chưa có kiểm tra bằng trình duyệt, hai tab thật, hay mất mạng thật; chỉ có HTTP/MockMvc.
-- Tranh chấp hai tab **thao tác** (khác key, cùng `expectedVersion`) dựa vào khóa dòng và phiên bản nhưng chưa có test đồng thời riêng; test đồng thời hiện chỉ cho thao tác bắt đầu.
+- Fixture dùng chung mới được dùng ở phía MockMvc; Timer UI (Người 1) chưa có client nên chưa có test client dùng cùng fixture.
 - Chưa có chỉ mục hay đo hiệu năng cho lịch sử rất dài; chưa có dọn biên nhận cũ.
 - Chưa có chống gian lận, đo mức tập trung thật, hay nhắc việc nền (ngoài phạm vi).
 - Hợp đồng và các tham số (25 phút, giây là đơn vị) là đề xuất của bộ giao việc, **chờ PO/nhóm duyệt**; chưa sửa `requirements.md`.
