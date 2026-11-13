@@ -151,6 +151,29 @@ class GoalApiPostgresIntegrationTest {
         assertEquals(2, rows);
     }
 
+    @Test
+    @DisplayName("a subject over 100 characters is a 400 too_long (not a 500) and stores nothing; 100 characters, spaces and emoji are accepted")
+    void subjectLengthBoundary() throws Exception {
+        var s = registerAndLogin("sl-" + UUID.randomUUID() + "@example.test");
+        String hundred = "S".repeat(100);
+        JsonNode padded = create(s, body(hundred + "    ", 60, today, today.plusDays(10)));
+        assertEquals(hundred, padded.get("subject").asText()); // stored trimmed
+        String emoji = "\uD83D\uDE00".repeat(100); // 100 characters, 200 UTF-16 units
+        JsonNode stored = create(s, body(emoji, 60, today, today.plusDays(10)));
+        assertEquals(100, stored.get("subject").asText().codePointCount(0, stored.get("subject").asText().length()));
+
+        assertRejected(s, body("S".repeat(101), 60, today, today.plusDays(10)), "subject", "too_long");
+        assertRejected(s, body("\uD83D\uDE00".repeat(101), 60, today, today.plusDays(10)), "subject", "too_long");
+        assertEquals(2, jdbc.queryForObject("SELECT count(*) FROM study_goals", Integer.class));
+
+        String id = stored.get("id").asText();
+        mvc.perform(patch("/api/v1/goals/" + id).session(s).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content(patchBody("S".repeat(101), 60, today, today.plusDays(10), 0)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details[?(@.field=='subject' && @.issue=='too_long')]").exists());
+        mvc.perform(get("/api/v1/goals/" + id).session(s)).andExpect(jsonPath("$.data.version").value(0));
+    }
+
     private void assertRejected(MockHttpSession s, String json, String field, String code) throws Exception {
         mvc.perform(post("/api/v1/goals").session(s).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON).content(json))

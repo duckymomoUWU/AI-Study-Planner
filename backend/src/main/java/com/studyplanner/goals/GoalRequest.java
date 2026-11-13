@@ -66,6 +66,9 @@ final class GoalRequest {
                 expectedVersion, errors);
     }
 
+    /** docs/product/ASP-9-goals-api.md: subject has at most 100 characters (VARCHAR(100)). */
+    static final int SUBJECT_MAX_LENGTH = 100;
+
     private static final class Fields {
         String subject;
         String topics;
@@ -83,6 +86,14 @@ final class GoalRequest {
     private static Fields readFields(JsonNode body, boolean patch, List<GoalPolicy.Violation> errors) {
         Fields f = new Fields();
         f.subject = text(body, "subject", patch, errors);
+        // The column is VARCHAR(100) and the service stores the trimmed value; count characters, not UTF-16 units.
+        if (f.subject != null) {
+            String trimmed = f.subject.trim();
+            if (trimmed.codePointCount(0, trimmed.length()) > SUBJECT_MAX_LENGTH) {
+                errors.add(new GoalPolicy.Violation("subject", "too_long",
+                        "Môn học tối đa " + SUBJECT_MAX_LENGTH + " ký tự."));
+            }
+        }
         f.topics = text(body, "topics", patch, errors);
         f.startDate = date(body, "startDate", patch, errors);
         f.examDate = date(body, "examDate", patch, errors);

@@ -76,7 +76,7 @@ Rules marked **(future)** describe features that are not implemented yet (tasks,
   | **(future)** 422 | `INSUFFICIENT_TIME`, `DAILY_BUDGET_EXCEEDED` | With `requiredMinutes`, `availableMinutes`, `shortfallMinutes`, or per-day `budgetMinutes`, `scheduledMinutes`, `excessMinutes` |
   | **(future)** 502/503/504 | `AI_INVALID_RESPONSE`, `AI_UNAVAILABLE`, `AI_TIMEOUT` | AI adapter |
 
-- `issue` values for goals: `required`, `invalid_type`, `invalid_date`, `invalid_timezone`, `unknown_field`, `must_not_be_in_past`, `must_be_after_start_date`, `exceeds_90_days`, `out_of_range`, `not_supported`, `empty_patch`, `malformed_json`, `invalid_email`, `invalid_length`, `task_on_or_after_exam_date`, `daily_budget_exceeded`, `invalid_existing_task`.
+- `issue` values for goals: `required`, `invalid_type`, `invalid_date`, `invalid_timezone`, `unknown_field`, `too_long`, `must_not_be_in_past`, `must_be_after_start_date`, `exceeds_90_days`, `out_of_range`, `not_supported`, `empty_patch`, `malformed_json`, `invalid_email`, `invalid_length`, `task_on_or_after_exam_date`, `daily_budget_exceeded`, `invalid_existing_task`.
 - If an input is invalid and tasks also conflict, answer 400 (input errors win); use 409 only when every problem comes from existing tasks.
 
 ## 5. Authentication, session and CSRF
