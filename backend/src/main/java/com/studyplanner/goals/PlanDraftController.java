@@ -43,8 +43,13 @@ public class PlanDraftController {
 
     @PostMapping("/{goalId}/plan-drafts/{draftId}/reschedule")
     public ApiResponse<PlanDraftService.DraftResponse> reschedule(@AuthenticationPrincipal AppUserPrincipal principal,
-            @PathVariable UUID goalId, @PathVariable UUID draftId) {
-        return ApiResponse.of(service.reschedule(owner(principal), goalId, draftId));
+            @PathVariable UUID goalId, @PathVariable UUID draftId, @RequestBody(required=false) JsonNode body) {
+        if(body==null || (body.isObject() && body.isEmpty()))
+            return ApiResponse.of(service.reschedule(owner(principal), goalId, draftId));
+        PlanScheduling.strict(body,java.util.Set.of("respectPreferences"));
+        if(!body.path("respectPreferences").isBoolean())
+            throw new RequestValidationException(List.of(new ErrorDetail("respectPreferences","invalid_type")));
+        return ApiResponse.of(service.reschedule(owner(principal), goalId, draftId, body.path("respectPreferences").asBoolean()));
     }
 
     @PostMapping("/{goalId}/plan-drafts/{draftId}/confirm")

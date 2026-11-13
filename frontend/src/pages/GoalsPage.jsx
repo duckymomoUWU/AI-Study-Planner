@@ -426,21 +426,21 @@ export default function GoalsPage({ onBack, onNavigateDaily, currentUser, editRe
               </div>
             </div>
             <div className="goal-field">
-              <label htmlFor="goal-budget">Thời gian học mỗi ngày</label>
+              <label htmlFor="goal-budget">Mức mong muốn mỗi ngày cho môn này</label>
               <div className="goal-budget-input">
                 <input id="goal-budget" type="number" name="minutesPerDay" value={form.minutesPerDay}
                   onChange={changeField} min="15" max="480" step="1" required
                   aria-invalid={Boolean(formErrors.minutesPerDay)} />
                 <span>phút / ngày</span>
               </div>
-              <small className="field-hint">Cho phép từ 15 đến 480 phút mỗi ngày.</small>
+              <small className="field-hint">15–480 phút/ngày để AI ưu tiên phân bổ. Đây không phải giới hạn cứng; tổng mọi môn phải nằm trong quỹ chung. AI đề xuất vượt mức này cần bạn đồng ý.</small>
               <FieldError formErrors={formErrors} name="minutesPerDay" />
               <small>Chỉ nhập tổng phút theo ngày; đây không phải một khung giờ liên tục. Các ước lượng của AI có thể chỉnh.</small>
             </div>
             {studyDates(form.startDate, form.examDate).length > 0 && <details>
               <summary>Điều chỉnh phút từng ngày (0 = không học)</summary>
               {studyDates(form.startDate, form.examDate).map(day => <label key={day} className="goal-field">{displayDate(day)}
-                <input type="number" min={0} max={Number(form.minutesPerDay) || 480} step={1} value={dailyMinutes[day] ?? form.minutesPerDay} onChange={e => {
+                <input type="number" min={0} max={480} step={1} value={dailyMinutes[day] ?? form.minutesPerDay} onChange={e => {
                   inputRevision.current.next(); if (saving) { setAutomaticPlan(null); setDetail(null) }
                   setDailyMinutes(previous => ({ ...previous, [day]: e.target.value === '' ? '' : Number(e.target.value) }))
                 }} />
@@ -471,14 +471,14 @@ export default function GoalsPage({ onBack, onNavigateDaily, currentUser, editRe
                 <dt>Chủ đề</dt><dd>{detail.topics}</dd>
                 <dt>Ngày bắt đầu</dt><dd>{displayDate(detail.startDate)}</dd>
                 <dt>Ngày thi</dt><dd>{displayDate(detail.examDate)}</dd>
-                <dt>Thời gian mỗi ngày</dt><dd>{detail.minutesPerDay} phút</dd>
+                <dt>Mức mong muốn mỗi ngày</dt><dd>{detail.minutesPerDay} phút</dd>
                 <dt>Múi giờ</dt><dd>{detail.timezone}</dd>
                 <dt>Phiên bản</dt><dd>v{detail.version}</dd>
               </dl>
               <GoalProgress goalId={detail.id} version={detail.version} />
               {detail.planningScope?.selectedTopics && <details>
                 <summary>Cấu hình kế hoạch đã lưu</summary>
-                <p>Chủ đề, ưu tiên và quỹ phút được giữ khi mở lại hoặc sinh lịch mới. Các ngày không ghi đè dùng {detail.minutesPerDay} phút.</p>
+                <p>Chủ đề, ưu tiên và mức mong muốn được giữ khi mở lại. Các ngày không chỉnh riêng ưu tiên {detail.minutesPerDay} phút; tổng thời gian bị giới hạn bởi quỹ chung.</p>
                 <ul>{detail.planningScope.selectedTopics.map(topic => <li key={topic.id}>{topic.title} · Ưu tiên: {({ HIGH: 'Cao', MEDIUM: 'Trung bình', LOW: 'Thấp' })[topic.priority || 'MEDIUM']}</li>)}</ul>
                 <ul>{Object.entries(detail.planningScope.dailyMinutes || {}).map(([day, minutes]) => <li key={day}>{displayDate(day)}: {minutes} phút{minutes === 0 ? ' (không học)' : ''}</li>)}</ul>
               </details>}
@@ -511,7 +511,7 @@ export default function GoalsPage({ onBack, onNavigateDaily, currentUser, editRe
                 <article className="goal-item" key={goal.id}>
                   <div className="goal-item-top">
                     <div><h3>{goal.subject}</h3><span className="goal-version">v{goal.version}</span></div>
-                    <span className="goal-budget">{goal.minutesPerDay} phút/ngày</span>
+                    <span className="goal-budget">Mong muốn {goal.minutesPerDay} phút/ngày</span>
                   </div>
                   <p className="goal-topics">{goal.topics}</p>
                   <p className="goal-dates">Bắt đầu {displayDate(goal.startDate)} · Thi {displayDate(goal.examDate)}</p>

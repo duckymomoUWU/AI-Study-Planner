@@ -192,7 +192,7 @@ class GoalApiPostgresIntegrationTest {
     }
 
     @Test
-    @DisplayName("PUT: tasks past the new exam date or over the new budget -> 409 with day details, nothing saved")
+    @DisplayName("PUT: tasks past the new exam date -> 409 with day details, nothing saved")
     void updateRejectedByExistingTasksIsAtomic() throws Exception {
         var s = registerAndLogin("g-" + UUID.randomUUID() + "@example.test");
         JsonNode goal = create(s, body("Toán", 120, today, today.plusDays(30)));
@@ -208,10 +208,7 @@ class GoalApiPostgresIntegrationTest {
                 .andExpect(jsonPath("$.error.code").value("GOAL_UPDATE_CONFLICT"))
                 .andExpect(jsonPath("$.error.details[?(@.issue=='task_on_or_after_exam_date')].message")
                         .value(org.hamcrest.Matchers.hasItem(
-                                org.hamcrest.Matchers.containsString(today.plusDays(20).toString()))))
-                .andExpect(jsonPath("$.error.details[?(@.issue=='daily_budget_exceeded')].message")
-                        .value(org.hamcrest.Matchers.hasItem(
-                                org.hamcrest.Matchers.containsString(busy.toString()))));
+                                org.hamcrest.Matchers.containsString(today.plusDays(20).toString()))));
 
         mvc.perform(get("/api/v1/goals/" + id).session(s))
                 .andExpect(jsonPath("$.data.minutesPerDay").value(120))

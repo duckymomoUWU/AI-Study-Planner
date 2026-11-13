@@ -2,6 +2,8 @@
 
 ## Project authority
 
+- [Study-time preferences](product/study-time-preferences.md): shared daily hard limit, per-subject preferences and explicit consent for AI proposals above those preferences.
+
 - [Project conventions](../AGENTS.md): repository layout, scope and agent rules.
 - [Requirements](../requirements.md): accepted product scope and business rules; these describe planned features, not proof of implementation.
 - [Setup](../setup.md): Windows/PowerShell prerequisites, PostgreSQL lifecycle and application startup.

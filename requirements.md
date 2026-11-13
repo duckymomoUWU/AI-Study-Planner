@@ -21,8 +21,8 @@ PO chấp nhận 2026-11-11: có quỹ phút chung theo ngày cho tất cả m�
 - Ngày thi phải sau ngày bắt đầu; không xếp việc vào ngày thi hoặc sau ngày thi.
 - Khi tạo mục tiêu mới, ngày bắt đầu không được trước hôm nay theo múi giờ mục tiêu (mặc định Việt Nam). Khi sửa mục tiêu đang học, được giữ ngày bắt đầu cũ; lịch tạo lại chỉ xếp từ hôm nay trở đi.
 - Thời gian mỗi ngày: 15–480 phút; khoảng lập lịch tối đa 90 ngày.
-- Tổng thời lượng trong ngày không vượt ngân sách của mục tiêu đó. Nếu thiếu thời gian, báo số phút thiếu để người dùng đổi phạm vi hoặc ngân sách.
-- Bản MVP tính ngân sách theo từng mục tiêu; chưa tối ưu đồng thời nhiều môn.
+- Quỹ chung/ngày là giới hạn cứng của tổng mọi môn, kể cả việc đã hoàn thành. Phút/ngày từng mục tiêu là mức mong muốn; thêm/dời việc thủ công chỉ bị giới hạn bởi quỹ chung và ngày hợp lệ.
+- AI ưu tiên mức mong muốn trước, được đề xuất vượt khi quỹ chung đủ. Bản nháp hiện rõ phần vượt và yêu cầu đồng ý trước lưu; nếu không đồng ý thì xếp lại theo mức mong muốn, giữ việc không đủ chỗ trước ngày thi. Không tự thay lịch các môn khác. Hợp đồng: [quỹ chung và mức mong muốn](docs/product/study-time-preferences.md).
 - AI chỉ gợi ý, không tự lưu hoặc thay đổi kế hoạch đã xác nhận. Ước lượng thời lượng mang tính tham khảo.
 - AI lỗi thì người dùng vẫn tạo công việc thủ công được.
 - Tiến độ = số công việc hoàn thành / tổng số công việc; không đánh giá mức độ hiểu bài. Chưa có việc thì hiển thị 0/0.

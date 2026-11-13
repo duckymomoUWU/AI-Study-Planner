@@ -67,6 +67,10 @@ public class PlanDraftService {
                 throw new IllegalArgumentException();
             input = parseTasks(proposal.get("tasks"), true);
             validate(goal, owner, input);
+            var preferenceScope=preferenceScope(owner,goal);
+            ((com.fasterxml.jackson.databind.node.ObjectNode)proposal).set("preferenceReview",preferenceScope);
+            ((com.fasterxml.jackson.databind.node.ObjectNode)proposal).putObject("summary")
+                .set("preferenceExcessDays",PlanScheduling.preferenceExcess(mapper,proposal.path("tasks"),preferenceScope,goals.listScheduledTasksOwned(owner,goalId)));
         } catch (PlanException ex) { throw ex; }
         catch (Exception ex) { throw new PlanException(502, "AI_INVALID_RESPONSE", "AI proposed invalid tasks."); }
         var draft = drafts.insertDraft(goal.id(), goal.version(), proposal.toString(), clock.instant().plus(Duration.ofHours(24)));
@@ -118,6 +122,11 @@ public class PlanDraftService {
     // Reuse the reviewed work and estimates; changing the available time does not call AI again.
     @Transactional
     public DraftResponse reschedule(UUID owner, UUID goalId, UUID draftId) {
+        return reschedule(owner,goalId,draftId,null);
+    }
+
+    @Transactional
+    public DraftResponse reschedule(UUID owner, UUID goalId, UUID draftId, Boolean respectPreferences) {
         budgets.lock(owner);
         var goal = goals.lockOwned(owner, goalId).orElseThrow(GoalService.GoalNotFoundException::new);
         var draft = drafts.findDraft(owner, goalId, draftId).orElseThrow(GoalService.GoalNotFoundException::new);
@@ -127,6 +136,8 @@ public class PlanDraftService {
         var today = LocalDate.now(clock.withZone(java.time.ZoneId.of(goal.timezone())));
         var scope = PlanScheduling.scope(mapper, goal.planningScope(), goal, today);
         budgets.constrain(owner,goalId,scope);
+        if(respectPreferences!=null ? respectPreferences : proposal.path("scope").path("respectPreferences").asBoolean(false))
+            PlanScheduling.respectPreferences(scope);
         var work = mapper.createObjectNode(); var list = work.putArray("tasks");
         var topicIds = new java.util.HashSet<String>();
         for (String field : List.of("tasks", "unscheduled")) for (var item : proposal.path(field)) {
@@ -171,10 +182,12 @@ public class PlanDraftService {
     public Confirmation confirm(UUID owner, UUID goalId, UUID draftId, UUID key, JsonNode body) {
         if (body == null || !body.isObject()) throw invalid("body", "invalid_type");
         body.fieldNames().forEachRemaining(name -> {
-            if (!name.equals("expectedGoalVersion") && !name.equals("tasks") && !name.equals("allowPartial") && !name.equals("deferredTasks")) throw invalid(name, "unknown_field");
+            if (!name.equals("expectedGoalVersion") && !name.equals("tasks") && !name.equals("allowPartial") && !name.equals("deferredTasks") && !name.equals("allowPreferenceExceedance")) throw invalid(name, "unknown_field");
         });
         if (body.has("allowPartial") && !body.get("allowPartial").isBoolean()) throw invalid("allowPartial", "invalid_type");
         boolean allowPartial = body.path("allowPartial").asBoolean(false);
+        if(body.has("allowPreferenceExceedance") && !body.path("allowPreferenceExceedance").isBoolean())
+            throw invalid("allowPreferenceExceedance","invalid_type");
         if (body.has("deferredTasks") && (!allowPartial || !body.get("deferredTasks").isArray())) throw invalid("deferredTasks", "invalid_type");
         var version = body.get("expectedGoalVersion");
         if (version == null || version.isNull()) throw invalid("expectedGoalVersion", "required");
@@ -201,6 +214,11 @@ public class PlanDraftService {
             if (body.has("deferredTasks")) decision.set("deferredTasks", body.get("deferredTasks"));
             fingerprintMetadata = decision;
         }
+        if(body.path("allowPreferenceExceedance").asBoolean(false)) {
+            var decision=mapper.createObjectNode().put("allowPreferenceExceedance",true);
+            if(fingerprintMetadata!=null)decision.set("selection",fingerprintMetadata);
+            fingerprintMetadata=decision;
+        }
         String fingerprint = fingerprint(goalId, draftId, version.intValue(), input, fingerprintMetadata);
         var receipt = drafts.receipt(owner, key);
         if (receipt.isPresent()) {
@@ -212,8 +230,22 @@ public class PlanDraftService {
         requireUsable(owner, draft);
         if (version.intValue() != draft.goalVersion() || draft.goalVersion() != goal.version())
             throw new GoalService.GoalConflictException("stale_goal_version");
-        if (scoped) PlanScheduling.validateConfirmation(taskBody, proposal, goals.listScheduledTasksOwned(owner, goalId),
+        validate(goal,owner,input);
+        var currentScope=preferenceScope(owner,goal);
+        var existing=goals.listScheduledTasksOwned(owner,goalId);
+        if (scoped) {
+            var checked=(com.fasterxml.jackson.databind.node.ObjectNode)proposal.deepCopy();
+            if(proposal.path("scope").path("respectPreferences").asBoolean(false))PlanScheduling.respectPreferences(currentScope);
+            checked.set("scope",currentScope);
+            budgets.checkPlan(owner,input);
+            PlanScheduling.validateConfirmation(taskBody, checked, existing,
                 LocalDate.now(clock.withZone(java.time.ZoneId.of(goal.timezone()))), allowPartial);
+        }
+        var excess=PlanScheduling.preferenceExcess(mapper,taskBody,currentScope,existing);
+        if(!excess.isEmpty() && !body.path("allowPreferenceExceedance").asBoolean(false))
+            throw new PlanException(422,"PREFERENCE_EXCEEDANCE_REQUIRES_CONFIRMATION",
+                "Bản nháp vượt mức mong muốn của môn. Hãy đồng ý phần vượt hoặc xếp lại theo mức mong muốn.",
+                Map.of("preferenceExcessDays",excess));
         Map<String, JsonNode> deferred = new HashMap<>();
         if (body.has("deferredTasks")) {
             Map<String, JsonNode> expected = new HashMap<>();
@@ -232,7 +264,6 @@ public class PlanDraftService {
             }
             if (seen.size()!=expected.size()) throw invalid("deferredTasks","missing_tasks");
         }
-        validate(goal, owner, input);
         var ids = new ArrayList<UUID>();
         for (int i = 0; i < input.size(); i++) {
             UUID taskId = tasks.insertOwned(owner, goalId, input.get(i), "ai").id(); ids.add(taskId);
@@ -296,19 +327,13 @@ public class PlanDraftService {
         }
         if (!violations.isEmpty()) throw new TaskValidationException(violations);
         budgets.checkPlan(owner,input);
-        Map<LocalDate, Integer> used = new HashMap<>();
-        for (var task : goals.listScheduledTasksOwned(owner, goal.id()))
-            used.merge(task.scheduledDate(), task.estimatedMinutes(), Integer::sum);
-        long available = goal.startDate().datesUntil(goal.examDate())
-                .mapToLong(day -> Math.max(0, GoalPlanning.minutes(goal,day) - used.getOrDefault(day, 0))).sum();
-        long required = input.stream().mapToLong(TaskPolicy.TaskInput::estimatedMinutes).sum();
-        if (required > available) throw new PlanException(422, "INSUFFICIENT_TIME", "The plan exceeds the remaining budget.",
-                Map.of("requiredMinutes", required, "availableMinutes", available, "shortfallMinutes", required - available));
-        for (var task : input) {
-            int current = used.getOrDefault(task.scheduledDate(), 0);
-            TaskPolicy.checkDailyBudget(task.scheduledDate(), current, task.estimatedMinutes(), GoalPlanning.minutes(goal,task.scheduledDate()));
-            used.put(task.scheduledDate(), current + task.estimatedMinutes());
-        }
+    }
+
+    private com.fasterxml.jackson.databind.node.ObjectNode preferenceScope(UUID owner, GoalJdbcRepository.StoredGoal goal) {
+        var configured=GoalPlanning.configured(goal) ? goal.planningScope() : GoalPlanning.defaults(goal.topics());
+        var scope=PlanScheduling.scope(mapper,configured,goal,LocalDate.now(clock.withZone(java.time.ZoneId.of(goal.timezone()))));
+        budgets.constrain(owner,goal.id(),scope);
+        return scope;
     }
 
     private List<TaskPolicy.TaskInput> parseTasks(JsonNode list) {

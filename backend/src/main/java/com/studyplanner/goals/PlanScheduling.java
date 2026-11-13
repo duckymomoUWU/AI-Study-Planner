@@ -46,7 +46,7 @@ public final class PlanScheduling {
             custom.fields().forEachRemaining(entry -> {
                 LocalDate day = date(entry.getKey()); JsonNode value = entry.getValue();
                 if (day.isBefore(goal.startDate()) || !day.isBefore(goal.examDate())) throw bad("dailyMinutes", "invalid_date");
-                if (!value.isIntegralNumber() || !value.canConvertToInt() || value.intValue() < 0 || value.intValue() > goal.minutesPerDay()) throw bad("dailyMinutes", "out_of_range");
+                if (!value.isIntegralNumber() || !value.canConvertToInt() || value.intValue() < 0 || value.intValue() > 480) throw bad("dailyMinutes", "out_of_range");
                 if (!day.isBefore(first)) budgets.set(day.toString(), value);
             });
         }
@@ -63,6 +63,10 @@ public final class PlanScheduling {
             Map<String, JsonNode> topics = new LinkedHashMap<>();
             scope.get("selectedTopics").forEach(t -> topics.put(t.path("id").asText(), t));
             Map<String, Integer> remaining = remaining(scope, existing);
+            Map<String, Integer> preferred = new TreeMap<>();
+            var preferenceScope = scope.deepCopy();
+            preferenceScope.set("dailyMinutes", scope.has("preferredDailyMinutes") ? scope.get("preferredDailyMinutes") : scope.get("dailyMinutes"));
+            preferred.putAll(remaining(preferenceScope, existing));
             int available = remaining.values().stream().mapToInt(Integer::intValue).sum();
             List<ObjectNode> candidates = new ArrayList<>(); Set<String> ids = new HashSet<>(), duplicates = new HashSet<>(), covered = new HashSet<>();
             Set<String> existingTitles = new HashSet<>(); existing.forEach(t -> existingTitles.add(normalize(t.title())));
@@ -88,7 +92,16 @@ public final class PlanScheduling {
             List<String> order = new ArrayList<>(topics.keySet());
             candidates.sort(Comparator.<ObjectNode>comparingInt(t -> rank(t.path("priority").asText())).thenComparingInt(t -> order.indexOf(t.path("topicId").asText())));
             ObjectNode result = mapper.createObjectNode(); result.set("scope", scope); var scheduled = result.putArray("tasks"); var unscheduled = result.putArray("unscheduled");
+            var deferred = new ArrayList<ObjectNode>();
             for (var task : candidates) {
+                String chosen = chooseDay(task, remaining, preferred);
+                if (chosen == null) { deferred.add(task); continue; }
+                task.put("scheduledDate", chosen);
+                remaining.put(chosen, remaining.get(chosen)-minutes(task));
+                preferred.put(chosen, Math.max(0,preferred.get(chosen)-minutes(task)));
+                scheduled.add(task);
+            }
+            for (var task : deferred) {
                 String chosen = null;
                 boolean requestedDay = task.hasNonNull("scheduledDate");
                 if (task.hasNonNull("scheduledDate")) {
@@ -107,11 +120,45 @@ public final class PlanScheduling {
             var summary = result.putObject("summary"); summary.put("requiredMinutes", required); summary.put("availableMinutes", available);
             summary.put("shortfallMinutes", Math.max(0, required - available)); summary.put("canConfirm", unscheduled.isEmpty());
             summary.put("alreadyScheduledCount",alreadyScheduled);
+            summary.set("preferenceExcessDays", preferenceExcess(mapper, scheduled, scope, existing));
             return result;
         } catch (Exception ex) {
             if (ex instanceof PlanException p) throw p;
             throw invalidAi("INVALID_FIELDS");
         }
+    }
+    private static String chooseDay(JsonNode task, Map<String,Integer> hard, Map<String,Integer> preferred) {
+        if (task.hasNonNull("scheduledDate")) {
+            String day=task.path("scheduledDate").asText();
+            return Math.min(hard.getOrDefault(day,0),preferred.getOrDefault(day,0))>=minutes(task) ? day : null;
+        }
+        for(var e:hard.entrySet()) if(Math.min(e.getValue(),preferred.getOrDefault(e.getKey(),0))>=minutes(task)) return e.getKey();
+        return null;
+    }
+    public static void respectPreferences(ObjectNode scope) {
+        scope.put("respectPreferences",true);
+        var days=(ObjectNode)scope.path("dailyMinutes");
+        var preferred=scope.path("preferredDailyMinutes");
+        var keys=new ArrayList<String>();days.fieldNames().forEachRemaining(keys::add);
+        for(String day:keys)days.put(day,Math.min(days.path(day).asInt(),preferred.path(day).asInt(days.path(day).asInt())));
+    }
+    public static ArrayNode preferenceExcess(ObjectMapper mapper,JsonNode list,JsonNode scope,List<GoalPolicy.ScheduledTask> existing) {
+        var result=mapper.createArrayNode();
+        if(!scope.has("preferredDailyMinutes"))return result;
+        var totals=new TreeMap<String,Integer>();
+        existing.forEach(t->totals.merge(t.scheduledDate().toString(),t.estimatedMinutes(),Integer::sum));
+        var proposed=new HashSet<String>();
+        for(var t:list) if(t.hasNonNull("scheduledDate")) {
+            String day=t.path("scheduledDate").asText();proposed.add(day);
+            totals.merge(day,t.path("estimatedMinutes").asInt(),Integer::sum);
+        }
+        for(String day:new TreeSet<>(proposed)) {
+            int preference=scope.path("preferredDailyMinutes").path(day).asInt();
+            int total=totals.get(day);
+            if(total>preference)result.addObject().put("date",day).put("preferredMinutes",preference)
+                .put("plannedMinutes",total).put("excessMinutes",total-preference);
+        }
+        return result;
     }
     public static void validateConfirmation(JsonNode list, JsonNode proposal, List<GoalPolicy.ScheduledTask> existing, LocalDate today) {
         validateConfirmation(list, proposal, existing, today, false);

@@ -53,22 +53,16 @@ class GoalServicePostgresIntegrationTest {
     }
 
     @Test
-    void updateRejectsDailyOverBudgetWithoutPartiallyChangingGoal() {
+    void lowerPreferenceDoesNotInvalidateExistingTasks() {
         var goal = create(ownerA, input("Toán", 120, today.plusDays(30)));
         LocalDate taskDay = today.plusDays(1);
         insertTask(goal.id(), taskDay, 60);
         insertTask(goal.id(), taskDay, 50);
 
-        var exception = assertThrows(GoalService.GoalValidationException.class,
-                () -> update(ownerA, goal.id(),
-                        input("Toán nâng cao", 100, goal.examDate()), goal.version()));
-
-        assertTrue(exception.violations().stream()
-                .anyMatch(violation -> violation.code().equals("daily_budget_exceeded")));
-        var unchanged = service.getGoal(ownerA, goal.id());
-        assertEquals("Toán", unchanged.subject());
-        assertEquals(120, unchanged.minutesPerDay());
-        assertEquals(0, unchanged.version());
+        var updated = update(ownerA, goal.id(), input("New subject", 100, goal.examDate()), goal.version());
+        assertEquals(100, updated.minutesPerDay());
+        assertEquals(1, updated.version());
+        assertEquals(2, count("study_tasks", goal.id()));
     }
 
     @Test
@@ -149,21 +143,18 @@ class GoalServicePostgresIntegrationTest {
         assertEquals(today.plusDays(10), ok.examDate());
         assertEquals(1, ok.version());
 
-        // One minute below the day total is rejected and nothing changes.
-        var overBudget = assertThrows(GoalService.GoalValidationException.class,
-                () -> update(ownerA, goal.id(), input("Toán", 99, today.plusDays(10)), 1));
-        assertTrue(overBudget.violations().stream().anyMatch(v -> v.code().equals("daily_budget_exceeded")
-                && v.message().contains(day.toString())));
+        var lower = update(ownerA, goal.id(), input("Math", 99, today.plusDays(10)), 1);
+        assertEquals(2, lower.version());
 
         // Exam date equal to the last task's day is rejected.
         var onExamDay = assertThrows(GoalService.GoalValidationException.class,
-                () -> update(ownerA, goal.id(), input("Toán", 100, today.plusDays(9)), 1));
+                () -> update(ownerA, goal.id(), input("Toán", 100, today.plusDays(9)), 2));
         assertTrue(onExamDay.violations().stream().anyMatch(v -> v.code().equals("task_on_or_after_exam_date")));
 
         var stored = service.getGoal(ownerA, goal.id());
-        assertEquals(100, stored.minutesPerDay());
+        assertEquals(99, stored.minutesPerDay());
         assertEquals(today.plusDays(10), stored.examDate());
-        assertEquals(1, stored.version());
+        assertEquals(2, stored.version());
         assertEquals(3, count("study_tasks", goal.id()));
     }
 

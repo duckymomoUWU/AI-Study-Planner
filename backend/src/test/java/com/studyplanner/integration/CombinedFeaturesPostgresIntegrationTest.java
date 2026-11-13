@@ -65,11 +65,12 @@ class CombinedFeaturesPostgresIntegrationTest {
     int version() { return jdbc.queryForObject("SELECT version FROM study_goals WHERE id = ?", Integer.class, goal); }
 
     @Test void manualCrudEnforcesOwnerBudgetDatesAndVersionAndKeepsProgress() throws Exception {
+        jdbc.update("UPDATE app_users SET study_daily_minutes=60 WHERE id=?",owner);
         String id = data(json(owner, post(taskUrl()), item(today, 45)).andExpect(status().isCreated())).get("id").asText();
         assertEquals(1, version());
         json(owner, patch(taskUrl() + "/" + id), Map.of("completed", true)).andExpect(status().isOk());
         json(owner, post(taskUrl()), item(today, 16)).andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.error.code").value("DAILY_BUDGET_EXCEEDED"))
+                .andExpect(jsonPath("$.error.code").value("SHARED_DAILY_BUDGET_EXCEEDED"))
                 .andExpect(jsonPath("$.error.context.excessMinutes").value(1));
         json(stranger, patch("/api/v1/tasks/" + id), Map.of("title", "Foreign update")).andExpect(status().isNotFound());
         json(owner, patch("/api/v1/tasks/" + id), Map.of("scheduledDate", today.plusDays(1).toString(), "estimatedMinutes", 30))
@@ -116,13 +117,14 @@ class CombinedFeaturesPostgresIntegrationTest {
     }
 
     @Test void failedConfirmRollsBackEveryTaskReceiptAndVersion() throws Exception {
+        jdbc.update("UPDATE app_users SET study_daily_minutes=60 WHERE id=?",owner);
         String id = draft();
         confirm(owner, id, UUID.randomUUID(), confirmBody(0, item(today, 30), item(today, 31)))
                 .andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.error.context.excessMinutes").value(1));
         confirm(owner, id, UUID.randomUUID(), confirmBody(0, item(today, 30), item(today.plusDays(3), 15))).andExpect(status().isBadRequest());
         confirm(owner, id, UUID.randomUUID(), confirmBody(0, item(today, 241)))
-                .andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.error.code").value("INSUFFICIENT_TIME"))
-                .andExpect(jsonPath("$.error.context.shortfallMinutes").value(1));
+                .andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.error.code").value("SHARED_DAILY_BUDGET_EXCEEDED"))
+                .andExpect(jsonPath("$.error.context.excessMinutes").value(181));
         assertEquals(0, count("study_tasks")); assertEquals(0, count("plan_confirmations")); assertEquals(0, version());
         json(owner, post(draftUrl() + "/" + id + "/confirm"), confirmBody(0, item(today, 30))).andExpect(status().isBadRequest());
         json(owner, post(taskUrl()), item(today.plusDays(1), 15)).andExpect(status().isCreated());

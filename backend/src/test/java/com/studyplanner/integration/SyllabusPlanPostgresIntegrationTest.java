@@ -82,7 +82,7 @@ class SyllabusPlanPostgresIntegrationTest {
         var draft=data(call(owner,post(base()),scope()).andExpect(status().isCreated()));
         var body=confirmBody(draft); body.path("tasks").forEach(t -> ((ObjectNode)t).put("scheduledDate",today.toString()));
         confirm(owner,draft,UUID.randomUUID().toString(),body).andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.error.code").value("DAILY_BUDGET_EXCEEDED"));
+                .andExpect(jsonPath("$.error.code").value("PREFERENCE_EXCEEDANCE_REQUIRES_CONFIRMATION"));
         assertEquals(1,count("study_tasks")); assertEquals(0,count("plan_confirmations")); assertEquals(1,count("plan_drafts"));
         // Saving planning settings before AI advances the goal version; a failed confirm must not advance it again.
         assertEquals(draft.path("goalVersion").asInt(),jdbc.queryForObject("SELECT version FROM study_goals WHERE id=?",Integer.class,goal));
@@ -91,6 +91,7 @@ class SyllabusPlanPostgresIntegrationTest {
         assertEquals(1,count("study_tasks"));
     }
     @Test void partialDraftKeepsEveryTaskAndCannotBeConfirmedByDroppingUnscheduledWork() throws Exception {
+        jdbc.update("UPDATE app_users SET study_daily_minutes=120 WHERE id=?",owner);
         jdbc.update("UPDATE study_goals SET exam_date=?,minutes_per_day=120 WHERE id=?",today.plusDays(1),goal);
         when(generator.generateProposalJson(any())).thenReturn(proposal(90,90));
         var draft=data(call(owner,post(base()),scope()).andExpect(status().isCreated())

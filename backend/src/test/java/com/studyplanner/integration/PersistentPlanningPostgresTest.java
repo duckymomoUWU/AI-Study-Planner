@@ -58,8 +58,8 @@ class PersistentPlanningPostgresTest {
         var todo=data(call(owner,post(base+"/tasks"),Map.of("title","Saved pending work","scheduledDate",today.plusDays(2).toString(),"estimatedMinutes",20)).andExpect(status().isCreated()));
         var reloaded=data(call(owner,get(base),Map.of()).andExpect(status().isOk()));
         assertEquals(scope(),reloaded.get("planningScope"));
-        call(owner,patch("/api/v1/tasks/"+todo.path("id").asText()),Map.of("scheduledDate",today.plusDays(1).toString())).andExpect(status().isUnprocessableEntity());
-        assertEquals(today.plusDays(2),jdbc.queryForObject("SELECT scheduled_date FROM study_tasks WHERE id=?",LocalDate.class,UUID.fromString(todo.path("id").asText())));
+        call(owner,patch("/api/v1/tasks/"+todo.path("id").asText()),Map.of("scheduledDate",today.plusDays(1).toString())).andExpect(status().isOk());
+        assertEquals(today.plusDays(1),jdbc.queryForObject("SELECT scheduled_date FROM study_tasks WHERE id=?",LocalDate.class,UUID.fromString(todo.path("id").asText())));
         when(ai.generateProposalJson(any())).thenReturn(proposal("Practice algebra exercises"),proposal("Review algebra mistakes"));
         var draft=data(call(owner,post(base+"/plan-drafts"),Map.of()).andExpect(status().isCreated()));
         assertEquals(0,draft.at("/proposal/scope/dailyMinutes/"+today.plusDays(1)).asInt(-1));
@@ -73,7 +73,7 @@ class PersistentPlanningPostgresTest {
         call(owner,post(confirm).header("Idempotency-Key",key),body).andExpect(status().isOk());
         String newTask=saved.path("createdTaskIds").get(0).asText();
         call(owner,get(base+"/plan-drafts/latest"),Map.of()).andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("CONFIRMED"));
-        call(owner,patch("/api/v1/tasks/"+newTask),Map.of("scheduledDate",today.plusDays(2).toString())).andExpect(status().isUnprocessableEntity());
+        call(owner,patch("/api/v1/tasks/"+newTask),Map.of("scheduledDate",today.plusDays(2).toString())).andExpect(status().isOk());
         call(owner,patch("/api/v1/tasks/"+newTask),Map.of("scheduledDate",today.plusDays(4).toString())).andExpect(status().isOk());
         call(owner,post(base+"/plan-drafts"),Map.of()).andExpect(status().isCreated());
         assertTrue(jdbc.queryForObject("SELECT completed FROM study_tasks WHERE id=?",Boolean.class,UUID.fromString(done.path("id").asText())));
@@ -83,6 +83,7 @@ class PersistentPlanningPostgresTest {
         call(foreign,patch("/api/v1/tasks/"+newTask),Map.of("scheduledDate",today.plusDays(5).toString())).andExpect(status().isNotFound());
     }
     @Test void partialConfirmationRetainsEditedRemainderAndCanRescheduleWithoutCallingAi() throws Exception {
+        jdbc.update("UPDATE app_users SET study_daily_minutes=60 WHERE id=?",owner);
         var goal=create();String id=goal.path("id").asText(), base="/api/v1/goals/"+id;
         when(ai.generateProposalJson(any())).thenReturn("""
             {"tasks":[{"id":"a","topicId":"algebra","title":"Practice equations","estimatedMinutes":40},
@@ -118,6 +119,7 @@ class PersistentPlanningPostgresTest {
         call(foreign,post(base+"/plan-drafts/"+remaining+"/reschedule"),Map.of()).andExpect(status().isNotFound());
         var current=data(call(owner,get(base),Map.of()).andExpect(status().isOk()));
         call(owner,patch(base),Map.of("expectedVersion",current.path("version").asInt(),"minutesPerDay",120)).andExpect(status().isOk());
+        call(owner,put("/api/v1/study-budget"),Map.of("defaultMinutes",120,"expectedVersion",0,"dailyMinutes",Map.of())).andExpect(status().isOk());
         var replanned=data(call(owner,post(base+"/plan-drafts/"+remaining+"/reschedule"),Map.of()).andExpect(status().isOk()));
         assertEquals(110,replanned.at("/proposal/tasks/0/estimatedMinutes").asInt());
         assertEquals(0,replanned.at("/proposal/unscheduled").size());
@@ -158,7 +160,8 @@ class PersistentPlanningPostgresTest {
         call(owner,patch("/api/v1/tasks/"+task.path("id").asText()),Map.of("completed",true)).andExpect(status().isOk());
         int version=data(call(owner,get(base),Map.of()).andExpect(status().isOk())).path("version").asInt();
         var changed=scope();((ObjectNode)changed.get("dailyMinutes")).put(today.toString(),0);
-        call(owner,patch(base),Map.of("expectedVersion",version,"planningScope",changed)).andExpect(status().isUnprocessableEntity());
+        call(owner,patch(base),Map.of("expectedVersion",version,"planningScope",changed)).andExpect(status().isOk());
+        version=data(call(owner,get(base),Map.of()).andExpect(status().isOk())).path("version").asInt();
         call(owner,patch(base),Map.of("expectedVersion",version,"startDate",today.plusDays(1).toString())).andExpect(status().isConflict());
         assertEquals(version,data(call(owner,get(base),Map.of()).andExpect(status().isOk())).path("version").asInt());
         assertTrue(jdbc.queryForObject("SELECT completed FROM study_tasks WHERE id=?",Boolean.class,UUID.fromString(task.path("id").asText())));

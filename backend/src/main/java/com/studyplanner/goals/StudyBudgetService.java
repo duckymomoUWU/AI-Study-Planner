@@ -91,16 +91,24 @@ public class StudyBudgetService {
     }
     public void constrain(UUID owner,UUID goal,ObjectNode scope) {
         var c=required(owner);var days=(ObjectNode)scope.get("dailyMinutes");
+        scope.set("preferredDailyMinutes", days.deepCopy());
         var entries=new ArrayList<String>();days.fieldNames().forEachRemaining(entries::add);
         if(entries.isEmpty())return;
         var dates=entries.stream().map(LocalDate::parse).sorted().toList();
         var other=usage(owner,dates.getFirst(),dates.getLast(),goal);
+        var all=usage(owner,dates.getFirst(),dates.getLast(),null);
+        var own=scope.putObject("existingGoalMinutes");
+        var shared=scope.putObject("sharedDailyMinutes");
+        var others=scope.putObject("otherGoalMinutes");
         int limitedDays=0;
         for(var d:dates) {
             int goalCap=days.path(d.toString()).asInt();
             int sharedLeft=Math.max(0,c.minutes(d)-other.getOrDefault(d,0));
             if(sharedLeft<goalCap)limitedDays++;
-            days.put(d.toString(),Math.min(goalCap,sharedLeft));
+            own.put(d.toString(),all.getOrDefault(d,0)-other.getOrDefault(d,0));
+            shared.put(d.toString(),c.minutes(d));
+            others.put(d.toString(),other.getOrDefault(d,0));
+            days.put(d.toString(),goalCap==0 ? 0 : sharedLeft);
         }
         scope.put("sharedBudgetApplied",true);
         scope.put("sharedBudgetLimitedDays",limitedDays);

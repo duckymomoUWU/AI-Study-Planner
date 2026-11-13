@@ -53,6 +53,65 @@ class SharedBudgetPostgresTest {
             .andExpect(status().isCreated())).path("id").asText();
     }
     Map<String,Object> work(String title,LocalDate day,int minutes){return Map.of("title",title,"scheduledDate",day.toString(),"estimatedMinutes",minutes);}
+    @Test void manualWorkCanExceedSubjectPreferenceButNeverSharedCapacity() throws Exception {
+        budget(200,0,Map.of());String a=goal("A"),b=goal("B");
+        var task=data(call(owner,post("/api/v1/goals/"+a+"/tasks"),work("Long manual study",today,180)).andExpect(status().isCreated()));
+        call(owner,post("/api/v1/goals/"+b+"/tasks"),work("Over shared",today,21))
+            .andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.error.code").value("SHARED_DAILY_BUDGET_EXCEEDED"));
+        var g=data(call(owner,get("/api/v1/goals/"+a),Map.of()).andExpect(status().isOk()));
+        call(owner,patch("/api/v1/goals/"+a),Map.of("expectedVersion",g.path("version").asInt(),"minutesPerDay",60)).andExpect(status().isOk());
+        call(owner,patch("/api/v1/tasks/"+task.path("id").asText()),Map.of("scheduledDate",today.plusDays(1).toString())).andExpect(status().isOk());
+        assertEquals(180,data(call(owner,get("/api/v1/study-budget"),Map.of()).andExpect(status().isOk())).at("/days/1/usedMinutes").asInt());
+    }
+    @Test void preferenceExcessRequiresExplicitConsentAndReplayKeepsThatDecision() throws Exception {
+        budget(200,0,Map.of(today.plusDays(1).toString(),0,today.plusDays(2).toString(),0));String g=goal("Math");
+        when(ai.generateProposalJson(any())).thenReturn("{\"tasks\":[{\"id\":\"one\",\"topicId\":\"t\",\"title\":\"Solve equations\",\"estimatedMinutes\":180}]}");
+        String base="/api/v1/goals/"+g+"/plan-drafts";
+        var draft=data(call(owner,post(base),Map.of()).andExpect(status().isCreated()));
+        assertEquals(90,draft.at("/proposal/summary/preferenceExcessDays/0/excessMinutes").asInt());
+        assertEquals(200,draft.at("/proposal/summary/availableMinutes").asInt());
+        var body=confirmation(draft,false);String url=base+"/"+draft.path("id").asText()+"/confirm",key=UUID.randomUUID().toString();
+        call(owner,post(url).header("Idempotency-Key",key),body).andExpect(status().isUnprocessableEntity())
+            .andExpect(jsonPath("$.error.code").value("PREFERENCE_EXCEEDANCE_REQUIRES_CONFIRMATION"));
+        assertEquals(0,jdbc.queryForObject("SELECT count(*) FROM study_tasks WHERE goal_id=?",Integer.class,UUID.fromString(g)));
+        body.put("allowPreferenceExceedance",true);
+        call(foreign,post(url).header("Idempotency-Key",key),body).andExpect(status().isNotFound());
+        call(owner,post(url).header("Idempotency-Key",key),body).andExpect(status().isCreated());
+        call(owner,post(url).header("Idempotency-Key",key),body).andExpect(status().isOk());
+        body.put("allowPreferenceExceedance",false);
+        call(owner,post(url).header("Idempotency-Key",key),body).andExpect(status().isConflict());
+        assertEquals(90,jdbc.queryForObject("SELECT minutes_per_day FROM study_goals WHERE id=?",Integer.class,UUID.fromString(g)));
+        assertEquals(1,jdbc.queryForObject("SELECT count(*) FROM study_tasks WHERE goal_id=?",Integer.class,UUID.fromString(g)));
+    }
+    @Test void decliningExcessMovesWorkToAnotherDayWithoutCallingAiAgain() throws Exception {
+        budget(200,0,Map.of());String g=goal("Math");
+        when(ai.generateProposalJson(any())).thenReturn(mapper.writeValueAsString(Map.of("tasks",List.of(
+            Map.of("id","one","topicId","t","title","Solve equations","estimatedMinutes",90,"scheduledDate",today.toString()),
+            Map.of("id","two","topicId","t","title","Review solutions","estimatedMinutes",60,"scheduledDate",today.toString())))));
+        String base="/api/v1/goals/"+g+"/plan-drafts";
+        var draft=data(call(owner,post(base),Map.of()).andExpect(status().isCreated()));
+        assertEquals(60,draft.at("/proposal/summary/preferenceExcessDays/0/excessMinutes").asInt());
+        var strict=data(call(owner,post(base+"/"+draft.path("id").asText()+"/reschedule"),Map.of("respectPreferences",true)).andExpect(status().isOk()));
+        assertTrue(strict.at("/proposal/summary/preferenceExcessDays").isEmpty());
+        assertEquals(today.plusDays(1).toString(),strict.at("/proposal/tasks/1/scheduledDate").asText());
+        assertEquals(60,strict.at("/proposal/tasks/1/estimatedMinutes").asInt());
+        assertEquals(0,jdbc.queryForObject("SELECT count(*) FROM study_tasks WHERE goal_id=?",Integer.class,UUID.fromString(g)));
+        verify(ai,times(1)).generateProposalJson(any());
+    }
+    @Test void strictPreferenceKeepsUnfittableWorkAndConsentNeverBypassesSharedBudget() throws Exception {
+        budget(200,0,Map.of());String g=goal("Math"),other=goal("Other");
+        when(ai.generateProposalJson(any())).thenReturn("{\"tasks\":[{\"id\":\"one\",\"topicId\":\"t\",\"title\":\"Solve equations\",\"estimatedMinutes\":180}]}");
+        String base="/api/v1/goals/"+g+"/plan-drafts";
+        var draft=data(call(owner,post(base),Map.of()).andExpect(status().isCreated()));
+        call(owner,post("/api/v1/goals/"+other+"/tasks"),work("New reservation",today,40)).andExpect(status().isCreated());
+        var body=confirmation(draft,false).put("allowPreferenceExceedance",true);
+        call(owner,post(base+"/"+draft.path("id").asText()+"/confirm").header("Idempotency-Key",UUID.randomUUID().toString()),body)
+            .andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.error.code").value("SHARED_DAILY_BUDGET_EXCEEDED"));
+        var strict=data(call(owner,post(base+"/"+draft.path("id").asText()+"/reschedule"),Map.of("respectPreferences",true)).andExpect(status().isOk()));
+        assertEquals(0,strict.at("/proposal/tasks").size());assertEquals(180,strict.at("/proposal/unscheduled/0/estimatedMinutes").asInt());
+        assertTrue(strict.at("/proposal/scope/respectPreferences").asBoolean());
+        verify(ai,times(1)).generateProposalJson(any());
+    }
     @Test void missingSetupIsExplicitAndAuthCsrfAndValidationAreEnforced()throws Exception {
         String goal=goal("A");
         assertTrue(data(call(owner,get("/api/v1/study-budget"),Map.of()).andExpect(status().isOk())).path("defaultMinutes").isNull());
@@ -98,7 +157,7 @@ class SharedBudgetPostgresTest {
         var draft=data(call(owner,post(base),Map.of()).andExpect(status().isCreated()));
         assertEquals(today.plusDays(2).toString(),draft.at("/proposal/tasks/0/scheduledDate").asText());
         assertEquals(90,draft.at("/proposal/unscheduled/0/estimatedMinutes").asInt());
-        assertEquals(60,draft.at("/proposal/summary/shortfallMinutes").asInt());
+        assertEquals(30,draft.at("/proposal/summary/shortfallMinutes").asInt());
         assertTrue(draft.at("/proposal/scope/sharedBudgetLimitedDays").asInt()>0);
         var body=confirmation(draft,true);
         // Another goal changes after generation without advancing this goal's version.

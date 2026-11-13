@@ -128,9 +128,6 @@ public class TaskService {
         var errors = new java.util.ArrayList<>(TaskPolicy.validateInput(input));
         errors.addAll(TaskPolicy.validateWithinGoal(input.scheduledDate(), goal.startDate(), goal.examDate()));
         if (!errors.isEmpty()) throw new TaskValidationException(errors);
-        TaskPolicy.checkDailyBudget(input.scheduledDate(),
-                tasks.dailyMinutes(owner, goal.id(), input.scheduledDate(), excludeId),
-                input.estimatedMinutes(), com.studyplanner.goals.GoalPlanning.minutes(goal,input.scheduledDate()));
     }
 
     public record TaskPatch(String title, LocalDate scheduledDate, Integer estimatedMinutes, Boolean completed) {}

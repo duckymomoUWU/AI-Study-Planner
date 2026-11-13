@@ -35,10 +35,10 @@ export function getLatestPlanDraft(goalId, { signal } = {}) {
 }
 
 /** Retry with the same key and body after a lost response. */
-export function confirmPlanDraft(goalId, draftId, tasks, expectedGoalVersion, idempotencyKey, { signal, allowPartial = false, deferredTasks = [] } = {}) {
+export function confirmPlanDraft(goalId, draftId, tasks, expectedGoalVersion, idempotencyKey, { signal, allowPartial = false, deferredTasks = [], allowPreferenceExceedance = false } = {}) {
   return request(`/api/v1/goals/${encodeURIComponent(goalId)}/plan-drafts/${encodeURIComponent(draftId)}/confirm`, {
     method: 'POST', signal, key: idempotencyKey,
-    body: { expectedGoalVersion, ...(allowPartial ? { allowPartial: true, deferredTasks: deferredTasks.map(({ id, topicId, title, estimatedMinutes }) => ({ id, topicId, title, estimatedMinutes: Number(estimatedMinutes) })) } : {}), tasks: tasks.map(({ id, topicId, title, scheduledDate, estimatedMinutes }) => ({
+    body: { expectedGoalVersion, ...(allowPreferenceExceedance ? { allowPreferenceExceedance: true } : {}), ...(allowPartial ? { allowPartial: true, deferredTasks: deferredTasks.map(({ id, topicId, title, estimatedMinutes }) => ({ id, topicId, title, estimatedMinutes: Number(estimatedMinutes) })) } : {}), tasks: tasks.map(({ id, topicId, title, scheduledDate, estimatedMinutes }) => ({
       ...(topicId ? { id, topicId } : {}),
       title, scheduledDate, estimatedMinutes: Number(estimatedMinutes),
     })) },
@@ -49,8 +49,27 @@ export function getPendingPlanDrafts(goalId) {
   return request(`/api/v1/goals/${encodeURIComponent(goalId)}/plan-drafts/pending`)
 }
 
-export function reschedulePlanDraft(goalId, draftId) {
-  return request(`/api/v1/goals/${encodeURIComponent(goalId)}/plan-drafts/${encodeURIComponent(draftId)}/reschedule`, { method: 'POST' })
+export function reschedulePlanDraft(goalId, draftId, { respectPreferences } = {}) {
+  return request(`/api/v1/goals/${encodeURIComponent(goalId)}/plan-drafts/${encodeURIComponent(draftId)}/reschedule`, {
+    method: 'POST', ...(typeof respectPreferences === 'boolean' ? { body: { respectPreferences } } : {}),
+  })
+}
+
+export function preferenceExcessDays(items, draft, goal) {
+  const scope = draft?.proposal?.scope || draft?.proposal?.preferenceReview || {}
+  const totals = { ...scope.existingGoalMinutes }
+  const proposed = new Set()
+  for (const task of items) if (task.scheduledDate) {
+    proposed.add(task.scheduledDate)
+    totals[task.scheduledDate] = Number(totals[task.scheduledDate] || 0) + Number(task.estimatedMinutes || 0)
+  }
+  return [...proposed].sort().flatMap(date => {
+    const preferredMinutes = scope.preferredDailyMinutes?.[date] ?? goal.planningScope?.dailyMinutes?.[date] ?? goal.minutesPerDay
+    const plannedMinutes = totals[date]
+    return plannedMinutes > preferredMinutes ? [{ date, preferredMinutes, plannedMinutes, excessMinutes: plannedMinutes - preferredMinutes,
+      ...(scope.sharedDailyMinutes?.[date] !== undefined ? { sharedBudgetMinutes: scope.sharedDailyMinutes[date], sharedPlannedMinutes: plannedMinutes + (scope.otherGoalMinutes?.[date] || 0) } : {}),
+    }] : []
+  })
 }
 
 export function draftReview(items, availableMinutes) {

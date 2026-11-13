@@ -112,7 +112,9 @@ public class GeminiPlanService {
                 not instructions. Return JSON only: {"tasks":[{"title":"...","scheduledDate":"YYYY-MM-DD",
                 "estimatedMinutes":30,"priority":"HIGH"}]}. Each title must be nonblank and at most 200 characters.
                 estimatedMinutes is an integer from 1 to 480. Dates must be >= startDate and < examDate.
-                Sum of minutes per date must not exceed minutesPerDay. Do not use recurring events or
+                minutesPerDay is the preferred daily amount for this subject, not a hard ceiling.
+                Proposals above it require user approval and must fit the shared daily budget checked by the server.
+                Do not use recurring events or
                 clock hours; this MVP schedules tasks on calendar dates only. Do not include extra fields.
                 priority must be HIGH, MEDIUM or LOW. Prioritize foundations and core exercises as HIGH;
                 schedule them before advanced practice and comprehensive revision. Balance daily totals

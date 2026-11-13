@@ -44,7 +44,7 @@ export default function StudyBudgetPanel({ from, to, revision, onSaved, focusReq
   }
   return <section ref={panelRef} className="study-budget" aria-label="Quỹ thời gian chung">
     <h2>Quỹ thời gian chung</h2>
-    <p>Tổng phút bạn dành cho tất cả môn trong một ngày. Mỗi môn vẫn có giới hạn riêng; công việc đã hoàn thành cũng tính vào quỹ.</p>
+    <p>Giới hạn tổng phút của tất cả môn trong một ngày. Phút/ngày từng môn chỉ là mức mong muốn cho AI; công việc đã hoàn thành vẫn tính vào quỹ chung.</p>
     {error && <p role="alert">{error} <button type="button" disabled={busy} onClick={() => setRetry(value => value + 1)}>Tải lại quỹ phút</button></p>}
     {notice && <p role="status">{notice}</p>}
     {!settings && !error && <p role="status">Đang tải quỹ phút…</p>}

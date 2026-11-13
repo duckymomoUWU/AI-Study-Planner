@@ -34,7 +34,7 @@ public final class GoalPlanning {
                 LocalDate day;try {day=LocalDate.parse(e.getKey());} catch(Exception ex){throw bad("dailyMinutes");}
                 var value=e.getValue();
                 if(day.isBefore(goal.startDate()) || !day.isBefore(goal.examDate()) || !value.isIntegralNumber()
-                    || !value.canConvertToInt() || value.intValue()<0 || value.intValue()>goal.minutesPerDay()) throw bad("dailyMinutes");
+                    || !value.canConvertToInt() || value.intValue()<0 || value.intValue()>480) throw bad("dailyMinutes");
                 if(value.intValue()!=goal.minutesPerDay()) budgets.put(day.toString(),value.intValue());
             });
         }
@@ -62,10 +62,7 @@ public final class GoalPlanning {
             if(task.scheduledDate().isBefore(input.startDate())) throw new PlanException(409,"GOAL_UPDATE_CONFLICT","Ngày bắt đầu mới nằm sau một công việc đã lưu. Giữ ngày bắt đầu cũ hoặc điều chỉnh công việc chưa hoàn thành trước.");
             used.merge(task.scheduledDate(),task.estimatedMinutes(),Integer::sum);
         }
-        for(var day:used.entrySet()) {
-            int budget=scope!=null && scope.path("dailyMinutes").has(day.getKey().toString()) ? scope.path("dailyMinutes").get(day.getKey().toString()).asInt() : input.minutesPerDay();
-            if(day.getValue()>budget) throw new PlanException(422,"DAILY_BUDGET_EXCEEDED","Ngày "+day.getKey()+" đã có "+day.getValue()+" phút; không thể giảm quỹ xuống "+budget+" phút khi vẫn còn công việc đã lưu.",Map.of("excessMinutes",day.getValue()-budget,"scheduledDate",day.getKey().toString()));
-        }
+
     }
     static GoalPolicy.GoalInput input(GoalJdbcRepository.StoredGoal goal) {return new GoalPolicy.GoalInput(goal.subject(),goal.topics(),goal.startDate(),goal.examDate(),goal.minutesPerDay());}
     private static RequestValidationException bad(String field) {return new RequestValidationException(List.of(new ErrorDetail(field,"invalid_planning_settings")));}

@@ -30,9 +30,9 @@ class GoalPlanningTest {
         assertEquals("New topic",next.path("selectedTopics").get(0).path("title").asText());
         assertEquals(normalized.path("dailyMinutes"),next.path("dailyMinutes"));
     }
-    @Test void cannotReduceDayBelowSavedWorkOrMoveStartPastSavedHistory() throws Exception {
+    @Test void lowerPreferenceKeepsHistoryButMovingStartPastHistoryIsRejected() throws Exception {
         var saved=List.of(new GoalPolicy.ScheduledTask(today.plusDays(1),30));
-        assertThrows(PlanException.class,()->GoalPlanning.validateExisting(input(60),scope(),saved));
+        assertDoesNotThrow(()->GoalPlanning.validateExisting(input(60),scope(),saved));
         var changed=new GoalPolicy.GoalInput("Math","Algebra",today.plusDays(2),today.plusDays(5),60);
         assertThrows(PlanException.class,()->GoalPlanning.validateExisting(changed,null,saved));
     }

@@ -65,11 +65,11 @@ class GoalPolicyTest {
     }
 
     @Test
-    void updateRejectsCombinedDailyTaskDurationBeyondNewBudget() {
+    void updateAllowsWorkAboveTheSubjectPreference() {
         var tasks = List.of(new GoalPolicy.ScheduledTask(TODAY.plusDays(1), 60),
                             new GoalPolicy.ScheduledTask(TODAY.plusDays(1), 50));
         var errors = GoalPolicy.validateUpdate(goal(TODAY, TODAY.plusDays(10), 100), tasks, TODAY);
-        assertTrue(hasCode(errors, "daily_budget_exceeded"));
+        assertFalse(hasCode(errors, "daily_budget_exceeded"));
     }
 
     @Test
@@ -99,11 +99,11 @@ class GoalPolicyTest {
     }
 
     @Test
-    void dailyTotalEqualToBudgetIsAllowedAndOneMinuteOverIsRejected() {
+    void subjectPreferenceIsNotAHardTaskBudget() {
         var day = TODAY.plusDays(2);
         var tasks = List.of(new GoalPolicy.ScheduledTask(day, 50), new GoalPolicy.ScheduledTask(day, 50));
         assertTrue(GoalPolicy.validateUpdate(goal(TODAY, TODAY.plusDays(10), 100), tasks, TODAY).isEmpty());
-        assertTrue(hasCode(GoalPolicy.validateUpdate(goal(TODAY, TODAY.plusDays(10), 99), tasks, TODAY),
+        assertFalse(hasCode(GoalPolicy.validateUpdate(goal(TODAY, TODAY.plusDays(10), 99), tasks, TODAY),
                 "daily_budget_exceeded"));
     }
 
@@ -118,10 +118,7 @@ class GoalPolicyTest {
         var deadline = errors.stream().filter(e -> e.code().equals("task_on_or_after_exam_date")).findFirst().orElseThrow();
         assertTrue(deadline.message().contains("Ôn chương 3"));
         assertTrue(deadline.message().contains(exam.plusDays(1).toString()));
-        var budget = errors.stream().filter(e -> e.code().equals("daily_budget_exceeded")).findFirst().orElseThrow();
-        assertTrue(budget.message().contains(busyDay.toString()));
-        assertTrue(budget.message().contains("120"));
-        assertTrue(budget.message().contains("20 phút"));
+        assertFalse(hasCode(errors, "daily_budget_exceeded"));
     }
 
     @Test

@@ -80,16 +80,6 @@ public final class GoalPolicy {
             }
             minutesByDate.merge(task.scheduledDate(), (long) task.estimatedMinutes(), Long::sum);
         }
-        if (goal.minutesPerDay() != null && goal.minutesPerDay() >= 15 && goal.minutesPerDay() <= 480) {
-            for (var day : new java.util.TreeMap<>(minutesByDate).entrySet()) {
-                if (day.getValue() > goal.minutesPerDay()) {
-                    errors.add(new Violation("minutesPerDay", "daily_budget_exceeded",
-                            "Ngày " + day.getKey() + " có " + day.getValue() + " phút công việc, vượt ngân sách mới "
-                                    + goal.minutesPerDay() + " phút (vượt " + (day.getValue() - goal.minutesPerDay())
-                                    + " phút). Hãy giảm công việc ngày đó hoặc tăng ngân sách."));
-                }
-            }
-        }
         return List.copyOf(errors);
     }
 

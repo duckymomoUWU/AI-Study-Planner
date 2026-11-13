@@ -1,5 +1,7 @@
 # Quỹ thời gian chung mỗi ngày
 
+Quy tắc hiện hành: [quỹ chung và mức mong muốn](study-time-preferences.md). Quỹ chung là giới hạn cứng; phút/ngày từng mục tiêu là mức mong muốn cho AI, có xác nhận riêng khi bản nháp vượt mức. Các mô tả giới hạn riêng bên dưới là hợp đồng trước thay đổi này.
+
 Phạm vi PO chấp nhận 2026-11-11: tổng phút của tất cả mục tiêu không vượt thời gian sinh viên dành cho ngày đó. Giới hạn riêng từng mục tiêu vẫn áp dụng. Quỹ chung là tổng phút theo ngày, không phải khung giờ Google Calendar.
 
 ## Cấu hình và chuyển tiếp dữ liệu
