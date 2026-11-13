@@ -9,6 +9,8 @@ import CalendarExportPanel from '../components/CalendarExportPanel.jsx'
 import CalendarSyncPanel from '../components/CalendarSyncPanel.jsx'
 import DailyTasksPage from './DailyTasksPage.jsx'
 import './StudyPlanPage.css'
+import TaskTimeDetails from '../components/TaskTimeDetails.jsx'
+import useTaskStudyTimes from '../hooks/useTaskStudyTimes.js'
 
 const dateLabel = day => new Intl.DateTimeFormat('vi-VN', { day: 'numeric', month: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${day}T12:00:00Z`))
 const weekdayLabel = day => new Intl.DateTimeFormat('vi-VN', { weekday: 'long', timeZone: 'UTC' }).format(new Date(`${day}T12:00:00Z`))
@@ -53,6 +55,7 @@ export default function StudyPlanPage({ initialDate, onNavigateGoals, onNavigate
 
   const visible = visibleStudyDays(loading ? [] : days, goalId)
   const tasks = visible.flatMap(day => day.items)
+  const studyTimes = useTaskStudyTimes(tasks, revision)
   const plannerGoal = goals.find(goal => goal.id === plannerId)
   const refresh = () => setRevision(value => value + 1)
 
@@ -137,7 +140,8 @@ export default function StudyPlanPage({ initialDate, onNavigateGoals, onNavigate
               <span className="study-session-icon" aria-hidden="true">▦</span>
               <div className="study-session-copy"><h3>{task.title}</h3>
                 <p>{goal?.subject || 'Mục tiêu học tập'}{task.topicTitle ? ` · ${task.topicTitle}` : ''}</p>
-                <span>◷ {task.estimatedMinutes} phút{task.completed ? ' · Đã hoàn thành' : ''}</span></div>
+                {task.completed && <span>Đã hoàn thành</span>}
+                <TaskTimeDetails task={task} total={studyTimes.totals[task.id]} error={studyTimes.error} onSaved={refresh} onReload={refresh} /></div>
               <button className={task.completed ? 'study-done' : 'study-primary'} type="button" disabled={Boolean(pending)}
                 aria-label={`${task.completed ? 'Đánh dấu chưa xong' : 'Hoàn thành'}: ${task.title}`} onClick={() => complete(task)}>
                 {pending === task.id ? 'Đang lưu…' : task.completed ? '✓ Đã xong' : 'Hoàn thành'}</button>

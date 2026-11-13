@@ -5,6 +5,8 @@ import { describeTaskError } from '../lib/taskErrors.js'
 import { Badge } from '../components/ui/badge.jsx'
 import { Checkbox } from '../components/ui/checkbox.jsx'
 import './DailyTasksPage.css'
+import TaskTimeDetails from '../components/TaskTimeDetails.jsx'
+import useTaskStudyTimes from '../hooks/useTaskStudyTimes.js'
 
 function getLocalDateString(d = new Date()) {
   const year = d.getFullYear()
@@ -33,6 +35,7 @@ function offsetDate(dateStr, days) {
 export default function DailyTasksPage({ onBack, onNavigateGoals, initialDate, onNavigateTimer }) {
   const [selectedDate, setSelectedDate] = useState(() => initialDate || getLocalDateString())
   const [tasksData, setTasksData] = useState({ items: [], totalEstimatedMinutes: 0, completedCount: 0, totalCount: 0, remainingCount: 0 })
+  const studyTimes = useTaskStudyTimes(tasksData.items)
   const [overdueTasks, setOverdueTasks] = useState([])
   const [goals, setGoals] = useState([])
   const [loading, setLoading] = useState(true)
@@ -420,8 +423,9 @@ export default function DailyTasksPage({ onBack, onNavigateGoals, initialDate, o
                   <div className="task-meta">
                     <span className="task-subject-tag">{subjectByGoal[task.goalId] || 'Mục tiêu ôn tập'}</span>
                     {task.topicTitle && <span>Chủ đề: {task.topicTitle}</span>}
-                    <span className="task-duration">⏱️ {task.estimatedMinutes} phút</span>
                   </div>
+                  <TaskTimeDetails task={task} total={studyTimes.totals[task.id]} error={studyTimes.error}
+                    onSaved={() => refreshData(selectedDate)} onReload={() => refreshData(selectedDate)} />
                 </div>
 
                 <div className="task-actions">

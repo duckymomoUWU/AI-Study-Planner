@@ -47,6 +47,19 @@ public class StudySessionRepository {
     public record Receipt(String fingerprint, String responseJson) {}
 
     public record StudyTime(long completedSessionCount, long totalFocusSeconds) {}
+    public record TaskStudyTime(UUID taskId, long completedSessionCount, long totalFocusSeconds) {}
+
+    public List<TaskStudyTime> taskStudyTimes(UUID owner, List<UUID> taskIds) {
+        return jdbc.query("""
+                SELECT t.id, count(s.id) AS sessions,
+                       COALESCE(sum(s.accumulated_focus_seconds),0) AS seconds
+                  FROM study_tasks t JOIN study_goals g ON g.id=t.goal_id
+                  LEFT JOIN study_sessions s ON s.task_id=t.id AND s.user_id=:owner AND s.status='COMPLETED'
+                 WHERE g.user_id=:owner AND t.id IN (:tasks)
+                 GROUP BY t.id ORDER BY t.id
+                """, new MapSqlParameterSource("owner", owner).addValue("tasks", taskIds),
+                (rs,n) -> new TaskStudyTime(rs.getObject("id",UUID.class),rs.getLong("sessions"),rs.getLong("seconds")));
+    }
 
     private static Instant instant(OffsetDateTime value) {
         return value == null ? null : value.toInstant();

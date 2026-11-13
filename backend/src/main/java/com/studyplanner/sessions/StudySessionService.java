@@ -72,6 +72,14 @@ public class StudySessionService {
         return repository.studyTime(owner, goalId);
     }
 
+    @Transactional(readOnly = true)
+    public List<StudySessionRepository.TaskStudyTime> taskStudyTimes(UUID owner, List<UUID> ids) {
+        var distinct = ids.stream().distinct().toList();
+        var totals = repository.taskStudyTimes(owner, distinct);
+        if (totals.size() != distinct.size()) throw StudySessionException.taskNotFound();
+        return totals;
+    }
+
     @Transactional
     public WriteResult start(UUID owner, UUID key, StudySessionRequest.Start request) {
         repository.lockOwner(owner);

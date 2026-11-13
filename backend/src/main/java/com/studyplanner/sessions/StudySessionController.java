@@ -36,6 +36,17 @@ public class StudySessionController {
         return ApiResponse.of(service.active(owner(principal)));
     }
 
+    @GetMapping("/study-sessions/task-totals")
+    public ApiResponse<List<StudySessionRepository.TaskStudyTime>> taskTotals(
+            @AuthenticationPrincipal AppUserPrincipal principal, @RequestParam String taskIds) {
+        UUID owner = owner(principal);
+        String[] values = taskIds.split(",", -1);
+        if (values.length > 100) throw new com.studyplanner.api.RequestValidationException(List.of(
+                new com.studyplanner.api.ApiErrorResponse.ErrorDetail("taskIds", "out_of_range", "Tối đa 100 công việc mỗi lần.")));
+        var ids = java.util.Arrays.stream(values).map(value -> StudySessionRequest.uuid(value, "taskIds")).toList();
+        return ApiResponse.of(service.taskStudyTimes(owner, ids));
+    }
+
     /** Body: {"taskId"}. 201 for a new session, 200 when the same Idempotency-Key replays it. */
     @PostMapping("/study-sessions")
     public ResponseEntity<ApiResponse<StudySessionService.SessionView>> start(

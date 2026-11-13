@@ -542,4 +542,47 @@ class StudySessionApiPostgresIntegrationTest {
         assertEquals(0, jdbc.queryForObject("SELECT accumulated_focus_seconds FROM study_sessions WHERE id=?::uuid", Integer.class, id));
         assertTrue(jdbc.queryForObject("SELECT ended_at IS NULL FROM study_sessions WHERE id=?::uuid", Boolean.class, id));
     }
+
+    @Test
+    void taskTotalsAccumulateOnlyCompletedSessionsWithoutChangingEstimates() throws Exception {
+        var owner = login("totals@example.test");
+        String goalId = goal(owner, "Totals"), taskId = task(goalId, "Study");
+        for (int n=0; n<2; n++) {
+            String id = data(start(owner, taskId, key()).andExpect(status().isCreated())).path("id").asText();
+            clock.advance(1200);
+            act(owner,id,"FINISH",0,key()).andExpect(status().isOk());
+        }
+        String cancelled=data(start(owner,taskId,key()).andExpect(status().isCreated())).path("id").asText();
+        clock.advance(300); act(owner,cancelled,"CANCEL",0,key()).andExpect(status().isOk());
+        String running=data(start(owner,taskId,key()).andExpect(status().isCreated())).path("id").asText();
+        clock.advance(100);
+        String url="/api/v1/study-sessions/task-totals?taskIds="+taskId;
+        mvc.perform(get(url).session(owner)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].totalFocusSeconds").value(2400))
+            .andExpect(jsonPath("$.data[0].completedSessionCount").value(2));
+        assertEquals(45,jdbc.queryForObject("SELECT estimated_minutes FROM study_tasks WHERE id=?::uuid",Integer.class,taskId));
+        assertFalse(jdbc.queryForObject("SELECT completed FROM study_tasks WHERE id=?::uuid",Boolean.class,taskId));
+        var other=login("totals-other@example.test");
+        mvc.perform(get(url).session(other)).andExpect(status().isNotFound());
+        mvc.perform(get(url)).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/study-sessions/task-totals?taskIds=invalid").session(owner)).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/v1/study-sessions/task-totals?taskIds="+String.join(",",java.util.Collections.nCopies(101,taskId))).session(owner)).andExpect(status().isBadRequest());
+        act(owner,running,"CANCEL",0,key()).andExpect(status().isOk());
+    }
+
+    @Test
+    void changingEstimateChecksSharedBudgetAndPreservesStudiedTime() throws Exception {
+        var owner=login("estimate@example.test");
+        String goalId=goal(owner,"Estimate"),taskId=task(goalId,"Study");
+        jdbc.update("UPDATE app_users SET study_daily_minutes=60 WHERE email=?","estimate@example.test");
+        String id=data(start(owner,taskId,key()).andExpect(status().isCreated())).path("id").asText();
+        clock.advance(1200); act(owner,id,"FINISH",0,key()).andExpect(status().isOk());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/tasks/"+taskId).session(owner).with(csrf())
+            .contentType(MediaType.APPLICATION_JSON).content("{\"estimatedMinutes\":40}" )).andExpect(status().isOk());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/tasks/"+taskId).session(owner).with(csrf())
+            .contentType(MediaType.APPLICATION_JSON).content("{\"estimatedMinutes\":61}" )).andExpect(status().isUnprocessableEntity());
+        assertEquals(40,jdbc.queryForObject("SELECT estimated_minutes FROM study_tasks WHERE id=?::uuid",Integer.class,taskId));
+        mvc.perform(get("/api/v1/study-sessions/task-totals?taskIds="+taskId).session(owner)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].totalFocusSeconds").value(1200));
+    }
 }

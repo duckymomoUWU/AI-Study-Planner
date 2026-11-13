@@ -26,6 +26,7 @@ PO chấp nhận 2026-11-11: có quỹ phút chung theo ngày cho tất cả m�
 - AI chỉ gợi ý, không tự lưu hoặc thay đổi kế hoạch đã xác nhận. Ước lượng thời lượng mang tính tham khảo.
 - AI lỗi thì người dùng vẫn tạo công việc thủ công được.
 - Tiến độ = số công việc hoàn thành / tổng số công việc; không đánh giá mức độ hiểu bài. Chưa có việc thì hiển thị 0/0.
+- Thời lượng dự kiến và thời gian thực học của công việc là hai số độc lập. Thực học cộng các phiên Timer đã hoàn tất, không tính phiên hủy/giờ nghỉ; không tự sửa lịch hoặc suy ra thời gian còn lại. Người dùng chủ động điều chỉnh thời lượng dự kiến và server kiểm tra quỹ chung trước khi lưu.
 
 ## Chất lượng cần đạt khi triển khai tính năng
 - Kiểm tra quyền sở hữu ở server trên mọi thao tác dữ liệu cá nhân.

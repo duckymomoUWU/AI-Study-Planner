@@ -222,3 +222,7 @@ No browser/real Gemini claim, no secret changes or push.
 ## Timer task completion (2026-11-13)
 
 [Evidence](../../docs/plans/completed/timer-task-completion-2026-11-13.md): frontend lint, 142/142 tests and build passed. SSR smoke and live isolated preview API flow passed (FINISH does not mark tasks; explicit true persists and repeats safely). Browser interaction not verified. Backend unchanged; no full backend rerun or secret changes.
+
+## Planned versus actual task time (2026-11-13)
+
+[Evidence](../../docs/plans/completed/planned-actual-study-time-2026-11-13.md): frontend lint, 145/145 tests and build passed. Full backend test with all four integration flags on disposable study_planner_test: 411 executions, 0 failures/errors, 3 optional PDF skips. Separate skipTests verify packaged. Live synthetic preview totals/cancel/budget-edits passed. No browser interaction claim, schema or secret changes.

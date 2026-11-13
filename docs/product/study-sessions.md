@@ -82,3 +82,7 @@ Test PostgreSQL gồm: 6 yêu cầu bắt đầu đồng thời với key khác 
 ## Explicit completion after Timer (2026-11-13)
 
 The integrated Timer UI now offers task completion only after a saved COMPLETED session and a fresh incomplete-task read. Confirm uses the existing task PATCH with completed=true; defer writes nothing. Already completed/deleted tasks and cancelled sessions do not prompt. FINISH itself still never changes tasks. Task write failures retain the session and allow retry. [Evidence](../plans/completed/timer-task-completion-2026-11-13.md).
+
+## Per-task planned and actual time
+
+GET /api/v1/study-sessions/task-totals?taskIds=<UUIDs> returns owner-scoped totals for up to 100 tasks, including zero rows. Only COMPLETED sessions count. UI displays estimated minutes separately and permits explicit edits through the existing budget-checked task PATCH; no automatic estimate/remaining-time changes. [Contract and evidence](../plans/completed/planned-actual-study-time-2026-11-13.md).
