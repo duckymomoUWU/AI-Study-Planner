@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import useLandingReveal from '../hooks/useLandingReveal.js'
 import studyStillLife from '../assets/landing-study-still-life.png'
 import './LandingPage.css'
 
@@ -61,13 +62,12 @@ function HeroShowcase() {
     if (!playing || paused || reducedMotion) return
     const timer = setInterval(() => {
       if (document.visibilityState === 'visible') setSlide(value => (value + 1) % 3)
-    }, 6500)
+    }, 5000)
     return () => clearInterval(timer)
-  }, [playing, paused, reducedMotion])
-  function choose(value) { setPlaying(false); setSlide((value + 3) % 3) }
+  }, [playing, paused, reducedMotion, slide])
+  function choose(value) { setSlide((value + 3) % 3) }
   return <div className="landing-hero-art" role="region" aria-roledescription="trình chiếu" aria-label="Khám phá Study Planner"
-    onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}
-    onFocusCapture={() => setPaused(true)} onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false) }}>
+    onFocusCapture={event => { if (event.target.matches(':focus-visible')) setPaused(true) }} onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false) }}>
     <div className="landing-hero-stage" aria-live={playing && !paused && !reducedMotion ? 'off' : 'polite'}>
       <div className="landing-hero-slide" key={slide} role="group" aria-roledescription="cảnh" aria-label={`${slide + 1} / 3: ${titles[slide]}`}>
         {slide === 0 ? <><img className="landing-still-life" src={studyStillLife} width="1254" height="1254" fetchPriority="high" alt="Sách xanh rêu, sổ mở và nhành lá trên nền kem" /><div className="landing-floating-note"><span className="landing-note-icon" aria-hidden="true">▧</span><div><strong>Kế hoạch ôn tập</strong><p>Đề cương · Chủ đề · Ngày thi</p></div></div></> : slide === 1 ? <SchedulePreview /> : <ProgressPreview />}
@@ -77,11 +77,13 @@ function HeroShowcase() {
   </div>
 }
 export default function LandingPage({ currentUser, checkingAuth, onStart, onLogin, onWorkspace }) {
+  const rootRef = useRef(null)
+  useLandingReveal(rootRef)
   const [menuOpen, setMenuOpen] = useState(false)
   const links = [['#landing-steps', 'Cách bắt đầu'], ['#landing-features', 'Tính năng'], ['#landing-faq', 'Câu hỏi thường gặp']]
   const startButton = (label = 'Bắt đầu lập kế hoạch') => <button type="button" className="button button--primary landing-cta" disabled={checkingAuth} onClick={onStart}>{label}<span aria-hidden="true">↗</span></button>
   const brand = <><span className="landing-brand-mark" aria-hidden="true">s<span>✦</span></span><span>study<b>planner</b></span></>
-  return <div className="landing-page">
+  return <div className="landing-page" ref={rootRef}>
     <a className="skip-link" href="#landing-main">Đến nội dung chính</a>
     <header className="landing-nav"><div className="landing-nav-inner"><a className="landing-brand" href="#landing" aria-label="Study Planner — trang chủ">{brand}</a>
       <nav className="landing-desktop-nav" aria-label="Điều hướng giới thiệu">{links.map(([href, label]) => <a key={href} href={href}>{label}</a>)}</nav>

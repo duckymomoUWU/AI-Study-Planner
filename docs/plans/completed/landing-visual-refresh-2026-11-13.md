@@ -9,9 +9,9 @@ returned 403, so no claim of observing its exact motion or rendered mobile layou
 
 - New editorial hero, local Lora headings and existing Be Vietnam Pro body/theme.
 - Original generated study still-life, floating accents and three hero scenes
-  (still-life, schedule, weekly progress). Rotation every 6.5 seconds, previous/next,
-  individual scene buttons and pause/play. Manual selection stops automatic rotation;
-  hover/focus pauses it, hidden tabs do not advance, reduced-motion disables rotation
+  (still-life, schedule, weekly progress). Rotation every 5 seconds, previous/next,
+  individual scene buttons and pause/play. Manual selection resets the interval and keeps rotation enabled;
+  keyboard focus pauses it, hidden tabs do not advance, reduced-motion disables rotation
   and floating/entrance animations.
 - Three onboarding steps, alternating schedule/shared-budget/progress previews,
   six native expandable FAQs, sticky navigation, mobile menu and final signup CTA.
@@ -48,3 +48,6 @@ Final image-generation prompt:
 http://127.0.0.1:5173/#landing — hard refresh. Check rotation/pause, manual selection,
 reduced-motion, menu at 360px, FAQ expansion and signup/login for a guest, then test
 anchors and Go to Overview with an authenticated account.
+## Scroll reveal follow-up
+
+Landing sections now fade in and rise 22px on first viewport entry (700ms), with 100ms stagger for cards. Content is visible by default without IntersectionObserver or with reduced-motion; keyboard focus reveals its section immediately. Observer/listeners clean up on unmount. Final lint, build and SSR render smoke passed; actual scrolling in a browser remains unverified.

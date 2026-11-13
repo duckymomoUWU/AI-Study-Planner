@@ -56,6 +56,12 @@
 .landing-carousel-dots .landing-dot-active span{width:18px;border-radius:6px;background:var(--primary)}
 .landing-carousel-controls .landing-carousel-play{font-size:15px;margin-left:6px}
 @keyframes landing-float{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-11px) rotate(.4deg)}}
+@media(prefers-reduced-motion:no-preference){
+ .landing-page .landing-reveal{transition:opacity .7s ease var(--reveal-delay,0ms),transform .7s cubic-bezier(.2,.65,.3,1) var(--reveal-delay,0ms)}
+ .landing-page .landing-reveal[data-reveal="pending"]{opacity:0;transform:translateY(22px)}
+ .landing-page .landing-reveal[data-reveal="visible"]{opacity:1;transform:translateY(0)}
+ .landing-page .landing-reveal:focus-within{opacity:1;transform:none;transition:none}
+}
 @keyframes landing-card-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
 @keyframes landing-scene-enter{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 @media(prefers-reduced-motion:no-preference){
