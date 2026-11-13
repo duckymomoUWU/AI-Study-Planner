@@ -6,6 +6,7 @@ import AuthPage from './pages/AuthPage.jsx'
 import LandingPage from './pages/LandingPage.jsx'
 import StudyTimerPage from './pages/StudyTimerPage.jsx'
 import { getCurrentUser, logout } from './lib/auth.js'
+import { extractSafeRedirect } from './lib/navigation.js'
 import './App.css'
 import './theme.css'
 
@@ -36,6 +37,7 @@ function parseHash(user = null) {
     return { page: 'timer', taskId }
   }
   if (clean === '#timer') return { page: 'timer', taskId }
+  if (clean === '#recall') return { page: 'recall', taskId: null }
   if (clean === '#landing') return { page: 'landing', taskId: null }
   if (clean === '#auth' || clean === '#login' || clean === '#register') return { page: 'auth', taskId: null }
   if (clean === '#goals') return { page: 'goals', taskId: null }
@@ -159,8 +161,9 @@ export default function App() {
       localStorage.setItem('ai_study_planner_user', JSON.stringify(user))
     }
     setCurrentUser(user)
-    // LND-01-B: after auth success open goals without losing session
-    setActivePage('goals')
+    // Secure redirect: only allow internal allowlisted routes, preventing Open Redirect
+    const targetRoute = extractSafeRedirect(window.location.hash || window.location.search, 'goals')
+    setActivePage(targetRoute)
   }
 
   // Navigation handlers complying with contract
@@ -178,8 +181,9 @@ export default function App() {
     }
   }
 
-  const openAuth = () => {
-    window.location.hash = '#login'
+  const openAuth = (redirectTarget = null) => {
+    const redirectQuery = redirectTarget ? `?redirect=${encodeURIComponent(redirectTarget)}` : ''
+    window.location.hash = `#login${redirectQuery}`
     setActivePageState('auth')
   }
 
@@ -316,6 +320,7 @@ export default function App() {
               {activePage === 'overview' && 'Không gian học tập'}
               {activePage === 'auth' && 'Xác thực tài khoản'}
               {activePage === 'timer' && 'Phiên học'}
+              {activePage === 'recall' && 'Ôn tập chủ động'}
             </span>
 
             {/* Top-Right Actions: Avatar Icon & Auth */}
@@ -427,9 +432,41 @@ export default function App() {
                 key={timerTaskId || 'timer-default'}
                 currentUser={currentUser}
                 initialTaskId={timerTaskId}
-                onNavigateAuth={openAuth}
+                onNavigateAuth={() => openAuth('timer')}
                 onNavigateGoals={openGoals}
               />
+            ) : activePage === 'recall' ? (
+              !currentUser ? (
+                <section className="overview-panel" style={{ padding: '32px', textAlign: 'center' }}>
+                  <h2>Ôn tập chủ động (Active Recall)</h2>
+                  <p style={{ color: 'var(--muted)', marginTop: '8px' }}>
+                    Bạn cần đăng nhập để sử dụng tính năng ôn tập bằng thẻ ghi nhớ trích xuất từ giáo trình.
+                  </p>
+                  <button
+                    type="button"
+                    className="button button--primary"
+                    style={{ marginTop: '16px' }}
+                    onClick={() => openAuth('recall')}
+                  >
+                    Đăng nhập ngay
+                  </button>
+                </section>
+              ) : (
+                <section className="overview-panel" style={{ padding: '32px', textAlign: 'center' }}>
+                  <h2>Ôn tập chủ động (Active Recall)</h2>
+                  <p style={{ color: 'var(--muted)', marginTop: '8px' }}>
+                    Tính năng tạo flashcard và trích dẫn nội dung minh bạch từ giáo trình đang được đồng bộ cho Sprint 4.
+                  </p>
+                  <button
+                    type="button"
+                    className="button button--primary"
+                    style={{ marginTop: '16px' }}
+                    onClick={openGoals}
+                  >
+                    Xem mục tiêu học tập ↗
+                  </button>
+                </section>
+              )
             ) : (
               <OverviewPage
                 key={currentUser?.id || currentUser?.email || 'guest'}

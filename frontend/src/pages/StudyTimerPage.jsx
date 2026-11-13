@@ -8,7 +8,7 @@ import {
   listStudySessions,
   startSession,
 } from '../lib/studySessions.js'
-import { listTasksByDate } from '../lib/tasks.js'
+import { listTasksByDate, listOverdueTasks } from '../lib/tasks.js'
 import { listGoals } from '../lib/goals.js'
 import { vietnamToday } from '../lib/goalPlanning.js'
 import './StudyTimerPage.css'
@@ -62,7 +62,8 @@ export default function StudyTimerPage({ currentUser, initialTaskId, onNavigateA
         setDisplayRemaining(rem)
         autoFinishTriggeredRef.current = active.focusComplete || rem <= 0
       } else {
-        setSession(null)
+        // Retain completed state on tab refocus instead of clearing UI prematurely
+        setSession(prev => (prev?.status === 'COMPLETED' || prev?.focusComplete ? prev : null))
       }
     } catch {
       // Non-fatal background sync
@@ -103,7 +104,8 @@ export default function StudyTimerPage({ currentUser, initialTaskId, onNavigateA
           setDisplayRemaining(rem)
           autoFinishTriggeredRef.current = active.focusComplete || rem <= 0
         } else {
-          setSession(null)
+          // Retain completed state instead of clearing UI prematurely
+          setSession(prev => (prev?.status === 'COMPLETED' || prev?.focusComplete ? prev : null))
         }
       } catch (err) {
         if (ignore || err.name === 'AbortError') return
@@ -116,8 +118,9 @@ export default function StudyTimerPage({ currentUser, initialTaskId, onNavigateA
 
       try {
         const today = vietnamToday()
-        const [dayData, goalsData] = await Promise.all([
+        const [dayData, overdueData, goalsData] = await Promise.all([
           listTasksByDate(today, { signal: controller.signal }).catch(() => ({ items: [] })),
+          listOverdueTasks({ signal: controller.signal }).catch(() => []),
           listGoals({ signal: controller.signal }).catch(() => []),
         ])
         if (ignore) return
@@ -125,10 +128,18 @@ export default function StudyTimerPage({ currentUser, initialTaskId, onNavigateA
         for (const g of goalsData) {
           goalSubjectMap[g.id] = g.subject || g.title
         }
-        const tasks = (dayData?.items || []).map(t => ({
-          ...t,
-          subject: goalSubjectMap[t.goalId] || 'Môn học',
-        }))
+        const combined = [...(dayData?.items || []), ...(Array.isArray(overdueData) ? overdueData : [])]
+        const seen = new Set()
+        const tasks = []
+        for (const t of combined) {
+          if (t && t.id && !seen.has(t.id)) {
+            seen.add(t.id)
+            tasks.push({
+              ...t,
+              subject: goalSubjectMap[t.goalId] || 'Môn học',
+            })
+          }
+        }
         setAvailableTasks(tasks)
         if (initialTaskId) {
           setSelectedTaskId(initialTaskId)
@@ -666,6 +677,11 @@ export default function StudyTimerPage({ currentUser, initialTaskId, onNavigateA
                   onChange={e => setSelectedTaskId(e.target.value)}
                   disabled={isSubmitting}
                 >
+                  {selectedTaskId && !availableTasks.some(t => t.id === selectedTaskId) && (
+                    <option value={selectedTaskId}>
+                      [Công việc được chọn từ lịch] (ID: {selectedTaskId})
+                    </option>
+                  )}
                   {availableTasks.map(t => (
                     <option key={t.id} value={t.id}>
                       [{t.subject}] {t.title} ({t.estimatedMinutes} phút)
