@@ -1,42 +1,43 @@
 # AI Study Planner
 
-Ứng dụng lập kế hoạch ôn tập từ đề cương: chọn chủ đề, đặt ngày thi và thời gian học, xem kế hoạch AI đề xuất, xác nhận rồi theo dõi việc học mỗi ngày.
+Ứng dụng giúp sinh viên chuyển đề cương, ngày thi và quỹ thời gian thành kế hoạch ôn tập,
+học theo từng công việc và theo dõi tiến độ.
 
-## Chức năng hiện có
+## Chức năng
 
-- Đăng ký/đăng nhập với session, CSRF và quyền sở hữu dữ liệu.
-- Tạo/sửa/xóa mục tiêu; mục tiêu mới không bắt đầu trong quá khứ.
-- Đọc PDF/DOCX/văn bản, rà chủ đề và ngày thi có nguồn trước khi áp dụng.
-- AI tạo bản nháp theo chủ đề và quỹ phút; chỉ xác nhận mới lưu công việc.
-- Tổng quan lấy dữ liệu thật; xem lịch tuần/ngày, lọc mục tiêu, theo dõi hoàn thành.
-- Xuất lịch một chiều sang Google Calendar: OAuth, né giờ bận/ăn/ngủ/nghỉ, xem trước, xác nhận và chống bản sao khi thử lại.
-- Giao diện kem–xanh rêu, phông Be Vietnam Pro hỗ trợ tiếng Việt. Trang lịch mẫu đã được gỡ.
+- Landing riêng; đăng ký/đăng nhập, session và dữ liệu theo tài khoản.
+- Đọc đề cương PDF/DOCX/TXT/MD, rà chủ đề và ngày thi; hỗ trợ nhập tay.
+- AI tạo bản nháp để người dùng chỉnh và xác nhận; lưu phần đã xếp, giữ việc chưa xếp.
+- Quỹ thời gian chung/ngày, mức mong muốn theo môn; lịch tuần/ngày và thao tác công việc.
+- Timer/Pomodoro, lịch sử phiên học và thời gian thực học; xác nhận hoàn thành riêng.
+- Active Recall: tài liệu → bộ thẻ nháp → chỉnh/xác nhận → tự đánh giá Nhớ/Chưa nhớ.
+- Tiến độ theo công việc, mục tiêu và tuần.
+- Google Calendar: xem trước và xuất lịch; cập nhật/xóa một chiều sau khi đã liên kết sự kiện.
 
-## Công nghệ và cấu hình
+Gemini và Google Calendar cần cấu hình riêng. Chạy được giao diện không đồng nghĩa đã
+cấu hình provider hoặc đã kiểm tra toàn bộ trải nghiệm; xem [trạng thái](docs/status.md).
 
-Backend: Java 21, Spring Boot, Spring Security, Maven 3.9+, PostgreSQL và Flyway. Frontend: React, Vite, JavaScript/CSS. Compose dùng PostgreSQL 17; runtime portable local đã kiểm tra dùng PostgreSQL 16.4.
+## Bắt đầu
 
-Backend đọc `.env` tại root khi chạy từ root hoặc `backend/`. Chỉ `.env.example` chứa cấu trúc cấu hình được chia sẻ qua Git; Gemini key, OAuth secret và khóa mã hóa token không nằm trong frontend/Git.
+1. Đọc [setup.md](setup.md), tạo `.env` riêng từ `.env.example` và chuẩn bị PostgreSQL.
+2. Chạy backend: `mvn -f backend/pom.xml spring-boot:run`.
+3. Trong `frontend/`: `npm ci`, sau đó `npm run dev`.
+4. Mở `http://127.0.0.1:5173`; nếu backend dùng cổng khác 8080, đặt `BACKEND_URL`
+   trong `frontend/.env.local` theo setup.
 
-## Bắt đầu và tài liệu
+## Công nghệ
 
-- [Cài đặt, chạy app và cấu hình Google OAuth](setup.md).
-- [Bản đồ tài liệu](docs/README.md) và [quy trình Harness](docs/WORKFLOW.md).
-- [Yêu cầu sản phẩm](requirements.md).
-- [Lệnh kiểm thử và giới hạn xác minh](.agents/harness/README.md).
-- [Bàn giao core và Calendar đến 2026-11-11](docs/plans/completed/core-study-calendar-2026-11-11.md).
-- [Frontend](frontend/README.md), [hợp đồng AI/scoped planning](docs/product/syllabus-revision-plan.md), [Google Calendar](docs/product/google-calendar.md).
+React + Vite, JavaScript/CSS; Java 21, Spring Boot, Spring Security, JDBC, Maven;
+PostgreSQL và Flyway. Theme kem–xanh rêu; font được lưu trong frontend.
 
-## Repository
+## Làm việc nhóm
 
-```text
-frontend/                 React + Vite
-backend/                  Spring Boot, migrations, test suites
-.agents/harness/README.md  Canonical verification commands and gaps
-docs/                     Product contracts, workflow and delivery records
-setup.md                  Canonical environment and startup instructions
-compose.yml               PostgreSQL service
-.env.example              Configuration template without real credentials
-```
+- [Mục lục tài liệu](docs/README.md)
+- [Yêu cầu sản phẩm](requirements.md)
+- [Quy trình nhận việc và bàn giao](docs/WORKFLOW.md)
+- [Hợp đồng chức năng](docs/product/README.md) và [quy tắc backend](docs/backend-api-rules.md)
+- [Chạy test](.agents/harness/README.md)
+- [Quy ước cho công cụ AI](AGENTS.md)
 
-Trạng thái code local, test tự động, kết quả người dùng quan sát và trạng thái GitHub được ghi riêng trong bản bàn giao. Không suy ra đã push, CI đã chạy hoặc production đã sẵn sàng từ việc app chạy được trên máy local.
+Không commit `.env`, token, mật khẩu hoặc tài liệu học cá nhân. Test tích hợp chỉ chạy
+trên database kiểm thử riêng, không chạy trên database demo hay dữ liệu người dùng.

@@ -1,5 +1,6 @@
 package com.studyplanner.recall;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -7,22 +8,35 @@ import java.net.http.HttpResponse;
 import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+/**
+ * Turns a saved source into flashcards with Gemini. It never invents cards: a missing key, an unreachable
+ * provider or an unusable answer is an error the student can see and retry, and every card keeps only a quote
+ * that really occurs in the source. Logs carry counts and status codes, never document text or provider bodies.
+ */
 @Service
 public class GeminiRecallService {
 
     private static final Logger log = LoggerFactory.getLogger(GeminiRecallService.class);
+
+    /** Fewer valid cards than this is not a deck worth saving (contract: 5 to 20 cards). */
+    static final int MIN_CARDS = 5;
+    static final int QUESTION_MAX = 300;
+    static final int ANSWER_MAX = 2000;
+    static final int QUOTE_MAX = 500;
 
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
@@ -73,33 +87,34 @@ public class GeminiRecallService {
             String title,
             int count
     ) {
-        if (count < 5 || count > 20) {
+        if (count < MIN_CARDS || count > 20) {
             count = 10;
         }
-
         if (apiKey.isBlank()) {
-            throw RecallException.aiUnavailable("Gemini API key is not configured.");
+            log.warn("Gemini API key is not configured; card generation is unavailable.");
+            throw RecallException.aiUnavailable(
+                    "Dịch vụ AI chưa được cấu hình trên máy chủ. Nguồn của bạn vẫn được giữ.");
+        }
+        String modelText = callGemini(materialText, pages, title, count);
+        List<GeneratedCard> cards = validateCards(modelText, materialText, pages, count);
+
+        if (!cards.isEmpty() && cards.stream().noneMatch(c -> c.qualityWarning() == null)) {
+            log.warn("All {} generated cards failed quality check", cards.size());
+            throw RecallException.allCardsFailedQuality("Các thẻ được tạo chưa đáp ứng tiêu chí chất lượng. Vui lòng bổ sung hoặc chỉnh sửa tài liệu.");
         }
 
-        try {
-            return callGemini(materialText, pages, title, count);
-        } catch (RecallException re) {
-            log.warn("Gemini card generation returned recall error [{}]: {}", re.getCode(), re.getMessage());
-            throw re;
-        } catch (Exception e) {
-            log.error("Gemini recall call failed: {}", e.getMessage(), e);
-            throw RecallException.aiUnavailable("Không thể kết nối đến dịch vụ tạo flashcard. Vui lòng thử lại sau.");
-        }
+        return cards;
     }
 
-    private List<GeneratedCard> callGemini(
+    /** One request to Gemini; returns the model's JSON text or throws a RecallException describing why not. */
+    private String callGemini(
             String materialText,
             List<RecallTextExtractor.PageText> pages,
             String title,
             int count
-    ) throws Exception {
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/" + modelName
-                + ":generateContent";
+    ) {
+        // The key travels in a header, not in the URL, so it cannot end up in an access log or an exception message.
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/" + modelName + ":generateContent";
 
         String prompt = """
                 Bạn là trợ lý giáo dục chuyên tạo bộ thẻ flashcard Active Recall (ôn tập ngắt quãng) từ tài liệu học tập.
@@ -110,7 +125,7 @@ public class GeminiRecallService {
                 QUY TẮC BẮT BUỘC VỀ CHẤT LƯỢNG CHO MỖI THẺ:
                 1. "question": Câu hỏi cụ thể, rõ ràng, dễ hiểu, CHỈ tập trung vào MỘT kiến thức/khái niệm duy nhất (tối đa 300 ký tự). TUYỆT ĐỐI KHÔNG hỏi mơ hồ, tối nghĩa (ví dụ: không dùng "Nội dung này là gì?", "Ý nghĩa của câu này là gì?").
                 2. "answer": Đáp án chính xác tuyệt đối theo ngữ nghĩa của tài liệu và trích dẫn, ngắn gọn, súc tích (tối đa 2000 ký tự). TUYỆT ĐỐI KHÔNG suy diễn hoặc bổ sung thông tin ngoài tài liệu.
-                3. "quote": Đoạn trích dẫn NGUYÊN VĂN (verbatim quote) từ tài liệu chứng minh đáp án (tối đa 500 ký tự). TUYỆT ĐỐI KHÔNG tự sửa từ ngữ, thêm bớt từ hoặc viết lại câu trích dẫn.
+                3. "quote": Đoạn trích dẫn NGUYÊN VĂN (verbatim quote) từ tài liệu chứng minh đáp án (tối đa 500 ký tự), nằm trong cùng một trang. TUYỆT ĐỐI KHÔNG tự sửa từ ngữ, thêm bớt từ hoặc viết lại câu trích dẫn, và KHÔNG đưa dấu [Trang N] vào trích dẫn.
                 4. "page": Số trang (số nguyên từ 1) chứa đoạn trích dẫn nếu tài liệu có số trang, hoặc null nếu không có trang.
                 5. KHÔNG TRÙNG LẶP: Mỗi thẻ phải kiểm tra một kiến thức khác nhau. TUYỆT ĐỐI KHÔNG tạo các câu hỏi trùng lặp hoặc hỏi cùng một ý theo cách diễn đạt khác.
 
@@ -128,23 +143,19 @@ public class GeminiRecallService {
                     {
                       "question": "Câu hỏi?",
                       "answer": "Câu trả lời.",
-                      "quote": "Đoạn trích nguyên văn có thật trong tài liệu.",
-                      "page": 1
+                      "quote": "Đoạn trích nguyên văn có thật trong tài liệu."
                     }
                   ]
                 }
                 """.formatted(count);
 
         String contextHeader = "=== TÀI LIỆU HỌC TẬP (" + (title != null ? title : "Tài liệu") + ") ===\n\n";
-        String contentToSend = contextHeader + materialText;
-        if (contentToSend.length() > 30000) {
-            contentToSend = contentToSend.substring(0, 30000);
-        }
+        String body = withPageMarkers(materialText, pages);
 
-        Map<String, Object> body = Map.of(
+        Map<String, Object> requestBody = Map.of(
                 "contents", List.of(
                         Map.of("parts", List.of(
-                                Map.of("text", prompt + "\n\n" + contentToSend)
+                                Map.of("text", prompt + "\n\n" + contextHeader + body)
                         ))
                 ),
                 "generationConfig", Map.of(
@@ -153,7 +164,12 @@ public class GeminiRecallService {
                 )
         );
 
-        String jsonBody = objectMapper.writeValueAsString(body);
+        String jsonBody;
+        try {
+            jsonBody = objectMapper.writeValueAsString(requestBody);
+        } catch (JsonProcessingException e) {
+            throw RecallException.aiInvalidResponse("Không dựng được yêu cầu gửi tới AI.");
+        }
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
@@ -168,195 +184,137 @@ public class GeminiRecallService {
             response = getClient().send(request, HttpResponse.BodyHandlers.ofString());
         } catch (HttpTimeoutException te) {
             log.error("Gemini card generation timed out (60s)", te);
-            throw RecallException.aiTimeout("AI hiện phản hồi quá lâu. Vui lòng thử lại sau.");
-        } catch (Exception e) {
-            log.error("Failed to connect to AI provider: {}", e.getMessage(), e);
-            throw RecallException.aiUnavailable("Không thể kết nối đến dịch vụ tạo flashcard. Vui lòng thử lại sau.");
+            throw RecallException.aiTimeout("Yêu cầu sinh câu hỏi AI đã hết thời gian chờ (60s). Vui lòng thử lại.");
+        } catch (IOException e) {
+            log.warn("Gemini request failed: {}", e.getClass().getSimpleName());
+            throw RecallException.aiUnavailable("Không kết nối được dịch vụ AI. Nguồn của bạn vẫn được giữ, hãy thử lại.");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw RecallException.aiUnavailable("Yêu cầu tới dịch vụ AI bị gián đoạn. Hãy thử lại.");
         }
 
-        if (response.statusCode() == 429 || response.statusCode() >= 500) {
-            log.warn("Gemini service error: HTTP {}", response.statusCode());
-            throw RecallException.aiUnavailable("Không thể kết nối đến dịch vụ tạo flashcard. Vui lòng thử lại sau.");
+        int status = response.statusCode();
+        if (status == 429 || status == 503) {
+            log.warn("Gemini service error: HTTP {}", status);
+            throw RecallException.aiUnavailable("Dịch vụ AI hiện đang quá tải hoặc tạm thời không sẵn sàng (" + status + "). Vui lòng thử lại sau.");
+        }
+        if (status == 401 || status == 403) {
+            log.warn("Gemini rejected the request with HTTP {}", status);
+            throw RecallException.aiUnavailable("Dịch vụ AI từ chối yêu cầu (" + status + "). Hãy báo quản trị viên kiểm tra cấu hình.");
+        }
+        if (status != 200) {
+            log.warn("Gemini returned HTTP {}", status);
+            throw RecallException.aiInvalidResponse("Nhà cung cấp AI trả về lỗi HTTP " + status);
         }
 
-        if (response.statusCode() != 200) {
-            log.warn("Gemini returned non-200 status {}", response.statusCode());
-            throw RecallException.aiMalformedResponse("Không thể xử lý kết quả tạo thẻ. Vui lòng thử lại.");
+        try {
+            JsonNode textNode = objectMapper.readTree(response.body()).at("/candidates/0/content/parts/0/text");
+            if (textNode.isMissingNode() || textNode.asText().isBlank()) {
+                log.warn("Gemini response missing text candidate");
+                throw RecallException.aiInvalidResponse("AI không trả về nội dung hợp lệ.");
+            }
+            return textNode.asText();
+        } catch (JsonProcessingException e) {
+            throw RecallException.aiInvalidResponse("AI trả về dữ liệu không đọc được.");
         }
+    }
 
+    /** Pages are labelled in the prompt so the model keeps each quote on one page; the page itself is found by the server. */
+    static String withPageMarkers(String materialText, List<RecallTextExtractor.PageText> pages) {
+        if (pages == null || pages.isEmpty()) {
+            return materialText;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (RecallTextExtractor.PageText page : pages) {
+            sb.append("[Trang ").append(page.page()).append("]\n").append(page.text()).append("\n\n");
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Keeps only cards that can be trusted: complete, within the size limits (never cut mid-sentence), a quote that
+     * really occurs in the source, and a question not already asked. The page comes from where the quote is found.
+     */
+    List<GeneratedCard> validateCards(
+            String modelText,
+            String materialText,
+            List<RecallTextExtractor.PageText> pages,
+            int count
+    ) {
         JsonNode root;
         try {
-            root = objectMapper.readTree(response.body());
-        } catch (Exception e) {
-            log.error("AI provider returned invalid JSON body: {}", response.body(), e);
-            throw RecallException.aiMalformedResponse("Không thể xử lý kết quả tạo thẻ. Vui lòng thử lại.");
+            root = objectMapper.readTree(cleanJsonString(modelText));
+        } catch (JsonProcessingException e) {
+            throw RecallException.aiInvalidResponse("AI trả về dữ liệu không đúng định dạng JSON.");
         }
 
-        JsonNode textNode = root.at("/candidates/0/content/parts/0/text");
-        if (textNode.isMissingNode() || textNode.asText().isBlank()) {
-            log.warn("Gemini response missing text candidate");
-            throw RecallException.aiMalformedResponse("Không thể xử lý kết quả tạo thẻ. Vui lòng thử lại.");
-        }
-
-        String rawJson = cleanJsonString(textNode.asText());
-        JsonNode parsed;
-        try {
-            parsed = objectMapper.readTree(rawJson);
-        } catch (Exception e) {
-            log.error("AI candidate text is not valid JSON: {}", rawJson, e);
-            throw RecallException.aiMalformedResponse("Không thể xử lý kết quả tạo thẻ. Vui lòng thử lại.");
-        }
-
-        if (parsed.has("status") && "NO_SUITABLE_CONTENT".equalsIgnoreCase(parsed.get("status").asText())) {
+        if (root.has("status") && "NO_SUITABLE_CONTENT".equalsIgnoreCase(root.get("status").asText())) {
             throw RecallException.noSuitableContent("Không tìm thấy nội dung phù hợp để tạo flashcard.");
         }
 
-        JsonNode cardsArray = parsed.path("cards");
-        if (!cardsArray.isArray()) {
-            throw RecallException.aiMalformedResponse("Không thể xử lý kết quả tạo thẻ. Vui lòng thử lại.");
-        }
-        if (cardsArray.isEmpty()) {
-            throw RecallException.noSuitableContent("Không tìm thấy nội dung phù hợp để tạo flashcard.");
+        JsonNode cardsArray = root.path("cards");
+        if (!cardsArray.isArray() || cardsArray.isEmpty()) {
+            throw RecallException.aiInvalidResponse("AI không trả về danh sách thẻ hợp lệ.");
         }
 
-        List<GeneratedCard> candidates = new ArrayList<>();
-        for (JsonNode cardNode : cardsArray) {
-            String question = cardNode.path("question").asText("").trim();
-            String answer = cardNode.path("answer").asText("").trim();
-            String quote = cardNode.path("quote").asText("").trim();
-            Integer page = cardNode.hasNonNull("page") ? cardNode.get("page").asInt() : null;
+        List<GeneratedCard> valid = new ArrayList<>();
+        Set<String> seenQuestions = new HashSet<>();
+        int incomplete = 0, tooLong = 0, noQuote = 0, duplicate = 0;
+        for (JsonNode node : cardsArray) {
+            String question = RecallTextExtractor.normalizeText(node.path("question").asText("")).trim();
+            String answer = RecallTextExtractor.normalizeText(node.path("answer").asText("")).trim();
+            String rawQuote = RecallTextExtractor.normalizeText(node.path("quote").asText(""));
+            String quote = rawQuote.replaceAll("\\[Trang \\d+\\]", "").trim();
 
             if (question.isEmpty() || answer.isEmpty() || quote.isEmpty()) {
+                incomplete++;
                 continue;
             }
-            if (question.length() > 300) question = question.substring(0, 300);
-            if (answer.length() > 2000) answer = answer.substring(0, 2000);
-            if (quote.length() > 500) quote = quote.substring(0, 500);
+            if (question.length() > QUESTION_MAX || answer.length() > ANSWER_MAX) {
+                tooLong++;
+                continue;
+            }
+            // A cut quote is still a verbatim stretch of the source, so only the quote may be shortened.
+            if (quote.length() > QUOTE_MAX) {
+                quote = quote.substring(0, QUOTE_MAX).trim();
+            }
+            if (!RecallTextExtractor.verifyQuote(materialText, pages, null, quote)) {
+                noQuote++;
+                continue;
+            }
+            if (!seenQuestions.add(RecallTextExtractor.normalizeWhitespace(question).toLowerCase(Locale.ROOT))) {
+                duplicate++;
+                continue;
+            }
+            valid.add(new GeneratedCard(question, answer, quote, RecallTextExtractor.locatePage(pages, quote)));
+            if (valid.size() >= count) {
+                break;
+            }
+        }
+        log.info("Gemini cards: {} returned, {} accepted, {} without a verbatim quote, {} too long, {} duplicate, {} incomplete",
+                cardsArray.size(), valid.size(), noQuote, tooLong, duplicate, incomplete);
 
-            candidates.add(new GeneratedCard(question, answer, quote, page));
+        if (valid.size() < MIN_CARDS) {
+            throw RecallException.aiInvalidResponse("AI chỉ tạo được " + valid.size()
+                    + " thẻ hợp lệ (cần ít nhất " + MIN_CARDS + "). Nguồn của bạn vẫn được giữ, hãy thử tạo lại.");
         }
 
-        if (candidates.isEmpty()) {
-            throw RecallException.noSuitableContent("Không tìm thấy nội dung phù hợp để tạo flashcard.");
-        }
-
-        // Quality evaluation step: check quote existence, question clarity, semantic accuracy, duplicates
+        // Quality evaluation step: evaluate clarity, semantic alignment, duplicate meanings, grounding
         List<RecallQualityValidator.EvaluatedCard> evaluated =
-                RecallQualityValidator.evaluateDeck(candidates, materialText, pages);
+                RecallQualityValidator.evaluateDeck(valid, materialText, pages);
 
         List<GeneratedCard> finalCards = new ArrayList<>();
-        int passedCount = 0;
         for (RecallQualityValidator.EvaluatedCard ec : evaluated) {
-            if (ec.passedQuality()) {
-                passedCount++;
-            }
             finalCards.add(new GeneratedCard(
                     ec.card().question(),
                     ec.card().answer(),
                     ec.card().quote(),
                     ec.card().page(),
-                    ec.warning() // Flagged with warning if quality evaluation detected an issue
+                    ec.warning()
             ));
-        }
-
-        // If ALL cards failed quality check
-        if (!finalCards.isEmpty() && passedCount == 0) {
-            log.warn("All {} generated cards failed quality check", finalCards.size());
-            throw RecallException.allCardsFailedQuality("Các thẻ được tạo chưa đáp ứng tiêu chí chất lượng. Vui lòng bổ sung hoặc chỉnh sửa tài liệu.");
         }
 
         return finalCards;
-    }
-
-    public List<GeneratedCard> generateFallbackCards(
-            String materialText,
-            List<RecallTextExtractor.PageText> pages,
-            int targetCount
-    ) {
-        List<GeneratedCard> candidates = new ArrayList<>();
-        if (materialText == null || materialText.isBlank()) {
-            return candidates;
-        }
-
-        // Split text by sentence terminators
-        String[] sentences = materialText.split("(?<=[.!?\\n])\\s+");
-        for (String raw : sentences) {
-            String sentence = raw.trim();
-            if (sentence.length() < 20) {
-                continue;
-            }
-
-            Integer foundPage = null;
-            if (pages != null && !pages.isEmpty()) {
-                for (RecallTextExtractor.PageText pt : pages) {
-                    if (pt.text() != null && pt.text().contains(sentence)) {
-                        foundPage = pt.page();
-                        break;
-                    }
-                }
-            }
-
-            String question;
-            String answer;
-            String quote = sentence.length() > 500 ? sentence.substring(0, 500) : sentence;
-
-            // Formulate questions based on common Vietnamese patterns
-            if (sentence.contains(" là ") || sentence.contains(" gồm ") || sentence.contains(" bao gồm ")) {
-                String[] parts = sentence.split(" là | gồm | bao gồm ", 2);
-                String subject = parts[0].trim();
-                String predicate = parts.length > 1 ? parts[1].trim() : sentence;
-                question = subject + " là gì hoặc có đặc điểm gì?";
-                answer = predicate;
-            } else {
-                question = "Khái niệm hoặc nội dung nào được đề cập trong: \""
-                        + (sentence.length() > 80 ? sentence.substring(0, 80) + "..." : sentence) + "\"?";
-                answer = sentence;
-            }
-
-            if (question.length() > 300) question = question.substring(0, 300);
-            if (answer.length() > 2000) answer = answer.substring(0, 2000);
-
-            candidates.add(new GeneratedCard(question, answer, quote, foundPage));
-            if (candidates.size() >= targetCount) {
-                break;
-            }
-        }
-
-        // If still fewer than targetCount, synthesize valid slices
-        if (candidates.size() < targetCount && !materialText.isBlank()) {
-            String clean = materialText.replaceAll("\\s+", " ").trim();
-            int step = Math.max(50, clean.length() / Math.max(targetCount, 1));
-            for (int i = 0; i < clean.length() && candidates.size() < targetCount; i += step) {
-                int end = Math.min(clean.length(), i + Math.min(150, step));
-                String slice = clean.substring(i, end).trim();
-                if (slice.length() >= 15) {
-                    candidates.add(new GeneratedCard(
-                            "Ý nghĩa của phần nội dung \"" + (slice.length() > 60 ? slice.substring(0, 60) + "..." : slice) + "\" là gì?",
-                            slice,
-                            slice,
-                            null
-                    ));
-                }
-            }
-        }
-
-        // Quality evaluation step on fallback cards
-        List<RecallQualityValidator.EvaluatedCard> evaluated =
-                RecallQualityValidator.evaluateDeck(candidates, materialText, pages);
-
-        List<GeneratedCard> results = new ArrayList<>();
-        for (RecallQualityValidator.EvaluatedCard ec : evaluated) {
-            String warning = ec.warning() != null ? ec.warning() : "Thẻ tạo tự động dự phòng: Bạn hãy kiểm tra và tinh chỉnh lại câu hỏi trước khi dùng.";
-            results.add(new GeneratedCard(
-                    ec.card().question(),
-                    ec.card().answer(),
-                    ec.card().quote(),
-                    ec.card().page(),
-                    warning
-            ));
-        }
-
-        return results;
     }
 
     private static String cleanJsonString(String raw) {

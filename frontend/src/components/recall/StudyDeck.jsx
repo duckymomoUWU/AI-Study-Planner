@@ -3,14 +3,14 @@ import { Alert, AlertDescription } from '../ui/alert.jsx'
 import { Button } from '../ui/button.jsx'
 import { Progress } from '../ui/progress.jsx'
 import DeleteDeck from './DeleteDeck.jsx'
-import { deckProgress, describeRecallError, firstUnreviewedIndex, isStudyComplete, newKey } from '../../lib/recall.js'
+import { deckProgress, describeRecallError, firstUnreviewedIndex, isStudyComplete, newKey, sourceLabel } from '../../lib/recall.js'
 
 /**
  * Study mode for an active deck: the question first, the answer on request, then the student's own
  * "remembered / forgot" rating. The server stores the self-rating; nothing here is graded by AI.
  * A rating that fails to save stays pending with its Idempotency-Key, so retrying cannot record it twice.
  */
-export default function StudyDeck({ api, deck, initialCards, onDeleted, onUnauthenticated }) {
+export default function StudyDeck({ api, deck, initialCards, sourceKind, onDeleted, onUnauthenticated }) {
   const [cards, setCards] = useState(initialCards)
   const [queue, setQueue] = useState(() => initialCards.map(card => card.id))
   const [position, setPosition] = useState(() => (isStudyComplete(initialCards) ? initialCards.length : firstUnreviewedIndex(initialCards)))
@@ -119,7 +119,7 @@ export default function StudyDeck({ api, deck, initialCards, onDeleted, onUnauth
               <p className="recall-label" ref={answerRef} tabIndex={-1}>Đáp án</p>
               <p className="recall-answer-text">{current.answer}</p>
               {current.source?.quote && (
-                <blockquote className="recall-quote">“{current.source.quote}”<footer>{current.source.page ? `Trang ${current.source.page}` : 'Đoạn dán vào'}</footer></blockquote>
+                <blockquote className="recall-quote">“{current.source.quote}”<footer>{sourceLabel(current.source, sourceKind)}</footer></blockquote>
               )}
               <p className="recall-label" id="recall-rate-label">Bạn có nhớ câu trả lời trước khi xem đáp án không?</p>
               <div className="recall-actions" role="group" aria-labelledby="recall-rate-label">

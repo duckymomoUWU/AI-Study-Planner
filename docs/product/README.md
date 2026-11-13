@@ -1,15 +1,23 @@
-# Product documentation
+# Hợp đồng chức năng
 
-[requirements.md](../../requirements.md) owns accepted product scope and business rules. Contracts below refine those rules; code, tests and runtime evidence establish implementation. Keep startup/environment instructions in [setup.md](../../setup.md), validation commands in [the verification harness](../../.agents/harness/README.md), and historical delivery evidence in [completed plans](../plans/completed/README.md).
+[Yêu cầu sản phẩm](../../requirements.md) xác định phạm vi. Các tài liệu dưới đây mô tả
+API và quy tắc chi tiết; [quy tắc backend](../backend-api-rules.md) áp dụng chung.
+Trạng thái triển khai và giới hạn kiểm chứng nằm ở [status](../status.md).
 
-| Domain | Contract |
+| Chức năng | Tài liệu |
 | --- | --- |
-| Authentication | [ASP-12 guide](../ASP-12-auth-api-guide.md) |
-| Goal CRUD | [ASP-9 goals API](ASP-9-goals-api.md) |
-| Task CRUD and AI draft confirmation | [Integrated tasks and plans](integrated-tasks-and-plans.md) |
-| Task completion and goal progress | [Completion](task-completion.md), [progress](goal-progress.md) |
-| Upload and scoped syllabus planning | [Upload](syllabus-upload.md), [source-backed planning](syllabus-revision-plan.md) |
-| Google Calendar | [OAuth, free time and export](google-calendar.md) |
-| Shared daily study budget | [All-goal capacity and concurrency](shared-study-budget.md) |
+| Đăng ký, đăng nhập, session và CSRF | [Authentication](../ASP-12-auth-api-guide.md) |
+| Tạo/sửa/xóa mục tiêu | [Goal API](ASP-9-goals-api.md) |
+| Công việc thủ công và bản nháp AI cũ | [Tasks và drafts](integrated-tasks-and-plans.md) |
+| Tải đề cương và xác nhận nguồn | [Upload](syllabus-upload.md) |
+| Lập kế hoạch theo chủ đề, lưu một phần, xếp lại | [Scoped planning](syllabus-revision-plan.md) |
+| Quỹ chung/ngày | [Shared budget](shared-study-budget.md) |
+| Mức mong muốn từng môn và đồng ý phần vượt | [Study-time preferences](study-time-preferences.md) |
+| Hoàn thành/mở lại và tiến độ mục tiêu | [Task completion](task-completion.md), [goal progress](goal-progress.md) |
+| Tiến độ theo tuần | [Weekly progress](weekly-progress.md) |
+| Timer, thời gian thực học và chỉnh thời lượng | [Study sessions](study-sessions.md) |
+| Flashcard và đánh giá Nhớ/Chưa nhớ | [Active Recall](active-recall.md) |
+| Google Calendar và đồng bộ sửa/xóa một chiều | [Calendar](google-calendar.md) |
 
-Older verification documents describe their dated runs. Use the current Harness for commands and the [2026-11-11 handoff](../plans/completed/core-study-calendar-2026-11-11.md) for the consolidated implementation and proof limits. Do not duplicate requirements or infer product policy from defaults alone.
+Cách khởi động: [setup](../../setup.md). Cách kiểm thử: [harness](../../.agents/harness/README.md).
+Tài liệu có ngày trong `plans/completed/` và `archive/` là bằng chứng lịch sử, không phải hợp đồng mới.

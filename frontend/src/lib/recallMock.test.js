@@ -247,3 +247,18 @@ test('generateDeck accurately classifies all 6 error causes and formats Vietname
   assert.equal(warned.length, 1)
   assert.equal(warned[0].qualityWarning, 'Đoạn trích dẫn cần đối chiếu lại ngữ nghĩa.')
 })
+
+test('getMaterial returns the text the mock server read, capped at a preview, and 404 for an unknown source', async () => {
+  const api = mock()
+  const short = await api.createTextMaterial({ goalId: 'g1', title: 'Ngắn', content: 'Kiểm thử hộp đen.' })
+  const detail = await api.getMaterial(short.id)
+  assert.equal(detail.preview, 'Kiểm thử hộp đen.')
+  assert.equal(detail.previewTruncated, false)
+  assert.equal(detail.text, undefined, 'the list shape must not carry the whole text')
+  const long = await api.createTextMaterial({ goalId: 'g1', title: 'Dài', content: 'x'.repeat(5000) })
+  const longDetail = await api.getMaterial(long.id)
+  assert.equal(longDetail.preview.length, 1200)
+  assert.equal(longDetail.previewTruncated, true)
+  assert.equal((await api.listMaterials({ goalId: 'g1' })).every(m => m.preview === undefined), true)
+  await assert.rejects(api.getMaterial('nope'), error => error instanceof RecallApiError && error.status === 404)
+})

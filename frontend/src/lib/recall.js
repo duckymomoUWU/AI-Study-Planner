@@ -102,6 +102,13 @@ export function listMaterials(filter = {}, callOptions = {}) {
   return listAll('/materials', filter, callOptions)
 }
 
+/** GET /recall/materials/{id}: the source with the beginning of the text the server read from it. */
+export async function getMaterial(materialId, { signal } = {}) {
+  const { data } = await request(`/materials/${encodeURIComponent(materialId)}`, { signal })
+  if (!data?.id || typeof data.preview !== 'string') throw malformed()
+  return data
+}
+
 /** POST /recall/decks. The key makes a retry of the same attempt return the same deck. */
 export async function generateDeck({ materialId, title, count = COUNT_DEFAULT }, key, { signal } = {}) {
   const { data } = await request('/decks', { method: 'POST', body: { materialId, title, count }, key, signal })
@@ -239,6 +246,38 @@ export function fileToBase64(file) {
   })
 }
 
+// Fixed Vietnamese wording for the upload problems the server reports by issue code. The server's own text is never
+// shown for these: it could be a parser message in English.
+const INPUT_ISSUES = {
+  too_many_pages: 'PDF dài hơn 100 trang. Hãy chọn phần ngắn hơn hoặc tách thành nhiều tệp.',
+  file_too_large: 'Tệp PDF lớn hơn 5 MiB. Hãy chọn tệp nhỏ hơn.',
+  password_protected: 'Tệp PDF có mật khẩu. Hãy bỏ mật khẩu rồi tải lại.',
+  corrupted_pdf: 'Không đọc được tệp PDF. Tệp có thể bị hỏng hoặc không phải PDF.',
+  empty_pdf: 'Tệp PDF đang trống.',
+  invalid_base64: 'Không đọc được nội dung tệp. Hãy chọn lại tệp.',
+  'fileName:too_long': 'Tên tệp quá dài (tối đa 255 ký tự). Hãy đổi tên tệp rồi tải lại.',
+}
+
+function validationMessage(error) {
+  for (const detail of error.details) {
+    const known = INPUT_ISSUES[`${detail.field}:${detail.issue}`] ?? INPUT_ISSUES[detail.issue]
+    if (known) return known
+  }
+  return 'Dữ liệu chưa hợp lệ. Hãy kiểm tra lại nội dung rồi thử lại.'
+}
+
+/** Where a quote comes from, for the label under it: the page for a PDF, otherwise what kind of source it is. */
+export function sourceLabel(source, kind) {
+  if (source?.page) return `Trang ${source.page}`
+  return kind === 'PDF' ? 'Tài liệu PDF' : 'Đoạn dán vào'
+}
+
+/** A notice when the AI kept fewer cards than asked for, so the student knows why; empty when nothing is missing. */
+export function deckShortfall(requested, actual) {
+  if (!(actual < requested)) return ''
+  return `AI chỉ tạo được ${actual} trên ${requested} thẻ, vì chỉ giữ lại những thẻ có trích dẫn đúng nguyên văn trong nguồn và không trùng câu hỏi. Bạn có thể dùng bộ thẻ này hoặc tạo lại.`
+}
+
 /**
  * What to tell the student and what to do next, decided by status and code, never by the message text.
  * kind: unauthenticated | reload (stale data, reload the deck) | retry (same key may be resent) | input (fix the input).
@@ -253,7 +292,7 @@ export function describeRecallError(error) {
     return { kind: 'reload', message: 'Phiên làm việc đã hết hạn. Hãy tải lại trang rồi thử lại.' }
   }
   if (status === 404) return { kind: 'reload', message: 'Không tìm thấy dữ liệu. Có thể đã bị xóa; danh sách sẽ được tải lại.' }
-  if (status === 400) return { kind: 'input', message: error.message || 'Dữ liệu chưa hợp lệ.' }
+  if (status === 400) return { kind: 'input', message: validationMessage(error) }
   if (code === 'DECK_VERSION_CONFLICT' || code === 'CARD_VERSION_CONFLICT') {
     return { kind: 'reload', message: 'Bộ thẻ đã thay đổi ở nơi khác. Hãy xem bản mới nhất rồi làm lại.' }
   }
@@ -294,7 +333,10 @@ export function describeRecallError(error) {
   if (status === 500) {
     return { kind: 'retry', message: 'Không thể kết nối đến dịch vụ tạo flashcard. Vui lòng thử lại sau.' }
   }
-  if (status === 422) return { kind: 'input', message: error.message || 'Nội dung chưa dùng được.' }
+  if (status === 422) return { kind: 'input', message: 'Nội dung chưa dùng được. Hãy kiểm tra lại nguồn tài liệu.' }
+  if (status === 502 && code === 'INVALID_RESPONSE') {
+    return { kind: 'retry', message: 'Máy chủ trả dữ liệu chưa đúng định dạng. Hãy thử lại.' }
+  }
   if (status === 405 || status === 404) {
     return { kind: 'retry', message: 'Chức năng này chưa khả dụng trên máy chủ.' }
   }

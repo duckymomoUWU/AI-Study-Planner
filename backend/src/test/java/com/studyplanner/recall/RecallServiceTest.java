@@ -10,7 +10,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.PlatformTransactionManager;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -40,7 +47,8 @@ class RecallServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new RecallService(repository, geminiRecallService, objectMapper, mock(org.springframework.transaction.PlatformTransactionManager.class));
+        // A transaction manager that does nothing: the transaction itself is proven against PostgreSQL elsewhere.
+        service = new RecallService(repository, geminiRecallService, objectMapper, mock(PlatformTransactionManager.class));
     }
 
     // ==========================================
@@ -470,6 +478,7 @@ class RecallServiceTest {
                 deckId, userId, goalId, materialId, "Bộ thẻ", "DRAFT", 5, 0, Instant.now()
         );
         when(repository.findDeckByIdAndUserId(deckId, userId)).thenReturn(Optional.of(deck));
+        when(repository.countCardsInDeck(deckId)).thenReturn(5);
         when(repository.updateDeckStatus(deckId, userId, "ACTIVE", 0)).thenReturn(true);
 
         RecallDTOs.ActivateDeckRequest request = new RecallDTOs.ActivateDeckRequest(0);
@@ -488,6 +497,7 @@ class RecallServiceTest {
                 deckId, userId, goalId, materialId, "Bộ thẻ", "DRAFT", 1, 0, Instant.now()
         );
         when(repository.findDeckByIdAndUserId(deckId, userId)).thenReturn(Optional.of(deck));
+        when(repository.countCardsInDeck(deckId)).thenReturn(1);
 
         RecallDTOs.CardResponse warnedCard = new RecallDTOs.CardResponse(
                 cardId, deckId, "Cristiano Ronaldo sinh năm bao nhiêu?", "1985",
@@ -507,12 +517,13 @@ class RecallServiceTest {
     }
 
     @Test
-    @DisplayName("activateDeck rejects empty deck (409 DECK_STATE_CONFLICT)")
+    @DisplayName("activateDeck rejects a deck with no stored cards even when its cached card_count says otherwise (409)")
     void testActivateDeckRejectsEmpty() {
         RecallRepository.DeckEntity deck = new RecallRepository.DeckEntity(
-                deckId, userId, goalId, materialId, "Bộ thẻ rỗng", "DRAFT", 0, 0, Instant.now()
+                deckId, userId, goalId, materialId, "Bộ thẻ rỗng", "DRAFT", 5, 0, Instant.now()
         );
         when(repository.findDeckByIdAndUserId(deckId, userId)).thenReturn(Optional.of(deck));
+        when(repository.countCardsInDeck(deckId)).thenReturn(0);
 
         RecallDTOs.ActivateDeckRequest request = new RecallDTOs.ActivateDeckRequest(0);
         RecallException ex = assertThrows(RecallException.class, () -> service.activateDeck(deckId, userId, request));
@@ -602,5 +613,151 @@ class RecallServiceTest {
         RecallException ex = assertThrows(RecallException.class, () -> service.recordReview(cardId, userId, requestKey, request));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
         assertEquals("VALIDATION_ERROR", ex.getCode());
+    }
+
+    // ==========================================
+    // Upload and generation fixes
+    // ==========================================
+
+    private static String sha256(String text) throws Exception {
+        java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+        return java.util.HexFormat.of().formatHex(md.digest(text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+    }
+
+    private RecallRepository.MaterialEntity textMaterial() {
+        return new RecallRepository.MaterialEntity(
+                materialId, userId, goalId, "Tài liệu", "TEXT", null, null, 100,
+                "Kiểm thử hộp đen đánh giá hành vi. Kiểm thử hộp trắng xem xét cấu trúc.", null, Instant.now());
+    }
+
+    private static final List<GeminiRecallService.GeneratedCard> TWO_CARDS = List.of(
+            new GeminiRecallService.GeneratedCard("Hộp đen là gì?", "Đánh giá hành vi.", "Kiểm thử hộp đen đánh giá hành vi.", null),
+            new GeminiRecallService.GeneratedCard("Hộp trắng là gì?", "Xem xét cấu trúc.", "Kiểm thử hộp trắng xem xét cấu trúc.", null));
+
+    @Test
+    @DisplayName("createMaterial stores pasted text in Unicode NFC with LF line breaks")
+    void testCreateMaterialNormalizesText() {
+        when(repository.isGoalOwnedByUser(goalId, userId)).thenReturn(true);
+        String decomposed = java.text.Normalizer.normalize("Kiểm thử hộp đen", java.text.Normalizer.Form.NFD) + "\r\nDòng hai";
+        String expected = "Kiểm thử hộp đen\nDòng hai";
+
+        RecallDTOs.MaterialResponse response = service.createMaterial(userId,
+                new RecallDTOs.MaterialRequest(goalId, "NFD", decomposed, null, null, null));
+
+        assertEquals(expected.length(), response.characterCount());
+        verify(repository).saveMaterial(any(UUID.class), eq(userId), eq(goalId), eq("NFD"), eq("TEXT"),
+                isNull(), isNull(), eq(expected.length()), eq(expected), isNull());
+    }
+
+    @Test
+    @DisplayName("createMaterial rejects a file name over 255 characters with 400 fileName too_long (not a database 500)")
+    void testCreateMaterialRejectsLongFileName() {
+        when(repository.isGoalOwnedByUser(goalId, userId)).thenReturn(true);
+        RecallDTOs.MaterialRequest request = new RecallDTOs.MaterialRequest(
+                goalId, "Tài liệu", null, "n".repeat(256) + ".pdf", "application/pdf", "dGVzdA==");
+
+        RecallException ex = assertThrows(RecallException.class, () -> service.createMaterial(userId, request));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+        assertEquals("fileName", ex.getDetails().get(0).field());
+        assertEquals("too_long", ex.getDetails().get(0).issue());
+        verify(repository, never()).saveMaterial(any(), any(), any(), any(), any(), any(), any(), anyInt(), any(), any());
+    }
+
+    @Test
+    @DisplayName("a second request with the same key while Gemini is still working gets 409 GENERATION_IN_PROGRESS")
+    void testGenerateDeckSameKeyInFlight() throws Exception {
+        when(repository.findReceipt(userId, requestKey, "GENERATE_DECK")).thenReturn(Optional.empty());
+        when(repository.findMaterialByIdAndUserId(materialId, userId)).thenReturn(Optional.of(textMaterial()));
+        when(repository.isGoalOwnedByUser(goalId, userId)).thenReturn(true);
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        when(geminiRecallService.generateCards(anyString(), anyList(), anyString(), anyInt())).thenAnswer(invocation -> {
+            started.countDown();
+            release.await(10, TimeUnit.SECONDS);
+            return TWO_CARDS;
+        });
+        RecallDTOs.CreateDeckRequest request = new RecallDTOs.CreateDeckRequest(materialId, "Bộ thẻ ôn thi", 10);
+
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            Future<RecallDTOs.DeckResponse> first = pool.submit(() -> service.generateDeck(userId, requestKey, request));
+            assertTrue(started.await(10, TimeUnit.SECONDS));
+
+            RecallException ex = assertThrows(RecallException.class, () -> service.generateDeck(userId, requestKey, request));
+            assertEquals(HttpStatus.CONFLICT, ex.getStatus());
+            assertEquals("GENERATION_IN_PROGRESS", ex.getCode());
+
+            release.countDown();
+            assertEquals("DRAFT", first.get(10, TimeUnit.SECONDS).status());
+        } finally {
+            release.countDown();
+            pool.shutdownNow();
+        }
+        verify(geminiRecallService, times(1)).generateCards(anyString(), anyList(), anyString(), anyInt());
+        verify(repository, times(1)).saveDeck(any(), any(), any(), any(), any(), any(), anyInt(), anyInt());
+
+        // the key is free again once the first request is done
+        assertDoesNotThrow(() -> service.generateDeck(userId, requestKey, request));
+    }
+
+    @Test
+    @DisplayName("losing the race on the receipt returns the winner's deck and writes no deck or cards of its own")
+    void testGenerateDeckLostRace() throws Exception {
+        RecallDTOs.DeckResponse winner = new RecallDTOs.DeckResponse(
+                deckId, goalId, materialId, "Bộ thẻ ôn thi", "DRAFT", 2, 0, Instant.now());
+        RecallRepository.ReceiptRecord receipt = new RecallRepository.ReceiptRecord(
+                UUID.randomUUID(), userId, requestKey, "GENERATE_DECK", sha256(materialId + ":Bộ thẻ ôn thi:10"),
+                objectMapper.writeValueAsString(winner), Instant.now());
+        when(repository.findReceipt(userId, requestKey, "GENERATE_DECK"))
+                .thenReturn(Optional.empty(), Optional.empty(), Optional.empty(), Optional.of(receipt));
+        when(repository.findMaterialByIdAndUserId(materialId, userId)).thenReturn(Optional.of(textMaterial()));
+        when(repository.isGoalOwnedByUser(goalId, userId)).thenReturn(true);
+        when(geminiRecallService.generateCards(anyString(), anyList(), anyString(), anyInt())).thenReturn(TWO_CARDS);
+        doThrow(new DuplicateKeyException("duplicate key")).when(repository)
+                .saveReceipt(eq(userId), eq(requestKey), eq("GENERATE_DECK"), anyString(), anyString());
+
+        RecallDTOs.DeckResponse response = service.generateDeck(userId, requestKey,
+                new RecallDTOs.CreateDeckRequest(materialId, "Bộ thẻ ôn thi", 10));
+
+        assertEquals(deckId, response.id());
+        verify(repository, never()).saveDeck(any(), any(), any(), any(), any(), any(), anyInt(), anyInt());
+        verify(repository, never()).saveCards(anyList());
+    }
+
+    @Test
+    @DisplayName("an AI failure saves nothing and the error reaches the caller")
+    void testGenerateDeckAiFailureSavesNothing() {
+        when(repository.findReceipt(userId, requestKey, "GENERATE_DECK")).thenReturn(Optional.empty());
+        when(repository.findMaterialByIdAndUserId(materialId, userId)).thenReturn(Optional.of(textMaterial()));
+        when(geminiRecallService.generateCards(anyString(), anyList(), anyString(), anyInt()))
+                .thenThrow(RecallException.aiUnavailable("Dịch vụ AI tạm thời không dùng được."));
+
+        RecallException ex = assertThrows(RecallException.class, () -> service.generateDeck(userId, requestKey,
+                new RecallDTOs.CreateDeckRequest(materialId, "Bộ thẻ ôn thi", 10)));
+        assertEquals("AI_UNAVAILABLE", ex.getCode());
+        verify(repository, never()).saveDeck(any(), any(), any(), any(), any(), any(), anyInt(), anyInt());
+        verify(repository, never()).saveReceipt(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("getMaterialDetail returns a capped preview of the extracted text and hides other users' sources")
+    void testMaterialDetail() {
+        RecallRepository.MaterialEntity big = new RecallRepository.MaterialEntity(
+                materialId, userId, goalId, "Tài liệu dài", "PDF", "a.pdf", 3, 3000, "x".repeat(3000), "[]", Instant.now());
+        when(repository.findMaterialByIdAndUserId(materialId, userId)).thenReturn(Optional.of(big));
+        RecallDTOs.MaterialDetail detail = service.getMaterialDetail(userId, materialId);
+        assertEquals(1200, detail.preview().length());
+        assertTrue(detail.previewTruncated());
+        assertEquals(3, detail.pageCount());
+
+        RecallRepository.MaterialEntity small = new RecallRepository.MaterialEntity(
+                materialId, userId, goalId, "Ngắn", "TEXT", null, null, 5, "Ngắn.", null, Instant.now());
+        when(repository.findMaterialByIdAndUserId(materialId, userId)).thenReturn(Optional.of(small));
+        assertEquals("Ngắn.", service.getMaterialDetail(userId, materialId).preview());
+        assertFalse(service.getMaterialDetail(userId, materialId).previewTruncated());
+
+        UUID stranger = UUID.fromString("66666666-6666-6666-6666-666666666666");
+        when(repository.findMaterialByIdAndUserId(materialId, stranger)).thenReturn(Optional.empty());
+        assertEquals("NOT_FOUND", assertThrows(RecallException.class, () -> service.getMaterialDetail(stranger, materialId)).getCode());
     }
 }

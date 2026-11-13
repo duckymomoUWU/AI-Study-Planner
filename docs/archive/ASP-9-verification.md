@@ -1,6 +1,6 @@
 # ASP-27 — ASP-9 verification evidence
 
-Date of runs: 2026-11-07, Windows 11, branch `dev2`. Re-run on the same day after the move to the `/api/v1` contract ([Backend API rules](../backend-api-rules.md)): paths, envelope and error codes below use the new names (`PATCH` replaced `PUT`, `NOT_FOUND`, `GOAL_UPDATE_CONFLICT`, `GOAL_VERSION_CONFLICT`). Contract: [ASP-9-goals-api.md](ASP-9-goals-api.md). Results are what was actually executed; anything not run is marked **Chưa chạy**.
+Date of runs: 2026-11-07, Windows 11, branch `dev2`. Re-run on the same day after the move to the `/api/v1` contract ([Backend API rules](../backend-api-rules.md)): paths, envelope and error codes below use the new names (`PATCH` replaced `PUT`, `NOT_FOUND`, `GOAL_UPDATE_CONFLICT`, `GOAL_VERSION_CONFLICT`). Contract: [ASP-9-goals-api.md](../product/ASP-9-goals-api.md). Results are what was actually executed; anything not run is marked **Chưa chạy**.
 
 ## 1. Commands and results
 
@@ -86,7 +86,7 @@ AC 1–4 are met for the Goal CRUD and ownership scope, with real PostgreSQL evi
 
 ## 8. Kiểm chứng ASP-63 → ASP-66 (đánh dấu hoàn thành) và đối chiếu Definition of Done (ASP-120)
 
-Ngày chạy 2026-11-07, nhánh `dev2-sprint3`. Mô tả tính năng: [task-completion.md](task-completion.md).
+Ngày chạy 2026-11-07, nhánh `dev2-sprint3`. Mô tả tính năng: [task-completion.md](../product/task-completion.md).
 
 ### 8.1 Lệnh và kết quả
 
@@ -128,7 +128,7 @@ Không khai báo story là Done: thiếu review độc lập, merge và CI.
 
 - Tìm thấy và sửa 1 lỗi: sau lỗi 404, danh sách được tải lại nhưng `refreshData` xóa luôn thông báo lỗi; nay tải lại trước rồi mới hiện thông báo (đã xác nhận lại trên trình duyệt).
 - Đã kiểm: mọi truy vấn công việc nối `study_goals` và lọc `user_id`; thao tác ghi khóa dòng mục tiêu rồi mới đọc và ghi; không chuỗi nào do người dùng nhập được ghép vào SQL (phần ghép chỉ gồm đoạn lọc cố định).
-- Đã biết, chưa xử lý: đổi trạng thái hoàn thành làm tăng version mục tiêu theo đặc tả, nên sửa mục tiêu bằng `expectedVersion` cũ trả 409 cho tới khi tải lại; cần PO chấp nhận ([task-completion.md](task-completion.md), mục 4).
+- Đã biết, chưa xử lý: đổi trạng thái hoàn thành làm tăng version mục tiêu theo đặc tả, nên sửa mục tiêu bằng `expectedVersion` cũ trả 409 cho tới khi tải lại; cần PO chấp nhận ([task-completion.md](../product/task-completion.md), mục 4).
 
 ### 8.5 Giới hạn chưa kiểm chứng
 
@@ -139,7 +139,7 @@ Không khai báo story là Done: thiếu review độc lập, merge và CI.
 
 ## 9. Kiểm chứng ASP-67 → ASP-70 (xem tiến độ) và đối chiếu Definition of Done (ASP-113)
 
-Ngày chạy 2026-11-07, nhánh `dev4-sprint3`. Mô tả tính năng: [goal-progress.md](goal-progress.md).
+Ngày chạy 2026-11-07, nhánh `dev4-sprint3`. Mô tả tính năng: [goal-progress.md](../product/goal-progress.md).
 
 ### 9.1 Lệnh và kết quả
 

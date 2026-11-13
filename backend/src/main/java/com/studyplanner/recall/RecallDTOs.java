@@ -28,6 +28,20 @@ public class RecallDTOs {
             Instant createdAt
     ) {}
 
+    /** A saved source with the beginning of its extracted text, so the student can see what was read from a file. */
+    public record MaterialDetail(
+            UUID id,
+            UUID goalId,
+            String title,
+            String fileName,
+            String kind,
+            Integer pageCount,
+            int characterCount,
+            Instant createdAt,
+            String preview,
+            boolean previewTruncated
+    ) {}
+
     public record CreateDeckRequest(
             UUID materialId,
             String title,

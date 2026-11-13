@@ -3,15 +3,6 @@
 **Dự án:** AI Study Planner · **Mã Jira:** ASP-12 · **Cập nhật:** 2026-11-07 theo [Backend API rules](backend-api-rules.md)
 **Tài liệu liên quan:** [requirements.md](../requirements.md), [ASP-9 Goal API contract](product/ASP-9-goals-api.md), `V1__initial_schema.sql`
 
-Tài liệu này mô tả API xác thực đang chạy ở backend. Những thay đổi so với bản đầu:
-
-| Hạng mục | Trước | Hiện tại |
-| --- | --- | --- |
-| Đường dẫn | `/api/auth/...`, `/api/auth/me` | `/api/v1/auth/...`, riêng `/api/v1/me` |
-| Response thành công | `{id, email}` | `{ "data": {id, email, createdAt} }` |
-| Response lỗi | `{code, message}` | `{ "error": {code, message, details} }` |
-| Mã lỗi | `invalid_credentials`, `unauthenticated`, `forbidden_or_csrf`... | `INVALID_CREDENTIALS`, `UNAUTHORIZED`, `CSRF_INVALID`... |
-
 ## 1. Nguyên tắc bảo mật
 
 - Session phía server trong cookie `JSESSIONID` (`HttpOnly`, `SameSite=Lax`; `Secure` bật bằng biến môi trường `SESSION_COOKIE_SECURE=true` khi chạy HTTPS).

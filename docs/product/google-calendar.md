@@ -51,7 +51,7 @@ Tài liệu API: [patch](https://developers.google.com/workspace/calendar/api/v3
 
 ## Cấu hình nhóm và token
 
-Các bước Google Cloud, Test users, redirect URI, `.env` và khởi động lại được duy trì tại [setup — cấu hình Google OAuth](../../setup.md#cấu-hình-google-oauth). Không sao chép credential thật vào tài liệu hoặc Git.
+Các bước Google Cloud, Test users, redirect URI, `.env` và khởi động lại được duy trì tại [setup — cấu hình Google OAuth](../../setup.md#4-gemini-và-google-calendar). Không sao chép credential thật vào tài liệu hoặc Git.
 
 Scopes: `calendar.readonly` để liệt kê lịch/đọc freeBusy; `calendar.events` để tạo và đối chiếu sự kiện. Token access/refresh lưu ở backend dưới AES-256-GCM có owner làm AAD; giữ ổn định khóa mã hóa và sao lưu cùng DB. Mất khóa phải kết nối lại.
 

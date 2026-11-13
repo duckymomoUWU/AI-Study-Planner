@@ -80,6 +80,11 @@ public class RecallException extends RuntimeException {
         return new RecallException(HttpStatus.CONFLICT, "IDEMPOTENCY_CONFLICT", message);
     }
 
+    public static RecallException generationInProgress() {
+        return new RecallException(HttpStatus.CONFLICT, "GENERATION_IN_PROGRESS",
+                "Bộ thẻ đang được tạo cho yêu cầu này. Hãy chờ vài giây rồi thử lại.");
+    }
+
     public static RecallException sourceTooLong(String message) {
         return new RecallException(HttpStatus.UNPROCESSABLE_ENTITY, "SOURCE_TOO_LONG", message);
     }
@@ -105,7 +110,7 @@ public class RecallException extends RuntimeException {
     }
 
     public static RecallException aiInvalidResponse(String message) {
-        return new RecallException(HttpStatus.BAD_GATEWAY, "AI_MALFORMED_RESPONSE", message);
+        return new RecallException(HttpStatus.BAD_GATEWAY, "AI_INVALID_RESPONSE", message);
     }
 
     public static RecallException aiUnavailable(String message) {
