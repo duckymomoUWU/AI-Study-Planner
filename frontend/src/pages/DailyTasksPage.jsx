@@ -30,7 +30,7 @@ function offsetDate(dateStr, days) {
   return getLocalDateString(date)
 }
 
-export default function DailyTasksPage({ onBack, onNavigateGoals, initialDate }) {
+export default function DailyTasksPage({ onBack, onNavigateGoals, initialDate, onNavigateTimer }) {
   const [selectedDate, setSelectedDate] = useState(() => initialDate || getLocalDateString())
   const [tasksData, setTasksData] = useState({ items: [], totalEstimatedMinutes: 0, completedCount: 0, totalCount: 0, remainingCount: 0 })
   const [overdueTasks, setOverdueTasks] = useState([])
@@ -425,6 +425,7 @@ export default function DailyTasksPage({ onBack, onNavigateGoals, initialDate })
                 </div>
 
                 <div className="task-actions">
+                  {onNavigateTimer && <button type="button" className="button-link" onClick={() => onNavigateTimer(task)} aria-label={`Tập trung học: ${task.title}`}>◷ Tập trung</button>}
                   <button type="button" className="button-link" disabled={pendingIds.has(task.id)} onClick={() => {
                     setEditingTask(task); setTaskDate(task.scheduledDate)
                     setNewTaskForm({ goalId: task.goalId, title: task.title, estimatedMinutes: task.estimatedMinutes })

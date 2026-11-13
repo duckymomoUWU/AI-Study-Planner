@@ -34,3 +34,7 @@ Harness status and doctor validate the Harness installation, not application beh
 - [Task và bản nháp trên nhánh tích hợp](product/integrated-tasks-and-plans.md)
 
 - [Dev 3 Recall integration and test evidence](plans/completed/dev3-recall-integration-2026-11-13.md)
+
+- [Landing and Timer frontend delivery](plans/completed/dev1-landing-timer-ui-2026-11-13.md)
+
+- [Landing visual refresh](plans/completed/landing-visual-refresh-2026-11-13.md)

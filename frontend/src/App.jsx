@@ -4,24 +4,22 @@ import GoalsPage from './pages/GoalsPage.jsx'
 import StudyPlanPage from './pages/StudyPlanPage.jsx'
 import AuthPage from './pages/AuthPage.jsx'
 import WeeklyProgressPage from './pages/WeeklyProgressPage.jsx'
+import LandingPage from './pages/LandingPage.jsx'
+import TimerPage from './pages/TimerPage.jsx'
+import { pageFromHash, taskFromHash } from './lib/navigation.js'
 import { getCurrentUser, logout } from './lib/auth.js'
 import './App.css'
 import './theme.css'
 
 const repository = 'https://github.com/duckymomoUWU/AI-Study-Planner'
 function getPageFromHash() {
-  if (typeof window === 'undefined') return 'overview'
-  const hash = window.location.hash.toLowerCase()
-  if (hash === '#auth' || hash === '#login' || hash === '#register') return 'auth'
-  if (hash === '#goals') return 'goals'
-  if (hash === '#daily' || hash === '#tasks') return 'daily'
-  if (hash === '#weekly' || hash === '#progress') return 'weekly'
-  return 'overview'
+  return pageFromHash(typeof window === 'undefined' ? '' : window.location.hash)
 }
 
 export default function App() {
   const [activePage, setActivePageState] = useState(getPageFromHash) // 'overview' | 'goals' | 'daily' | 'auth'
   const [currentUser, setCurrentUser] = useState(null)
+  const [timerTaskId, setTimerTaskId] = useState(() => taskFromHash(window.location.hash))
   const [dailyDate, setDailyDate] = useState(null)
   const [goalEditRequest, setGoalEditRequest] = useState(null)
   const handleGoalEditRequest = useCallback(() => setGoalEditRequest(null), [])
@@ -30,19 +28,21 @@ export default function App() {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const userMenuRef = useRef(null)
 
-  function setActivePage(page) {
-    setActivePageState(page)
+  function setActivePage(page, taskId) {
+    setActivePageState(['login', 'register'].includes(page) ? 'auth' : page)
+    if (page === 'timer') setTimerTaskId(taskId || null)
     setShowUserMenu(false)
-    if (page === 'overview') {
+    if (page === 'home') {
       window.location.hash = ''
     } else {
-      window.location.hash = `#${page}`
+      window.location.hash = `#${page}${page === 'timer' && taskId ? `?task=${encodeURIComponent(taskId)}` : ''}`
     }
   }
 
   useEffect(() => {
     function onHashChange() {
       setActivePageState(getPageFromHash())
+      setTimerTaskId(taskFromHash(window.location.hash))
     }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
@@ -99,7 +99,7 @@ export default function App() {
     setCurrentUser(null)
     setGoalEditRequest(null)
     setShowUserMenu(false)
-    setActivePage('overview')
+    setActivePage('home')
   }
 
   function handleAuthSuccess(user) {
@@ -109,6 +109,13 @@ export default function App() {
     setCurrentUser(user)
     setActivePage('goals')
   }
+
+  if (activePage === 'home' && isCheckingAuth) return <main className="landing-page"><p role="status">Đang mở không gian học tập…</p></main>
+  if (activePage === 'landing' || (activePage === 'home' && !currentUser)) return <LandingPage
+    currentUser={currentUser} checkingAuth={isCheckingAuth}
+    onStart={() => setActivePage(currentUser ? 'goals' : 'register')}
+    onLogin={() => setActivePage('login')} onWorkspace={() => setActivePage('overview')}
+  />
 
   return (
     <>
@@ -145,7 +152,7 @@ export default function App() {
           <nav aria-label="Điều hướng">
             <button
               type="button"
-              className={`nav-link ${activePage === 'overview' ? 'nav-link--active' : ''}`}
+              className={`nav-link ${(activePage === 'overview' || activePage === 'home') ? 'nav-link--active' : ''}`}
               onClick={() => setActivePage('overview')}
               title="Tổng quan"
             >
@@ -215,6 +222,9 @@ export default function App() {
               <span className="nav-text">Tài liệu</span>
               <span className="nav-arrow" aria-hidden="true">↗</span>
             </a>
+            <button type="button" className={`nav-link ${activePage === 'timer' ? 'nav-link--active' : ''}`} onClick={() => setActivePage('timer')} title="Phiên tập trung">
+              <span className="nav-icon" aria-hidden="true">◷</span><span className="nav-text">Tập trung</span>
+            </button>
           </nav>
 
           <div className="sidebar-note">
@@ -231,7 +241,8 @@ export default function App() {
               {activePage === 'goals' && 'Quản lý mục tiêu'}
               {activePage === 'daily' && 'Lịch học theo tuần'}
               {activePage === 'weekly' && 'Tiến độ theo tuần'}
-              {activePage === 'overview' && 'Không gian học tập'}
+              {(activePage === 'overview' || activePage === 'home') && 'Không gian học tập'}
+              {activePage === 'timer' && 'Phiên tập trung'}
               {activePage === 'auth' && 'Xác thực tài khoản'}
             </span>
 
@@ -309,9 +320,10 @@ export default function App() {
           <main id="main" tabIndex={-1}>
             {activePage === 'auth' ? (
               <AuthPage
+                key={window.location.hash === '#register' ? 'register' : 'login'}
                 initialTab={window.location.hash === '#register' ? 'register' : 'login'}
                 onAuthSuccess={handleAuthSuccess}
-                onBack={() => setActivePage('overview')}
+                onBack={() => setActivePage(currentUser ? 'overview' : 'landing')}
               />
             ) : activePage === 'goals' ? (
               <GoalsPage
@@ -324,6 +336,7 @@ export default function App() {
               />
             ) : activePage === 'daily' ? (
               <StudyPlanPage
+                onNavigateTimer={task => setActivePage('timer', task.id)}
                 initialDate={dailyDate}
                 onEditGoal={(id, section) => { setGoalEditRequest({ id, section }); setActivePage('goals') }}
                 currentUser={currentUser}
@@ -331,6 +344,10 @@ export default function App() {
                 onNavigateGoals={() => setActivePage('goals')}
                 onNavigateAuth={() => setActivePage('auth')}
               />
+            ) : activePage === 'timer' ? (
+              <TimerPage key={`${currentUser?.id || currentUser?.email || 'guest'}:${timerTaskId || ''}`}
+                currentUser={currentUser} initialTaskId={timerTaskId}
+                onLogin={() => setActivePage('login')} onSchedule={() => setActivePage('daily')} />
             ) : activePage === 'weekly' ? (
               <WeeklyProgressPage
                 key={currentUser?.id || currentUser?.email || 'guest'}
