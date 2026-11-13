@@ -1,7 +1,5 @@
-# Active Execution Plans
+# Kế hoạch đang triển khai
 
-Place one evolving plan here when work needs durable memory. Use
-`docs/templates/exec-plan.md`, keep progress and validation current, and move
-the plan to `../completed/` only after the result is verified.
-
-- [Study sessions backend and Active Recall UI (2026-11-12)](study-sessions-recall-2026-11-12.md)
+Hiện không có kế hoạch code đang mở trong thư mục này. Kế hoạch Timer/Recall đã được
+[tích hợp và chuyển sang completed](../completed/study-sessions-recall-2026-11-12.md).
+Các giới hạn kiểm chứng còn lại được tổng hợp ở [trạng thái](../../status.md).

@@ -10,5 +10,5 @@
 - Validation instructions and known gaps: [.agents/harness/README.md](.agents/harness/README.md).
 - Project skills belong at `.agents/skills/<skill-name>/SKILL.md`. Do not install external skills without a request.
 - Repository Harness navigation: [docs/README.md](docs/README.md); project requirements and verification remain in their existing documents.
-- Current handoff and evidence: [core and Calendar delivery](docs/plans/completed/core-study-calendar-2026-11-11.md). Verify cwd/branch before running commands. Integration tests use a disposable database, never the demo/user database.
+- Current handoff and evidence: [current status and evidence](docs/status.md). Verify cwd/branch before running commands. Integration tests use a disposable database, never the demo/user database.
 - Backend code must follow [docs/backend-api-rules.md](docs/backend-api-rules.md) (paths, envelope, error codes, ownership, concurrency).

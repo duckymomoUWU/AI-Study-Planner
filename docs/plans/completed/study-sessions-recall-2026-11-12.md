@@ -4,7 +4,7 @@ Date: 2026-11-12
 
 ## Status
 
-Active. Phần của Người 2 đã hiện thực và kiểm chứng ở mức đã ghi bên dưới; tích hợp với Timer UI (Người 1) và API recall (Người 3) chưa làm, nên kế hoạch chưa chuyển sang `completed/`.
+Đã tích hợp ngày 13/11/2026. Kết quả sau cùng và giới hạn ở [bàn giao tích hợp](dev2-recall-timer-integration-2026-11-13.md), [trạng thái hiện tại](../../status.md). Các checklist và kết quả bên dưới là ghi nhận gốc của nhánh dev2 tại thời điểm lập kế hoạch, không phải trạng thái hiện hành hoặc xác nhận mọi tiêu chí đã được nghiệm thu.
 
 ## Outcome
 

@@ -1,6 +1,6 @@
 # Story và Acceptance Criteria
 
-**Cách đọc:** AC = điều kiện người dùng quan sát được; DoD = điều kiện kỹ thuật để bàn giao. Phân công/MVP tự đánh giá đã chốt; các thông số chi tiết là baseline đề xuất cần xác nhận ở D1. Không coi mã story dưới đây là Jira issue đã được tạo.
+**Cách đọc:** AC = điều kiện người dùng quan sát được; DoD = điều kiện kỹ thuật để bàn giao. Tiêu chí dùng để review chức năng đã tích hợp và các cải tiến tiếp theo. Trạng thái từng phần tra ở [status](../status.md); có code không mặc nhiên nghĩa mọi AC đã đạt. Mã story trong tài liệu không thay thế Jira issue.
 
 ## Người 1: Landing + UI Timer
 
@@ -56,7 +56,7 @@ Giao diện: tên môn/công việc, đồng hồ, trạng thái rõ, Bắt đ�
 | TBE-08 | Xóa task/goal không làm mất lịch sử học; giữ owner và snapshot tên, liên kết task/goal có thể null. Phiên đã mở vẫn kết thúc được, không khôi phục task đã xóa. |
 | TBE-09 | Không cập nhật estimatedMinutes, completed hoặc lịch AI/Google khi lưu session; quỹ chung vẫn là ràng buộc lập lịch, không phải bộ đếm thời gian thực tế. |
 
-**Đầu ra:** sessions package, migration V8, API action/active/history/summary, test Clock cố định + PostgreSQL ownership/race/replay. **Ngoài scope:** chống gian lận, đo sự tập trung thực sự, tracking chạy nền qua extension, notification/service worker.
+**Đầu ra:** sessions package, migration sessions V9, API action/active/history/summary, test Clock cố định + PostgreSQL ownership/race/replay. **Ngoài scope:** chống gian lận, đo sự tập trung thực sự, tracking chạy nền qua extension, notification/service worker.
 
 ### AR-UI-01 — Tạo và học flashcard từ nội dung của mình
 
@@ -72,7 +72,7 @@ Giao diện: tên môn/công việc, đồng hồ, trạng thái rõ, Bắt đ�
 | RUI-06 | Không có thẻ/đang tải/AI lỗi/hết phiên đăng nhập đều có nội dung và hành động rõ; mock chỉ dùng phát triển, không fallback giả thành công. |
 | RUI-07 | Thống kê Nhớ/Chưa nhớ tính đánh giá cuối của mỗi thẻ. Cùng một thẻ đánh giá nhiều lần không khiến reviewedCards vượt totalCards. |
 
-**Đầu ra:** ActiveRecallPage, recall components/client, ảnh mobile/desktop và demo API thật. **Phụ thuộc:** Người 3. **DoD riêng:** ngày D5 bỏ mock, không sửa prompt/model planner để làm UI chạy.
+**Đầu ra:** ActiveRecallPage, recall components/client, ảnh mobile/desktop và demo API thật. **Phụ thuộc:** Người 3. **DoD riêng:** bỏ mock trước khi nghiệm thu, không sửa prompt/model planner để làm UI chạy.
 
 ## Người 3: Backend/AI Flashcard
 

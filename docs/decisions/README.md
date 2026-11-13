@@ -1,14 +1,10 @@
-# Decisions
+# Quyết định thiết kế
 
-- [0002 App-to-Google update/delete](0002-calendar-update-delete.md) — accepted 2026-11-11; durable intent, original-event identity, conflict handling and one-way scope.
+| Quyết định | Nội dung |
+| --- | --- |
+| [0001](0001-google-calendar-one-way-export.md) | Calendar xuất một chiều, xem trước và có khả năng khôi phục |
+| [0002](0002-calendar-update-delete.md) | Đồng bộ sửa/xóa sự kiện đã liên kết, xử lý xung đột và retry |
 
-Decision records preserve lasting product, architecture, data ownership,
-security, compatibility, and validation choices that future work must inherit.
-
-Use `docs/templates/decision.md`. Task-local implementation choices remain in
-the active execution plan and do not require a separate decision.
-
-An installed consumer begins with no fabricated decisions. Add local decision
-documents here as real choices are accepted, then index them in this file.
-
-- [0001 Google Calendar export is one-way, previewed and recoverable](0001-google-calendar-one-way-export.md) — accepted 2026-11-11; product and data/security boundaries for the first Calendar delivery.
+Chỉ ghi quyết định lâu dài mà các thay đổi sau phải kế thừa. Lựa chọn riêng của một
+công việc ở trong kế hoạch/PR; không cần tạo decision cho mọi thay đổi nhỏ.
+Mẫu: [decision](../templates/decision.md).
