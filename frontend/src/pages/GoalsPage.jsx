@@ -1,6 +1,14 @@
-import { useCallback, useEffect, useState } from 'react'
-import { createGoal, deleteGoal, GoalApiError, listGoals, updateGoal, parseSyllabusDocument } from '../lib/goals.js'
-import { generatePlanDraft, getGoalDraftStatus, setGoalDraftStatus } from '../lib/ai-planner.js'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { deleteGoal, GoalApiError, getGoal, listGoals, updateGoal } from '../lib/goals.js'
+import { describeGoalError } from '../lib/goalErrors.js'
+import { createGoalWithPlan, startDateError, vietnamToday } from '../lib/goalPlanning.js'
+import { studyDates, requestRevision, applySyllabusFields, planningScopeForForm, savedPlanningScope } from '../lib/planningScope.js'
+import { confirmAndDeleteGoal } from '../lib/goalDelete.js'
+import GoalProgress from '../components/GoalProgress.jsx'
+import PlanDraftPanel from '../components/PlanDraftPanel.jsx'
+import StudyBudgetPanel from '../components/StudyBudgetPanel.jsx'
+import CalendarSyncPanel from '../components/CalendarSyncPanel.jsx'
+import SyllabusUpload from '../components/SyllabusUpload.jsx'
 import './GoalsPage.css'
 
 const emptyForm = {
@@ -8,7 +16,7 @@ const emptyForm = {
   topics: '',
   startDate: '',
   examDate: '',
-  minutesPerDay: '90',
+  minutesPerDay: '',
 }
 
 function localDateString(date = new Date()) {
@@ -37,27 +45,18 @@ function displayDate(value) {
   return new Intl.DateTimeFormat('vi-VN').format(new Date(`${value}T12:00:00`))
 }
 
-function apiMessage(error) {
-  if (error instanceof GoalApiError && error.status === 401) {
-    return 'Bạn cần đăng nhập để quản lý mục tiêu cá nhân.'
-  }
-  if (error instanceof GoalApiError && error.status === 404) {
-    return 'API mục tiêu chưa khả dụng hoặc mục tiêu không còn tồn tại. Backend Goal CRUD vẫn đang được hoàn thiện.'
-  }
-  if (error instanceof GoalApiError && (error.status === 502 || error.status === 503 || error.status === 504)) {
-    return 'Máy chủ backend chưa khởi động (HTTP 502 Bad Gateway). Giao diện đang hoạt động với dữ liệu mô phỏng (Placeholder).'
-  }
-  if (error instanceof GoalApiError && error.status === 409) {
-    return 'Mục tiêu vừa được cập nhật ở nơi khác. Hãy tải lại danh sách trước khi sửa tiếp.'
-  }
-  return error?.message || 'Đã xảy ra lỗi. Vui lòng thử lại.'
+function fieldMessages(formErrors, name) {
+  const value = formErrors[name]
+  if (!value) return []
+  return Array.isArray(value) ? value : [value]
 }
 
-function mapFieldErrors(error) {
-  return Object.fromEntries((error?.fieldErrors || []).map(item => [item.field, item.message]))
+function FieldError({ formErrors, name }) {
+  const messages = fieldMessages(formErrors, name)
+  return messages.map(message => <small className="field-error" key={message}>{message}</small>)
 }
 
-export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavigateAuth, onReviewDraft }) {
+export default function GoalsPage({ onBack, onNavigateDaily, currentUser, editRequest, onEditRequestHandled }) {
   const [goals, setGoals] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -68,59 +67,36 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
   const [form, setForm] = useState(emptyForm)
   const [successMessage, setSuccessMessage] = useState('')
   const [isUnauthenticated, setIsUnauthenticated] = useState(false)
-  const [draftStatuses, setDraftStatuses] = useState(() => {
-    if (typeof window !== 'undefined' && currentUser?.email === 'bao.tonvangia@hcmut.edu.vn') {
-      const cleanMarker = 'ai_study_planner_cleaned_goals_v2_bao.tonvangia'
-      if (!localStorage.getItem(cleanMarker)) {
-        try {
-          Object.keys(localStorage).forEach(k => {
-            if (k.startsWith('ai_study_planner_draft_status_') || k.includes('bao.tonvangia') || (currentUser?.id && k.includes(currentUser.id))) {
-              localStorage.removeItem(k)
-            }
-          })
-          localStorage.setItem(cleanMarker, 'true')
-        } catch {
-          // ignore
-        }
-      }
-    }
-    return {}
-  })
-
-  // Syllabus Parsing State (Gemini 3.8 Flash)
-  const [showSyllabusBox, setShowSyllabusBox] = useState(false)
-  const [isParsingSyllabus, setIsParsingSyllabus] = useState(false)
-  const [syllabusText, setSyllabusText] = useState('')
-  const [syllabusFileName, setSyllabusFileName] = useState('')
-  const [syllabusError, setSyllabusError] = useState('')
-
-  function getStatus(goalId) {
-    return draftStatuses[goalId] ?? getGoalDraftStatus(goalId)
-  }
-
-  const updateGoalStatus = useCallback((goalId, statusObj) => {
-    setGoalDraftStatus(goalId, statusObj)
-    setDraftStatuses(prev => ({ ...prev, [goalId]: statusObj }))
+  const [conflicts, setConflicts] = useState([])
+  const [detail, setDetail] = useState(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [automaticPlan, setAutomaticPlan] = useState(null)
+  const [selectedTopics, setSelectedTopics] = useState([])
+  const [topicsConfirmed, setTopicsConfirmed] = useState(false)
+  const [dailyMinutes, setDailyMinutes] = useState({})
+  const [createdFromForm, setCreatedFromForm] = useState(null)
+  const inputRevision = useRef(requestRevision())
+  const detailRef = useRef(null)
+  const editFocusRef = useRef(null)
+  const [sharedBudgetFocus, setSharedBudgetFocus] = useState(0)
+  useEffect(() => {
+    if (!editing || !editFocusRef.current) return
+    const field = document.getElementById(editFocusRef.current)
+    field?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    field?.focus({ preventScroll: true })
+    editFocusRef.current = null
+  }, [editing])
+  useEffect(() => {
+    if (!editRequest || !currentUser) return
+    let active = true
+    getGoal(editRequest.id).then(goal => { if (active) { startEditing(goal, editRequest.section); onEditRequestHandled?.() } })
+      .catch(err => { if (active) { setPageError(err.message); onEditRequestHandled?.() } })
+    return () => { active = false }
+  }, [editRequest, currentUser, onEditRequestHandled])
+  useEffect(() => {
+    const gate = inputRevision.current
+    return () => { gate.next() }
   }, [])
-
-  const generateAiPlan = useCallback(async (goal) => {
-    if (!goal?.id) return
-    updateGoalStatus(goal.id, { status: 'generating' })
-    try {
-      const draft = await generatePlanDraft(goal)
-      updateGoalStatus(goal.id, {
-        status: 'ready',
-        draftId: draft.draftId,
-        taskCount: draft.tasks?.length || 0,
-        draft,
-      })
-    } catch (err) {
-      updateGoalStatus(goal.id, {
-        status: 'error',
-        message: err.message || 'Lỗi khi gọi AI Gemini Flash',
-      })
-    }
-  }, [updateGoalStatus])
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -133,7 +109,7 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
       if (error instanceof GoalApiError && error.status === 401) {
         setIsUnauthenticated(true)
       } else {
-        setPageError(apiMessage(error))
+        setPageError(describeGoalError(error).message)
       }
     } finally {
       setLoading(false)
@@ -151,7 +127,7 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
           if (error instanceof GoalApiError && error.status === 401) {
             setIsUnauthenticated(true)
           } else {
-            setPageError(apiMessage(error))
+            setPageError(describeGoalError(error).message)
           }
         }
       })
@@ -161,106 +137,79 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
     return () => controller.abort()
   }, [])
 
+  useEffect(() => {
+    if (detail?.id) detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [detail?.id, automaticPlan?.status])
+
   function changeField(event) {
     const { name, value } = event.target
+    inputRevision.current.next()
+    if (saving) { setAutomaticPlan(null); setDetail(null) }
+    if (name === 'topics') { setSelectedTopics([]); setTopicsConfirmed(false) }
     setForm(current => ({ ...current, [name]: value }))
     setFormErrors(current => ({ ...current, [name]: '' }))
   }
 
+  function startEditing(goal, section) {
+    editFocusRef.current = section === 'topics' ? 'goal-topics' : section === 'time' ? 'goal-budget' : null
+    inputRevision.current.next()
+    const saved = savedPlanningScope(goal)
+    setTopicsConfirmed(true); setSelectedTopics(saved.selectedTopics); setDailyMinutes(saved.dailyMinutes || {}); setAutomaticPlan(null); setDetail(null); setCreatedFromForm(null)
+    setEditing(goal)
+    setForm({
+      subject: goal.subject || '',
+      topics: goal.topics || '',
+      startDate: goal.startDate || '',
+      examDate: goal.examDate || '',
+      minutesPerDay: String(goal.minutesPerDay ?? 90),
+    })
+    setFormErrors({})
+    setConflicts([])
+    setPageError('')
+    setSuccessMessage('')
+    if (!editFocusRef.current) window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   function resetForm() {
+    inputRevision.current.next()
+    setTopicsConfirmed(false); setSelectedTopics([]); setDailyMinutes({})
+    setCreatedFromForm(null)
     setEditing(null)
     setForm(emptyForm)
     setFormErrors({})
-    setSyllabusFileName('')
-    setSyllabusText('')
+    setConflicts([])
   }
 
-  function applySyllabusResult(data) {
-    if (!data) return
-    setForm(prev => ({
-      ...prev,
-      subject: data.subject || prev.subject,
-      topics: data.topics || prev.topics,
-      startDate: data.startDate || prev.startDate || localDateString(),
-      examDate: data.examDate || prev.examDate || '',
-      minutesPerDay: String(data.minutesPerDay || prev.minutesPerDay || '90'),
-    }))
-    setFormErrors({})
-    setSuccessMessage('✓ Đã điền nhanh thông tin từ đề cương môn học bằng Gemini 3.8 Flash! Hãy xem lại và bấm Tạo mục tiêu.')
-    setShowSyllabusBox(false)
-    setTimeout(() => setSuccessMessage(''), 5000)
-  }
-
-  async function handleSyllabusFileUpload(event) {
-    const file = event.target.files?.[0]
-    if (!file) return
-    setSyllabusFileName(file.name)
-    setSyllabusError('')
-    setIsParsingSyllabus(true)
-
+  async function showDetail(goal) {
+    setDetailLoading(true)
+    setPageError('')
     try {
-      let result
-      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
-      if (isPdf) {
-        const base64 = await new Promise((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onload = () => {
-            const res = reader.result
-            const b64 = typeof res === 'string' ? res.split(',')[1] : ''
-            resolve(b64)
-          }
-          reader.onerror = reject
-          reader.readAsDataURL(file)
-        })
-        result = await parseSyllabusDocument({
-          base64,
-          mimeType: 'application/pdf',
-          fileName: file.name,
-        })
-      } else {
-        const text = await file.text()
-        result = await parseSyllabusDocument({
-          content: text,
-          fileName: file.name,
-          mimeType: file.type || 'text/plain',
-        })
-      }
-      applySyllabusResult(result)
-    } catch (err) {
-      setSyllabusError(err.message || 'Không thể trích xuất đề cương môn học.')
+      setDetail(await getGoal(goal.id))
+    } catch (error) {
+      setDetail(null)
+      const described = describeGoalError(error)
+      if (error instanceof GoalApiError && error.status === 401) setIsUnauthenticated(true)
+      setPageError(described.message)
     } finally {
-      setIsParsingSyllabus(false)
-      event.target.value = ''
-    }
-  }
-
-  async function handleParseSyllabusText() {
-    if (!syllabusText.trim()) {
-      setSyllabusError('Vui lòng nhập nội dung đề cương môn học.')
-      return
-    }
-    setSyllabusError('')
-    setIsParsingSyllabus(true)
-    try {
-      const result = await parseSyllabusDocument({
-        content: syllabusText.trim(),
-        fileName: 'de_cuong.txt',
-        mimeType: 'text/plain',
-      })
-      applySyllabusResult(result)
-    } catch (err) {
-      setSyllabusError(err.message || 'Không thể trích xuất đề cương môn học.')
-    } finally {
-      setIsParsingSyllabus(false)
+      setDetailLoading(false)
     }
   }
 
   async function submitForm(event) {
     event.preventDefault()
+    if (saving) return
     setSaving(true)
     setPageError('')
     setSuccessMessage('')
     setFormErrors({})
+    setConflicts([])
+
+    const startError = startDateError(form.startDate, Boolean(editing))
+    if (startError) {
+      setFormErrors({ startDate: startError })
+      setSaving(false)
+      return
+    }
 
     // Client-side 90 days guard
     if (form.startDate && form.examDate) {
@@ -274,60 +223,90 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
       }
     }
 
+    const planningScope = planningScopeForForm(form, selectedTopics, dailyMinutes)
     const payload = {
       subject: form.subject,
       topics: form.topics,
       startDate: form.startDate,
       examDate: form.examDate,
       minutesPerDay: Number(form.minutesPerDay),
-      ...(editing ? { version: editing.version } : {}),
+      planningScope,
     }
+
+    if (!editing && !topicsConfirmed) {
+      setFormErrors({ topics: 'Hãy rà soát và xác nhận các chủ đề cần ôn trước khi sinh lịch.' })
+      setSaving(false); return
+    }
+    const ticket = inputRevision.current.next()
 
     try {
       if (editing) {
-        await updateGoal(editing.id, payload)
+        const updated = await updateGoal(editing.id, payload, editing.version)
+        if (detail?.id === updated.id) setDetail(updated)
         setSuccessMessage('Đã cập nhật mục tiêu thành công!')
       } else {
-        const created = await createGoal(payload)
-        setSuccessMessage('Đã tạo mục tiêu ôn tập thành công! Đang dùng AI (Gemini Flash) sinh lịch học...')
-        if (created?.id) {
-          generateAiPlan(created)
+        const result = await createGoalWithPlan(payload, { planningScope,
+          ...(createdFromForm ? { create: value => updateGoal(createdFromForm.id, value, createdFromForm.version) } : {}),
+          onCreated: goal => {
+          setCreatedFromForm(goal)
+          setGoals(previous => [goal, ...previous.filter(item => item.id !== goal.id)])
+          if (!inputRevision.current.isCurrent(ticket)) return
+          setDetail(goal)
+          setAutomaticPlan({ goalId: goal.id, status: 'generating', scope: planningScope })
+          setSuccessMessage('Đã tạo mục tiêu. AI đang sinh bản nháp lịch học để bạn kiểm tra…')
+        } })
+        if (!inputRevision.current.isCurrent(ticket)) return
+        if (result.planError) {
+          const reason = result.planError.status === 503 ? 'AI hiện chưa sẵn sàng.' : result.planError.message
+          setAutomaticPlan({ goalId: result.goal.id, status: 'error', scope: planningScope, error: `Mục tiêu đã được lưu. Chưa sinh được lịch: ${reason} Hãy thử lại bằng nút Tạo bản nháp AI; không cần tạo lại mục tiêu.` })
+          setSuccessMessage('Đã lưu mục tiêu; lịch học đang chờ sinh bản nháp.')
+        } else {
+          setAutomaticPlan({ goalId: result.goal.id, status: 'ready', draft: result.draft, scope: planningScope })
+          setSuccessMessage('Bản nháp lịch học đã sẵn sàng ở Chi tiết mục tiêu. Hãy xem lại rồi bấm Xác nhận và lưu kế hoạch.')
         }
       }
       setTimeout(() => setSuccessMessage(''), 4000)
-      resetForm()
+      if (editing) resetForm()
       await refresh()
     } catch (error) {
-      if (error instanceof GoalApiError && error.fieldErrors.length) {
-        setFormErrors(mapFieldErrors(error))
-      }
-      setPageError(apiMessage(error))
+      const described = describeGoalError(error)
+      setFormErrors(described.fieldErrors)
+      setConflicts(described.conflicts)
+      setPageError(described.message)
     } finally {
       setSaving(false)
     }
   }
 
   async function removeGoal(goal) {
-    const confirmed = window.confirm(
-      `Bạn có chắc muốn xóa mục tiêu "${goal.subject}"? Các công việc và bản nháp kế hoạch liên quan cũng sẽ bị xóa.`,
-    )
-    if (!confirmed) return
+    if (deletingId) return // a delete is already in flight
 
-    setDeletingId(goal.id)
     setPageError('')
     setSuccessMessage('')
+    setDeletingId(goal.id)
     try {
-      await deleteGoal(goal.id)
+      const result = await confirmAndDeleteGoal(goal, {
+        confirm: message => window.confirm(message),
+        remove: deleteGoal,
+      })
+      if (result === 'cancelled') return
       setSuccessMessage(`Đã xóa mục tiêu "${goal.subject}".`)
       setTimeout(() => setSuccessMessage(''), 3000)
       if (editing?.id === goal.id) resetForm()
+      if (detail?.id === goal.id) setDetail(null)
       await refresh()
     } catch (error) {
-      setPageError(apiMessage(error))
+      const described = describeGoalError(error)
+      setPageError(described.message)
+      if (error instanceof GoalApiError && error.status === 404) {
+        await refresh() // already removed elsewhere: bring the list back in sync
+      }
     } finally {
       setDeletingId(null)
     }
   }
+
+  const activePlan = automaticPlan?.goalId === detail?.id ? automaticPlan : null
 
   const examMin = form.startDate
     ? [localDateString(), nextDate(form.startDate)].sort().at(-1)
@@ -337,41 +316,52 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
   return (
     <section className="goals-page" aria-labelledby="goals-title">
       <div className="goals-heading">
-        <div className="goals-heading-info">
-          <p className="eyebrow">SPRINT 3 · US-06 & AI FEAT</p>
+        <div>
+          <p className="eyebrow">Mục tiêu</p>
           <h1 id="goals-title">Mục tiêu ôn tập</h1>
-          <p className="goals-subtitle">Tạo mục tiêu rõ ràng để giới hạn thời gian và chuẩn bị cho kỳ thi với sự hỗ trợ của Gemini 3.8 Flash.</p>
+          <p>Tạo mục tiêu rõ ràng để giới hạn thời gian và chuẩn bị cho kỳ thi.</p>
         </div>
-        <div className="goals-heading-actions">
-          <button className="button button--secondary" type="button" onClick={onBack}>
-            ← Tổng quan
-          </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button className="button button--secondary" type="button" onClick={onBack}>← Tổng quan</button>
           {onNavigateDaily && (
-            <button className="button button--primary" type="button" onClick={onNavigateDaily}>
-              Xem lịch học hôm nay →
-            </button>
+            <button className="button button--primary" type="button" onClick={() => onNavigateDaily()}>Xem lịch học hôm nay →</button>
           )}
         </div>
       </div>
 
       {/* Feedback Alert */}
       {successMessage && (
-        <div className="goal-alert goal-alert--success" role="status">
-          <span className="goal-alert-icon" aria-hidden="true">✓</span>
-          <span>{successMessage}</span>
+        <div style={{
+          background: '#ecfdf5',
+          border: '1px solid #a7f3d0',
+          color: '#065f46',
+          padding: '0.75rem 1rem',
+          borderRadius: '8px',
+          fontSize: '0.875rem',
+        }}>
+          {successMessage}
         </div>
       )}
 
       {/* Unauthenticated Alert */}
-      {!currentUser && isUnauthenticated && (
-        <div className="goal-alert goal-alert--info" role="alert">
-          <div>
-            <strong>Chưa xác thực:</strong> Bạn cần đăng nhập để lưu trữ mục tiêu cá nhân.
-          </div>
+      {isUnauthenticated && (
+        <div style={{
+          background: '#eff6ff',
+          border: '1px solid #bfdbfe',
+          color: '#1e40af',
+          padding: '0.75rem 1rem',
+          borderRadius: '8px',
+          fontSize: '0.875rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}>
+          <div><strong>Chưa xác thực:</strong> Bạn cần đăng nhập để lưu trữ mục tiêu cá nhân.</div>
           <button
             type="button"
-            className="button button--primary button--sm"
-            onClick={onNavigateAuth || (() => { window.location.hash = '#login' })}
+            className="button button--primary"
+            style={{ fontSize: '0.8125rem', padding: '0.35rem 0.75rem' }}
+            onClick={() => { window.location.hash = '#login' }}
           >
             Đăng nhập ngay →
           </button>
@@ -379,176 +369,89 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
       )}
 
       {pageError && (
-        <div className="goal-alert goal-alert--error" role="alert">
-          <span className="goal-alert-icon" aria-hidden="true">⚠</span>
-          <span>{pageError}</span>
+        <div className="goal-alert" role="alert">
+          {pageError}
+          {conflicts.length > 0 && (
+            <ul className="goal-conflicts">
+              {conflicts.map(message => <li key={message}>{message}</li>)}
+            </ul>
+          )}
         </div>
       )}
 
+      {currentUser && <StudyBudgetPanel revision={detail?.version} focusRequest={sharedBudgetFocus} />}
+      {currentUser && <CalendarSyncPanel revision={`${goals.length}:${detail?.version ?? ''}`} onOpenCalendar={() => window.location.assign('/?calendar=manage#daily')} />}
       <div className="goals-layout">
         <section className="goal-form-card" aria-labelledby="goal-form-title">
           <div className="goal-card-heading">
-            <h2 id="goal-form-title">{editing ? 'Chỉnh sửa mục tiêu' : 'Tạo mục tiêu mới'}</h2>
-            {editing && (
-              <div className="goal-card-heading-tags">
-                <span className="goal-card-badge">Phiên bản v{editing.version}</span>
-              </div>
-            )}
+            <h2 id="goal-form-title">{editing ? 'Chỉnh sửa mục tiêu' : createdFromForm ? 'Điều chỉnh mục tiêu vừa tạo' : 'Tạo mục tiêu mới'}</h2>
+            {editing && <span>Phiên bản v{editing.version}</span>}
           </div>
-
-          {/* Quickfill Syllabus Component using Gemini 3.8 Flash */}
-          <div className="syllabus-quickfill-box">
-            <div className="syllabus-quickfill-topbar">
-              <button
-                type="button"
-                className="button button--secondary button--sm syllabus-trigger-btn"
-                onClick={() => setShowSyllabusBox(prev => !prev)}
-                disabled={isParsingSyllabus}
-              >
-                <span className="syllabus-btn-icon" aria-hidden="true">📄</span>
-                <span>{showSyllabusBox ? 'Đóng công cụ tải đề cương' : 'Tải file đề cương để điền nhanh'}</span>
-              </button>
-              <span className="syllabus-gemini-tag">Gemini 3.8 Flash</span>
-            </div>
-
-            {showSyllabusBox && (
-              <div className="syllabus-quickfill-content">
-                <p className="syllabus-quickfill-desc">
-                  Tải lên file đề cương môn học (<strong>.pdf</strong>, <strong>.docx</strong>, <strong>.txt</strong>, <strong>.md</strong>) hoặc dán văn bản để AI tự động trích xuất tên môn, các chương mục ôn tập và đề xuất ngày thi.
-                </p>
-
-                <div className="syllabus-upload-actions">
-                  <label className={`button button--primary button--sm syllabus-file-label ${isParsingSyllabus ? 'button--loading' : ''}`}>
-                    <span>{isParsingSyllabus ? '⏳ Đang dùng Gemini 3.8 Flash đọc file...' : '📁 Chọn tệp đề cương (.pdf, .txt, .docx, .md)'}</span>
-                    <input
-                      type="file"
-                      accept=".pdf,.docx,.txt,.md,.text"
-                      onChange={handleSyllabusFileUpload}
-                      disabled={isParsingSyllabus}
-                      style={{ display: 'none' }}
-                    />
-                  </label>
-                  {syllabusFileName && <span className="syllabus-chosen-filename">Tệp: {syllabusFileName}</span>}
-                </div>
-
-                <div className="syllabus-divider"><span>HOẶC DÁN VĂN BẢN ĐỀ CƯƠNG VÀO ĐÂY</span></div>
-
-                <textarea
-                  className="syllabus-textarea"
-                  rows={3}
-                  placeholder="Dán nội dung đề cương môn học, các chương mục trọng tâm vào đây..."
-                  value={syllabusText}
-                  onChange={e => setSyllabusText(e.target.value)}
-                  disabled={isParsingSyllabus}
-                />
-
-                <div className="syllabus-text-actions">
-                  <button
-                    type="button"
-                    className="button button--secondary button--sm"
-                    onClick={handleParseSyllabusText}
-                    disabled={isParsingSyllabus || !syllabusText.trim()}
-                  >
-                    {isParsingSyllabus ? '⏳ Đang phân tích...' : '✨ Điền nhanh bằng Gemini Flash →'}
-                  </button>
-                </div>
-
-                {syllabusError && (
-                  <div className="syllabus-error-message">
-                    <span>⚠ {syllabusError}</span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <form onSubmit={submitForm} noValidate className="goal-form">
+          <SyllabusUpload key={editing?.id || 'new'} disabled={saving} onApply={data => {
+            inputRevision.current.next()
+            setForm(previous => applySyllabusFields(previous, data))
+            setSelectedTopics(data.selectedTopics); setTopicsConfirmed(true)
+            setFormErrors({})
+            setSuccessMessage('Đã xác nhận chủ đề. Hãy kiểm tra ngày thi và nhập quỹ phút học rồi tạo bản nháp.')
+          }} />
+          <form onSubmit={submitForm} noValidate>
             <div className="goal-field">
               <label htmlFor="goal-subject">Môn học</label>
-              <input
-                id="goal-subject"
-                name="subject"
-                value={form.subject}
-                onChange={changeField}
-                maxLength={100}
-                placeholder="Ví dụ: Cơ sở dữ liệu"
-                required
-                aria-invalid={Boolean(formErrors.subject)}
-              />
-              {formErrors.subject && <small className="field-error">{formErrors.subject}</small>}
+              <input id="goal-subject" name="subject" value={form.subject} onChange={changeField}
+                maxLength={100} placeholder="Ví dụ: Cơ sở dữ liệu" required aria-invalid={Boolean(formErrors.subject)} />
+              <FieldError formErrors={formErrors} name="subject" />
             </div>
             <div className="goal-field">
               <label htmlFor="goal-topics">Chủ đề cần ôn tập</label>
-              <textarea
-                id="goal-topics"
-                name="topics"
-                value={form.topics}
-                onChange={changeField}
-                rows={3}
-                placeholder="Ví dụ: SQL, chuẩn hóa, transaction..."
-                required
-                aria-invalid={Boolean(formErrors.topics)}
-              />
-              {formErrors.topics && <small className="field-error">{formErrors.topics}</small>}
+              <textarea id="goal-topics" name="topics" value={form.topics} onChange={changeField}
+                rows={3} placeholder="Ví dụ: SQL, chuẩn hóa, transaction..." required
+                aria-invalid={Boolean(formErrors.topics)} />
+              <FieldError formErrors={formErrors} name="topics" />
+              <label><input type="checkbox" disabled={saving} checked={topicsConfirmed} onChange={e => { inputRevision.current.next(); setTopicsConfirmed(e.target.checked) }} /> Tôi xác nhận các chủ đề trên là phạm vi cần ôn.</label>
             </div>
             <div className="goal-date-grid">
               <div className="goal-field">
                 <label htmlFor="goal-start">Ngày bắt đầu</label>
-                <input
-                  id="goal-start"
-                  type="date"
-                  name="startDate"
-                  value={form.startDate}
-                  onChange={changeField}
-                  required
-                  aria-invalid={Boolean(formErrors.startDate)}
-                />
-                <small className="field-hint">Ngày bắt đầu ôn tập.</small>
-                {formErrors.startDate && <small className="field-error">{formErrors.startDate}</small>}
+                <input id="goal-start" type="date" name="startDate" value={form.startDate}
+                  min={editing ? undefined : vietnamToday()}
+                  onChange={changeField} required aria-invalid={Boolean(formErrors.startDate)} />
+                <FieldError formErrors={formErrors} name="startDate" />
               </div>
               <div className="goal-field">
                 <label htmlFor="goal-exam">Ngày thi</label>
-                <input
-                  id="goal-exam"
-                  type="date"
-                  name="examDate"
-                  value={form.examDate}
-                  onChange={changeField}
-                  min={examMin}
-                  max={examMax}
-                  required
-                  aria-invalid={Boolean(formErrors.examDate)}
-                />
-                <small className="field-hint">Tối đa 90 ngày sau ngày bắt đầu.</small>
-                {formErrors.examDate && <small className="field-error">{formErrors.examDate}</small>}
+                <input id="goal-exam" type="date" name="examDate" value={form.examDate}
+                  min={examMin} max={examMax || undefined} onChange={changeField} required aria-invalid={Boolean(formErrors.examDate)} />
+                <small className="field-hint">Tối đa 90 ngày kể từ ngày bắt đầu.</small>
+                <FieldError formErrors={formErrors} name="examDate" />
               </div>
             </div>
             <div className="goal-field">
-              <label htmlFor="goal-minutes">Số phút học mỗi ngày</label>
-              <input
-                id="goal-minutes"
-                type="number"
-                name="minutesPerDay"
-                min={15}
-                max={480}
-                step={15}
-                value={form.minutesPerDay}
-                onChange={changeField}
-                required
-                aria-invalid={Boolean(formErrors.minutesPerDay)}
-              />
-              <small className="field-hint">Từ 15 đến 480 phút.</small>
-              {formErrors.minutesPerDay && <small className="field-error">{formErrors.minutesPerDay}</small>}
+              <label htmlFor="goal-budget">Thời gian học mỗi ngày</label>
+              <div className="goal-budget-input">
+                <input id="goal-budget" type="number" name="minutesPerDay" value={form.minutesPerDay}
+                  onChange={changeField} min="15" max="480" step="1" required
+                  aria-invalid={Boolean(formErrors.minutesPerDay)} />
+                <span>phút / ngày</span>
+              </div>
+              <small className="field-hint">Cho phép từ 15 đến 480 phút mỗi ngày.</small>
+              <FieldError formErrors={formErrors} name="minutesPerDay" />
+              <small>Chỉ nhập tổng phút theo ngày; đây không phải một khung giờ liên tục. Các ước lượng của AI có thể chỉnh.</small>
             </div>
+            {studyDates(form.startDate, form.examDate).length > 0 && <details>
+              <summary>Điều chỉnh phút từng ngày (0 = không học)</summary>
+              {studyDates(form.startDate, form.examDate).map(day => <label key={day} className="goal-field">{displayDate(day)}
+                <input type="number" min={0} max={Number(form.minutesPerDay) || 480} step={1} value={dailyMinutes[day] ?? form.minutesPerDay} onChange={e => {
+                  inputRevision.current.next(); if (saving) { setAutomaticPlan(null); setDetail(null) }
+                  setDailyMinutes(previous => ({ ...previous, [day]: e.target.value === '' ? '' : Number(e.target.value) }))
+                }} />
+              </label>)}
+            </details>}
             <div className="goal-form-actions">
               <button className="button button--primary" type="submit" disabled={saving}>
-                {saving ? 'Đang lưu…' : editing ? 'Lưu thay đổi' : 'Tạo mục tiêu'}
+                {saving ? automaticPlan?.status === 'generating' ? 'Đang sinh lịch học…' : 'Đang lưu…' : editing ? 'Lưu thay đổi' : createdFromForm ? 'Cập nhật mục tiêu này & sinh lại bản nháp' : 'Tạo mục tiêu & sinh lịch AI'}
               </button>
-              {editing && (
-                <button className="button button--secondary" type="button" onClick={resetForm} disabled={saving}>
-                  Hủy chỉnh sửa
-                </button>
-              )}
+              {!editing && createdFromForm && <button className="button button--secondary" type="button" onClick={resetForm} disabled={saving}>Tạo mục tiêu khác</button>}
+              {editing && <button className="button button--secondary" type="button" onClick={resetForm} disabled={saving}>Hủy sửa</button>}
             </div>
           </form>
         </section>
@@ -556,122 +459,69 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
         <section className="goal-list-card" aria-labelledby="goal-list-title">
           <div className="goal-card-heading">
             <h2 id="goal-list-title">Mục tiêu của tôi</h2>
-            <button className="button button--secondary button--sm" type="button" onClick={refresh} disabled={loading}>
-              Tải lại
-            </button>
+            <span>{goals.length} mục tiêu</span>
           </div>
-          {loading && <p className="goal-list-empty">Đang tải danh sách mục tiêu…</p>}
-          {!loading && goals.length === 0 && (
-            <div className="goal-list-empty">
-              <p>Chưa có mục tiêu nào được lưu.</p>
-              <p className="empty-hint">Hãy điền form bên trái hoặc dùng nút <strong>"Tải file đề cương để điền nhanh"</strong> để bắt đầu!</p>
-            </div>
+          {detail && (
+            <section ref={detailRef} className="goal-detail" aria-label="Chi tiết mục tiêu">
+              <div className="goal-item-top">
+                <h3>{detail.subject}</h3>
+                <button type="button" onClick={() => setDetail(null)}>Đóng</button>
+              </div>
+              <dl>
+                <dt>Chủ đề</dt><dd>{detail.topics}</dd>
+                <dt>Ngày bắt đầu</dt><dd>{displayDate(detail.startDate)}</dd>
+                <dt>Ngày thi</dt><dd>{displayDate(detail.examDate)}</dd>
+                <dt>Thời gian mỗi ngày</dt><dd>{detail.minutesPerDay} phút</dd>
+                <dt>Múi giờ</dt><dd>{detail.timezone}</dd>
+                <dt>Phiên bản</dt><dd>v{detail.version}</dd>
+              </dl>
+              <GoalProgress goalId={detail.id} version={detail.version} />
+              {detail.planningScope?.selectedTopics && <details>
+                <summary>Cấu hình kế hoạch đã lưu</summary>
+                <p>Chủ đề, ưu tiên và quỹ phút được giữ khi mở lại hoặc sinh lịch mới. Các ngày không ghi đè dùng {detail.minutesPerDay} phút.</p>
+                <ul>{detail.planningScope.selectedTopics.map(topic => <li key={topic.id}>{topic.title} · Ưu tiên: {({ HIGH: 'Cao', MEDIUM: 'Trung bình', LOW: 'Thấp' })[topic.priority || 'MEDIUM']}</li>)}</ul>
+                <ul>{Object.entries(detail.planningScope.dailyMinutes || {}).map(([day, minutes]) => <li key={day}>{displayDate(day)}: {minutes} phút{minutes === 0 ? ' (không học)' : ''}</li>)}</ul>
+              </details>}
+              <PlanDraftPanel key={`${detail.id}:${detail.version}:${activePlan?.status || 'manual'}:${activePlan?.draft?.id || ''}`} goal={detail} planningScope={activePlan?.scope}
+                initialDraft={activePlan?.draft} initialError={activePlan?.error} generating={activePlan?.status === 'generating'}
+                onAdjust={async section => { try { startEditing(await getGoal(detail.id), section) } catch (err) { setPageError(err.message) } }}
+                onAdjustSharedBudget={() => setSharedBudgetFocus(value => value + 1)}
+                onViewSchedule={() => onNavigateDaily?.()}
+                onSaved={async (saved, firstDate) => {
+                setAutomaticPlan(null)
+                resetForm()
+                setSuccessMessage(`Đã lưu ${saved.createdCount} công việc vào lịch học.${saved.remainingCount ? ` Còn ${saved.remainingCount} việc chưa xếp; mở mục tiêu → Việc chưa xếp đã lưu để xử lý tiếp.` : ''}`)
+                await refresh()
+                try { setDetail(await getGoal(detail.id)) } catch (err) { setPageError(err.message) }
+                if (onNavigateDaily) onNavigateDaily(firstDate)
+              }} />
+            </section>
           )}
-          {!loading && goals.length > 0 && (
-            <div className="goal-items">
+          {loading ? (
+            <p className="goal-empty" role="status">Đang tải mục tiêu…</p>
+          ) : goals.length === 0 ? (
+            <div className="goal-empty">
+              <span aria-hidden="true">✦</span>
+              <h3>Chưa có mục tiêu nào</h3>
+              <p>Tạo mục tiêu đầu tiên để bắt đầu lập kế hoạch ôn tập.</p>
+            </div>
+          ) : (
+            <div className="goal-list">
               {goals.map(goal => (
-                <article key={goal.id} className="goal-item">
-                  <header className="goal-item-header">
-                    <h3>{goal.subject}</h3>
-                    <span className="goal-version">v{goal.version}</span>
-                  </header>
+                <article className="goal-item" key={goal.id}>
+                  <div className="goal-item-top">
+                    <div><h3>{goal.subject}</h3><span className="goal-version">v{goal.version}</span></div>
+                    <span className="goal-budget">{goal.minutesPerDay} phút/ngày</span>
+                  </div>
                   <p className="goal-topics">{goal.topics}</p>
-                  <dl className="goal-meta">
-                    <div>
-                      <dt>Bắt đầu:</dt>
-                      <dd>{displayDate(goal.startDate)}</dd>
-                    </div>
-                    <div>
-                      <dt>Ngày thi:</dt>
-                      <dd>{displayDate(goal.examDate)}</dd>
-                    </div>
-                    <div>
-                      <dt>Ngân sách:</dt>
-                      <dd>{goal.minutesPerDay} phút/ngày</dd>
-                    </div>
-                  </dl>
-
-                  {/* US-06 AI Generation Status Banner */}
-                  {getStatus(goal.id) && (
-                    <div className={`goal-ai-status-banner goal-ai-status-banner--${getStatus(goal.id)?.status}`}>
-                      {getStatus(goal.id)?.status === 'generating' && (
-                        <div className="goal-ai-status-content">
-                          <span className="goal-ai-spinner" aria-hidden="true">⏳</span>
-                          <div>
-                            <strong>AI đang sinh lịch học:</strong> Đang dùng Gemini Flash phân tích chủ đề và lập lịch hàng tuần...
-                          </div>
-                        </div>
-                      )}
-
-                      {getStatus(goal.id)?.status === 'ready' && (
-                        <div className="goal-ai-status-content">
-                          <span className="goal-ai-icon" aria-hidden="true">✨</span>
-                          <div className="goal-ai-text">
-                            <strong>Đã sinh xong kế hoạch học tập ({getStatus(goal.id)?.taskCount || 'nhiều'} buổi học)!</strong>
-                            <p>Bạn có thể mở lịch học để xem trước, kéo thả điều chỉnh các buổi học lặp lại theo tuần.</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {getStatus(goal.id)?.status === 'confirmed' && (
-                        <div className="goal-ai-status-content goal-ai-status-content--confirmed">
-                          <span className="goal-ai-icon" aria-hidden="true">✓</span>
-                          <div>
-                            <strong>Đã thêm vào lịch:</strong> Toàn bộ các buổi học đã được xác nhận và đưa vào lịch học chính thức.
-                          </div>
-                        </div>
-                      )}
-
-                      {getStatus(goal.id)?.status === 'error' && (
-                        <div className="goal-ai-status-content goal-ai-status-content--error">
-                          <span className="goal-ai-icon" aria-hidden="true">⚠</span>
-                          <div>
-                            <strong>Không thể sinh lịch:</strong> {getStatus(goal.id)?.message}
-                          </div>
-                          <button
-                            type="button"
-                            className="button button--secondary button--sm"
-                            onClick={() => generateAiPlan(goal)}
-                          >
-                            Thử lại
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
+                  <p className="goal-dates">Bắt đầu {displayDate(goal.startDate)} · Thi {displayDate(goal.examDate)}</p>
+                  <GoalProgress goalId={goal.id} version={goal.version} />
                   <div className="goal-item-actions">
-                    {!getStatus(goal.id) && (
-                      <button
-                        type="button"
-                        className="button button--secondary button--sm button--ai"
-                        onClick={() => generateAiPlan(goal)}
-                        title="Tạo lịch học tự động bằng Gemini Flash"
-                      >
-                        ✨ Sinh lịch AI
-                      </button>
-                    )}
-                    {getStatus(goal.id)?.status === 'ready' && (
-                      <button
-                        type="button"
-                        className="button button--primary button--sm"
-                        onClick={() => {
-                          if (onReviewDraft && getStatus(goal.id)?.draft) {
-                            onReviewDraft(getStatus(goal.id).draft)
-                          } else if (onNavigateDaily) {
-                            onNavigateDaily()
-                          }
-                        }}
-                      >
-                        Xem lịch & Điều chỉnh →
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="button button--danger button--sm"
-                      onClick={() => removeGoal(goal)}
-                      disabled={deletingId === goal.id}
-                    >
+                    <button type="button" onClick={() => showDetail(goal)} disabled={detailLoading || saving}>Chi tiết</button>
+                    <button type="button" onClick={() => showDetail(goal)} disabled={detailLoading || saving}>Bản nháp AI & Điều chỉnh</button>
+                    <button type="button" onClick={() => startEditing(goal)} disabled={saving}>Chỉnh sửa</button>
+                    <button type="button" className="goal-delete" onClick={() => removeGoal(goal)}
+                      disabled={deletingId !== null || saving}>
                       {deletingId === goal.id ? 'Đang xóa…' : 'Xóa'}
                     </button>
                   </div>
@@ -681,7 +531,7 @@ export default function GoalsPage({ currentUser, onBack, onNavigateDaily, onNavi
           )}
         </section>
       </div>
-      <p className="goal-page-note">Dữ liệu chỉ hiển thị từ API của tài khoản đang đăng nhập. Máy chủ phải kiểm tra quyền sở hữu; giao diện không tự quyết định quyền truy cập.</p>
+      <p className="goal-page-note">Dữ liệu lấy từ máy chủ cho tài khoản đang đăng nhập; máy chủ kiểm tra quyền sở hữu.</p>
     </section>
   )
 }

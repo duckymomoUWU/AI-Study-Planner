@@ -6,7 +6,6 @@ import { Label } from '../components/ui/label.jsx'
 import { Alert, AlertTitle, AlertDescription } from '../components/ui/alert.jsx'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs.jsx'
 import { login, register, getCsrfToken, AuthApiError } from '../lib/auth.js'
-import { clearPlaceholderGoals } from '../lib/goals.js'
 import './AuthPage.css'
 
 export default function AuthPage({ onAuthSuccess, onBack, initialTab = 'login' }) {
@@ -23,10 +22,7 @@ export default function AuthPage({ onAuthSuccess, onBack, initialTab = 'login' }
   const [fieldErrors, setFieldErrors] = useState({})
   const [successMessage, setSuccessMessage] = useState(null)
 
-  // Warm up CSRF token and session as soon as AuthPage mounts
-  useEffect(() => {
-    getCsrfToken().catch(() => {})
-  }, [])
+  useEffect(() => { getCsrfToken().catch(() => {}) }, [])
 
   function resetErrors() {
     setGeneralError(null)
@@ -61,14 +57,10 @@ export default function AuthPage({ onAuthSuccess, onBack, initialTab = 'login' }
       }
     } catch (err) {
       if (err instanceof AuthApiError) {
-        if (err.code === 'user_not_found') {
-          setGeneralError('Tài khoản không tồn tại.')
-          setFieldErrors({ email: 'Tài khoản không tồn tại.' })
-        } else if (err.code === 'invalid_credentials') {
-          setGeneralError(err.message || 'Mật khẩu không chính xác.')
-          setFieldErrors({ password: 'Mật khẩu không chính xác.' })
-        } else if (err.code === 'forbidden_or_csrf' || err.code === 'csrf_invalid' || err.code === 'csrf_error') {
-          setGeneralError('Phiên làm việc đã hết hạn hoặc không có token CSRF hợp lệ. Vui lòng thử lại.')
+        if (err.code === 'INVALID_CREDENTIALS') {
+          setGeneralError('Email hoặc mật khẩu không chính xác.')
+        } else if (err.code === 'CSRF_INVALID' || err.code === 'CSRF_ERROR') {
+          setGeneralError('Phiên làm việc đã hết hạn hoặc token CSRF không hợp lệ. Vui lòng thử lại.')
         } else {
           setGeneralError(err.message || 'Đăng nhập không thành công.')
         }
@@ -111,15 +103,6 @@ export default function AuthPage({ onAuthSuccess, onBack, initialTab = 'login' }
       await register(email.trim(), password)
       setSuccessMessage('Đăng ký tài khoản thành công! Đang tự động đăng nhập...')
 
-      // New account creation: Ensure no mockup or leftover placeholder data exists
-      clearPlaceholderGoals()
-      try {
-        localStorage.removeItem('ai_study_planner_calendar_tasks_v2')
-        localStorage.removeItem('ai_study_planner_calendar_tasks_user_v2')
-      } catch {
-        // ignore
-      }
-
       // Auto-login after successful registration
       const user = await login(email.trim(), password)
       if (onAuthSuccess) {
@@ -127,11 +110,11 @@ export default function AuthPage({ onAuthSuccess, onBack, initialTab = 'login' }
       }
     } catch (err) {
       if (err instanceof AuthApiError) {
-        if (err.code === 'email_already_exists') {
+        if (err.code === 'EMAIL_ALREADY_EXISTS') {
           setGeneralError('Email này đã được sử dụng. Vui lòng chọn email khác hoặc đăng nhập.')
-        } else if (err.code === 'forbidden_or_csrf' || err.code === 'csrf_invalid' || err.code === 'csrf_error') {
-          setGeneralError('Phiên làm việc đã hết hạn hoặc không có token CSRF hợp lệ. Vui lòng thử lại.')
-        } else if (err.code === 'validation_failed' && err.fieldErrors?.length) {
+        } else if (err.code === 'CSRF_INVALID' || err.code === 'CSRF_ERROR') {
+          setGeneralError('Phiên làm việc đã hết hạn hoặc không lấy được CSRF token. Vui lòng thử lại.')
+        } else if (err.code === 'VALIDATION_ERROR' && err.fieldErrors?.length) {
           const map = {}
           for (const item of err.fieldErrors) {
             map[item.field] = item.message

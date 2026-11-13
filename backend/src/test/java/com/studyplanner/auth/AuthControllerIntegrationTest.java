@@ -2,6 +2,7 @@ package com.studyplanner.auth;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -12,6 +13,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
@@ -51,6 +54,8 @@ class AuthControllerIntegrationTest {
     @MockBean
     private AuthUserRepository authUserRepository;
 
+    private static final Instant CREATED = Instant.parse("2026-11-07T03:00:00Z");
+
     private final UUID sampleId = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
     // ==========================================
@@ -58,12 +63,11 @@ class AuthControllerIntegrationTest {
     // ==========================================
 
     @Test
-    @DisplayName("GET /api/v1/auth/csrf returns token details in data envelope and sets XSRF-TOKEN cookie")
+    @DisplayName("GET /api/v1/auth/csrf returns token details and sets XSRF-TOKEN cookie")
     void getCsrfReturnsTokenAndSetsCookie() throws Exception {
         mockMvc.perform(get("/api/v1/auth/csrf"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.headerName").value("X-CSRF-TOKEN"))
-                .andExpect(jsonPath("$.data.parameterName").value("_csrf"))
                 .andExpect(jsonPath("$.data.token").isString())
                 .andExpect(cookie().exists("XSRF-TOKEN"));
     }
@@ -73,11 +77,11 @@ class AuthControllerIntegrationTest {
     // ==========================================
 
     @Test
-    @DisplayName("POST /api/v1/auth/register returns 201 Created on valid input with CSRF and wrapped in data")
+    @DisplayName("POST /api/v1/auth/register returns 201 Created on valid input with CSRF")
     void registerSucceeds() throws Exception {
         var request = new RegisterRequest("student@example.com", "Password123!");
         when(authService.register(any(RegisterRequest.class)))
-                .thenReturn(new UserResponse(sampleId, "student@example.com"));
+                .thenReturn(new UserResponse(sampleId, "student@example.com", CREATED));
 
         mockMvc.perform(post("/api/v1/auth/register")
                         .with(csrf())
@@ -172,6 +176,8 @@ class AuthControllerIntegrationTest {
 
         when(authService.authenticate(eq("student@example.com"), eq("Password123!")))
                 .thenReturn(auth);
+        when(authService.getUser(sampleId))
+                .thenReturn(Optional.of(new UserResponse(sampleId, "student@example.com", CREATED)));
 
         mockMvc.perform(post("/api/v1/auth/login")
                         .with(csrf())
@@ -180,6 +186,7 @@ class AuthControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(sampleId.toString()))
                 .andExpect(jsonPath("$.data.email").value("student@example.com"))
+                .andExpect(jsonPath("$.data.createdAt").value("2026-11-07T03:00:00Z"))
                 .andExpect(header().exists("X-CSRF-TOKEN"))
                 .andExpect(cookie().exists("XSRF-TOKEN"));
     }
@@ -197,23 +204,7 @@ class AuthControllerIntegrationTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error.code").value("INVALID_CREDENTIALS"))
-                .andExpect(jsonPath("$.error.message").value("Mật khẩu không chính xác."));
-    }
-
-    @Test
-    @DisplayName("POST /api/v1/auth/login returns 401 Unauthorized with USER_NOT_FOUND when account does not exist")
-    void loginRejectsNonExistentAccount() throws Exception {
-        var request = new LoginRequest("nonexistent@example.com", "Password123!");
-        when(authService.authenticate(eq("nonexistent@example.com"), eq("Password123!")))
-                .thenThrow(new UserNotFoundException("Tài khoản không tồn tại."));
-
-        mockMvc.perform(post("/api/v1/auth/login")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error.code").value("USER_NOT_FOUND"))
-                .andExpect(jsonPath("$.error.message").value("Tài khoản không tồn tại."));
+                .andExpect(jsonPath("$.error.message").value("Email hoặc mật khẩu không chính xác."));
     }
 
     @Test
@@ -249,6 +240,8 @@ class AuthControllerIntegrationTest {
     @DisplayName("GET /api/v1/me returns 200 OK with authenticated user from session")
     void meReturnsCurrentUser() throws Exception {
         var principal = new AppUserPrincipal(sampleId, "student@example.com", "hashed_pass");
+        when(authService.getUser(sampleId))
+                .thenReturn(Optional.of(new UserResponse(sampleId, "student@example.com", CREATED)));
 
         mockMvc.perform(get("/api/v1/me")
                         .with(user(principal)))
@@ -260,7 +253,7 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("GET /api/v1/me returns 401 Unauthorized when unauthenticated")
+    @DisplayName("GET /api/v1/me returns 401 UNAUTHORIZED when unauthenticated")
     void meRejectsUnauthenticated() throws Exception {
         mockMvc.perform(get("/api/v1/me"))
                 .andExpect(status().isUnauthorized())
@@ -273,6 +266,8 @@ class AuthControllerIntegrationTest {
     void meIgnoresSpoofedUserIdParameter() throws Exception {
         var principal = new AppUserPrincipal(sampleId, "student@example.com", "hashed_pass");
         UUID spoofedId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        when(authService.getUser(sampleId))
+                .thenReturn(Optional.of(new UserResponse(sampleId, "student@example.com", CREATED)));
 
         mockMvc.perform(get("/api/v1/me?userId=" + spoofedId)
                         .with(user(principal)))
@@ -312,9 +307,9 @@ class AuthControllerIntegrationTest {
     // ==========================================
 
     @Test
-    @DisplayName("Access to general /api/* endpoint returns 401 Unauthorized when unauthenticated")
+    @DisplayName("Access to general /api/v1/* endpoint returns 401 Unauthorized when unauthenticated")
     void protectedApiRequiresAuthentication() throws Exception {
-        mockMvc.perform(get("/api/goals"))
+        mockMvc.perform(get("/api/v1/goals"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"))
                 .andExpect(jsonPath("$.error.message").value("Bạn cần đăng nhập."));

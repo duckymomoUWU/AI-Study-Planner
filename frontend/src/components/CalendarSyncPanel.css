@@ -1,0 +1,9 @@
+.calendar-sync { margin: 1rem 0; padding: 1rem; border: 1px solid #c8d3bc; border-radius: 14px; background: #eef0e5; color: #28564c; }
+.calendar-sync h2 { font-size: 1.1rem; margin: 0 0 .5rem; }
+.calendar-sync p,.calendar-sync small { line-height: 1.6; }
+.calendar-sync li { margin: .8rem 0; overflow-wrap: anywhere; }
+.calendar-sync button { margin: .7rem .5rem .5rem 0; border: 1px solid #adbea2; border-radius: 9px; padding: .55rem .8rem; font: inherit; color: #28564c; background: #fffdf5; cursor: pointer; }
+.calendar-sync button:hover { background: #dce5d2; }
+.calendar-sync button:focus-visible { outline: 2px solid #28564c; outline-offset: 3px; }
+.calendar-sync button:disabled { opacity: .6; cursor: default; }
+.calendar-sync summary { cursor: pointer; }

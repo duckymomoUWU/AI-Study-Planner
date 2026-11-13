@@ -14,7 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 class GeminiPlanServiceTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final GeminiPlanService service = new GeminiPlanService(objectMapper, "", "gemini-3.8-flash");
+    private final GeminiPlanService service = new GeminiPlanService(objectMapper, "", "test-model");
 
     @Test
     void generatesValidFallbackProposalWithTasks() throws Exception {
@@ -27,7 +27,7 @@ class GeminiPlanServiceTest {
                 "Asia/Ho_Chi_Minh"
         );
 
-        String json = service.generateProposalJson(req);
+        String json = service.generateFallbackProposal(req);
         assertNotNull(json);
 
         JsonNode root = objectMapper.readTree(json);
@@ -52,7 +52,7 @@ class GeminiPlanServiceTest {
         String outlineText = """
                 ĐỀ CƯƠNG CHI TIẾT HỌC PHẦN
                 Môn học: Mạng máy tính nâng cao
-                
+
                 Nội dung ôn thi bao gồm:
                 Chương 1: Kiến trúc TCP/IP và mô hình phân tầng
                 Chương 2: Giao thức định tuyến OSPF và BGP

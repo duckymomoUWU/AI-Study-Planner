@@ -1,0 +1,6 @@
+Môn học: Cơ sở dữ liệu
+Nội dung ôn tập:
+Chương 1: Mô hình quan hệ và khóa chính, khóa ngoại
+Chương 2: Truy vấn SQL JOIN và GROUP BY
+Chương 3: Chuẩn hóa dữ liệu 1NF, 2NF, 3NF
+Chương 4: Giao dịch và chỉ mục

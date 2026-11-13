@@ -1,89 +1,103 @@
+import { updateTask } from './tasks.js'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createTask, deleteTask, listOverdueTasks, listTasksByDate, toggleTaskComplete } from './tasks.js'
+import {
+  createTask, deleteTask, listOverdueTasks, listTasksByDate, setTaskCompleted, summarizeTasks, TaskApiError,
+} from './tasks.js'
 
-test('listTasksByDate calls /api/tasks?date=YYYY-MM-DD and returns response items', async t => {
-  const mockPayload = {
-    date: '2026-11-09',
-    totalEstimatedMinutes: 120,
-    completedCount: 1,
-    totalCount: 2,
-    items: [
-      { id: 'task-1', title: 'Làm bài tập', completed: true, estimatedMinutes: 60 },
-      { id: 'task-2', title: 'Đọc sách', completed: false, estimatedMinutes: 60 },
-    ],
-  }
+const task = (id, extra = {}) => ({
+  id, goalId: 'goal-1', title: 'Ôn SQL', scheduledDate: '2026-11-10', estimatedMinutes: 30,
+  completed: false, source: 'manual', createdAt: '2026-11-07T03:00:00Z', ...extra,
+})
+const meta = (page, totalPages) => ({ page, limit: 100, totalItems: 1, totalPages })
 
+test('summarizeTasks counts completed, remaining and minutes; empty is 0/0', () => {
+  const s = summarizeTasks([task('a', { completed: true }), task('b'), task('c', { estimatedMinutes: 45 })])
+  assert.equal(s.totalCount, 3)
+  assert.equal(s.completedCount, 1)
+  assert.equal(s.remainingCount, 2)
+  assert.equal(s.totalEstimatedMinutes, 105)
+  const empty = summarizeTasks([])
+  assert.deepEqual([empty.totalCount, empty.completedCount, empty.remainingCount], [0, 0, 0])
+})
+
+test('listTasksByDate requests /api/v1/tasks?date= and summarizes the real response', async t => {
   t.mock.method(globalThis, 'fetch', async (url, options) => {
-    assert.equal(url, '/api/tasks?date=2026-11-09')
+    assert.equal(url, '/api/v1/tasks?date=2026-11-10&page=1&limit=100')
     assert.equal(options.method, 'GET')
     assert.equal(options.credentials, 'same-origin')
-    return Response.json(mockPayload)
+    return Response.json({ data: [task('a', { completed: true }), task('b')], meta: meta(1, 1) })
   })
-
-  const result = await listTasksByDate('2026-11-09')
-  assert.equal(result.items.length, 2)
-  assert.equal(result.totalEstimatedMinutes, 120)
-  assert.equal(result.isPlaceholder, false)
+  const day = await listTasksByDate('2026-11-10')
+  assert.equal(day.date, '2026-11-10')
+  assert.equal(day.completedCount, 1)
+  assert.equal(day.remainingCount, 1)
+  assert.equal(day.items.length, 2)
 })
 
-test('listTasksByDate falls back to placeholder items when backend returns 404 (endpoint pending)', async t => {
-  t.mock.method(globalThis, 'fetch', async () => {
-    return new Response(JSON.stringify({ message: 'Not found' }), { status: 404 })
-  })
+test('listTasksByDate follows every page and rejects a malformed response', async t => {
+  t.mock.method(globalThis, 'fetch', async url =>
+    url.includes('page=1')
+      ? Response.json({ data: [task('a')], meta: meta(1, 2) })
+      : Response.json({ data: [task('b')], meta: meta(2, 2) }))
+  assert.equal((await listTasksByDate('2026-11-10')).totalCount, 2)
 
-  const result = await listTasksByDate('2099-01-01')
-  assert.ok(result.isPlaceholder)
-  assert.ok(Array.isArray(result.items))
+  t.mock.restoreAll()
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ items: [] }))
+  await assert.rejects(listTasksByDate('2026-11-10'), error => error.status === 502)
 })
 
-test('toggleTaskComplete sends PATCH /api/tasks/:id/complete with boolean payload', async t => {
+test('setTaskCompleted PATCHes the explicit target state and returns the stored task', async t => {
   t.mock.method(globalThis, 'fetch', async (url, options) => {
-    assert.equal(url, '/api/tasks/task-123/complete')
+    assert.equal(url, '/api/v1/goals/goal-1/tasks/task-1')
     assert.equal(options.method, 'PATCH')
     assert.equal(options.credentials, 'same-origin')
     assert.deepEqual(JSON.parse(options.body), { completed: true })
-    return Response.json({ id: 'task-123', completed: true })
+    return Response.json({ data: task('task-1', { completed: true }) })
   })
-
-  const result = await toggleTaskComplete('task-123', true)
-  assert.equal(result.completed, true)
+  const stored = await setTaskCompleted('goal-1', 'task-1', true)
+  assert.equal(stored.completed, true)
 })
 
-test('createTask sends POST /api/goals/:goalId/tasks with required fields', async t => {
-  const input = { title: 'Làm đề thi thử', scheduledDate: '2026-11-09', estimatedMinutes: 90 }
+test('setTaskCompleted sends false to re-open a task and encodes the IDs', async t => {
   t.mock.method(globalThis, 'fetch', async (url, options) => {
-    assert.equal(url, '/api/goals/goal-abc/tasks')
-    assert.equal(options.method, 'POST')
-    assert.equal(options.credentials, 'same-origin')
-    assert.deepEqual(JSON.parse(options.body), input)
-    return Response.json({ id: 'task-new', ...input }, { status: 201 })
+    assert.equal(url, '/api/v1/goals/g%2F1/tasks/t%2F1')
+    assert.deepEqual(JSON.parse(options.body), { completed: false })
+    return Response.json({ data: task('t/1') })
   })
-
-  const result = await createTask('goal-abc', input)
-  assert.equal(result.id, 'task-new')
-  assert.equal(result.estimatedMinutes, 90)
+  assert.equal((await setTaskCompleted('g/1', 't/1', false)).completed, false)
 })
 
-test('deleteTask sends DELETE /api/tasks/:id and succeeds with 204', async t => {
-  t.mock.method(globalThis, 'fetch', async (url, options) => {
-    assert.equal(url, '/api/tasks/task-to-delete')
-    assert.equal(options.method, 'DELETE')
-    return new Response(null, { status: 204 })
-  })
-
-  const success = await deleteTask('task-to-delete')
-  assert.equal(success, true)
+test('setTaskCompleted surfaces server errors instead of faking success', async t => {
+  for (const [status, code] of [[404, 'NOT_FOUND'], [401, 'UNAUTHORIZED'], [403, 'CSRF_INVALID']]) {
+    t.mock.method(globalThis, 'fetch', async () => Response.json({ error: { code, message: 'x' } }, { status }))
+    await assert.rejects(setTaskCompleted('goal-1', 'task-1', true), error => {
+      assert.ok(error instanceof TaskApiError)
+      assert.equal(error.status, status)
+      assert.equal(error.code, code)
+      return true
+    })
+    t.mock.restoreAll()
+  }
 })
 
-test('listOverdueTasks requests /api/tasks/overdue and returns items', async t => {
-  t.mock.method(globalThis, 'fetch', async (url, options) => {
-    assert.equal(url, '/api/tasks/overdue')
-    assert.equal(options.method, 'GET')
-    return Response.json({ items: [{ id: 'overdue-1', title: 'Task cũ', completed: false }] })
-  })
+test('createTask and deleteTask use the v1 paths and never fall back to demo data', async t => {
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ error: { code: 'METHOD_NOT_ALLOWED', message: 'x' } }, { status: 405 }))
+  await assert.rejects(createTask('goal-1', { title: 'A', scheduledDate: '2026-11-10', estimatedMinutes: 30 }),
+    error => error.status === 405)
+  await assert.rejects(deleteTask('goal-1', 'task-1'), error => error.status === 405)
+})
 
-  const items = await listOverdueTasks()
-  assert.equal(items.length, 1)
-  assert.equal(items[0].id, 'overdue-1')
+test('overdue and update use real v1 endpoints and propagate failures', async t => {
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    if (url === '/api/v1/tasks/overdue') return Response.json({ data: [task('old')] })
+    assert.equal(url, '/api/v1/tasks/task-1')
+    assert.equal(options.method, 'PATCH')
+    assert.deepEqual(JSON.parse(options.body), { title: 'Changed', estimatedMinutes: 60 })
+    return Response.json({ data: task('task-1', { title: 'Changed' }) })
+  })
+  assert.equal((await listOverdueTasks())[0].id, 'old')
+  assert.equal((await updateTask('task-1', { title: 'Changed', estimatedMinutes: 60 })).title, 'Changed')
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ error: { code: 'DAILY_BUDGET_EXCEEDED' } }, { status: 422 }))
+  await assert.rejects(updateTask('task-1', { estimatedMinutes: 480 }), error => error.status === 422)
 })

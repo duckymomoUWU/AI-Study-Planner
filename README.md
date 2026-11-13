@@ -1,58 +1,42 @@
 # AI Study Planner
 
-Ứng dụng lập kế hoạch học tập hỗ trợ bởi AI: biến nội dung ôn tập thành kế hoạch học theo từng ngày, phù hợp với ngày thi và thời gian học mỗi ngày.
+Ứng dụng lập kế hoạch ôn tập từ đề cương: chọn chủ đề, đặt ngày thi và thời gian học, xem kế hoạch AI đề xuất, xác nhận rồi theo dõi việc học mỗi ngày.
 
-- **Java 21 + Spring Boot 3.5.16 + Spring Security 6 + Maven 3.9+**.
-- **PostgreSQL 17**, chạy bằng Docker Compose.
-- **Flyway** tự động quản lý schema cơ sở dữ liệu (`V1__initial_schema.sql`).
-- **React + Vite + JavaScript + CSS**, giao diện tại `frontend/`.
-- **shadcn/ui** components cho màn hình Đăng nhập / Tạo tài khoản.
-- Quản lý phiên bảo mật: Session cookie `JSESSIONID` (`HttpOnly`, `SameSite=Lax`), `BCryptPasswordEncoder(12)`, và CSRF protection (`X-CSRF-TOKEN`).
+## Chức năng hiện có
 
-## Tài liệu dự án
+- Đăng ký/đăng nhập với session, CSRF và quyền sở hữu dữ liệu.
+- Tạo/sửa/xóa mục tiêu; mục tiêu mới không bắt đầu trong quá khứ.
+- Đọc PDF/DOCX/văn bản, rà chủ đề và ngày thi có nguồn trước khi áp dụng.
+- AI tạo bản nháp theo chủ đề và quỹ phút; chỉ xác nhận mới lưu công việc.
+- Tổng quan lấy dữ liệu thật; xem lịch tuần/ngày, lọc mục tiêu, theo dõi hoàn thành.
+- Xuất lịch một chiều sang Google Calendar: OAuth, né giờ bận/ăn/ngủ/nghỉ, xem trước, xác nhận và chống bản sao khi thử lại.
+- Giao diện kem–xanh rêu, phông Be Vietnam Pro hỗ trợ tiếng Việt. Trang lịch mẫu đã được gỡ.
 
-- [requirements.md](requirements.md): Chức năng, quy tắc nghiệp vụ và phạm vi MVP.
-- [setup.md](setup.md): Cài đặt môi trường, chạy PostgreSQL, backend và frontend.
-- [docs/ASP-12-auth-api-guide.md](docs/ASP-12-auth-api-guide.md): Đặc tả API xác thực (JSON contract), hướng dẫn tích hợp cho backend (Dev 2) và frontend (Dev 3/4).
-- [docs/product/ASP-9-goals-api.md](docs/product/ASP-9-goals-api.md): Hợp đồng API quản lý mục tiêu (Goal CRUD).
-- [frontend/README.md](frontend/README.md): Hướng dẫn chạy frontend, cấu hình proxy và thư viện UI shadcn/ui.
+## Công nghệ và cấu hình
 
-## Chạy dự án
+Backend: Java 21, Spring Boot, Spring Security, Maven 3.9+, PostgreSQL và Flyway. Frontend: React, Vite, JavaScript/CSS. Compose dùng PostgreSQL 17; runtime portable local đã kiểm tra dùng PostgreSQL 16.4.
 
-### 1. Khởi động cơ sở dữ liệu (PostgreSQL)
-```bash
-docker compose up -d --wait
-```
+Backend đọc `.env` tại root khi chạy từ root hoặc `backend/`. Chỉ `.env.example` chứa cấu trúc cấu hình được chia sẻ qua Git; Gemini key, OAuth secret và khóa mã hóa token không nằm trong frontend/Git.
 
-### 2. Khởi động Backend (Spring Boot)
-Thiết lập mật khẩu DB trong PowerShell và khởi chạy:
-```powershell
-$env:DB_PASSWORD = "mat_khau_db_cua_ban"
-mvn -f backend/pom.xml spring-boot:run
-```
+## Bắt đầu và tài liệu
 
-### 3. Khởi động Frontend (React + Vite)
-```bash
-cd frontend
-npm ci
-npm run dev
-```
-Mở trình duyệt tại **http://localhost:5173**.
+- [Cài đặt, chạy app và cấu hình Google OAuth](setup.md).
+- [Bản đồ tài liệu](docs/README.md) và [quy trình Harness](docs/WORKFLOW.md).
+- [Yêu cầu sản phẩm](requirements.md).
+- [Lệnh kiểm thử và giới hạn xác minh](.agents/harness/README.md).
+- [Bàn giao core và Calendar đến 2026-11-11](docs/plans/completed/core-study-calendar-2026-11-11.md).
+- [Frontend](frontend/README.md), [hợp đồng AI/scoped planning](docs/product/syllabus-revision-plan.md), [Google Calendar](docs/product/google-calendar.md).
 
-## Cấu trúc repository
+## Repository
 
 ```text
-frontend/                 React + Vite, giao diện shadcn/ui trong src/components/ui/
-backend/                  Spring Boot: pom.xml, src/main/ và test suites trong src/test/
-docs/                     Tài liệu đặc tả API, quyết định kiến trúc và hướng dẫn tích hợp
-AGENTS.md                 Quy ước chung cho coding agent
-.agents/harness/README.md Hướng dẫn chạy và kiểm chứng
-.github/workflows/        CI tự động cho frontend và backend (PostgreSQL integration test)
-compose.yml               PostgreSQL dùng chung, chạy từ root
+frontend/                 React + Vite
+backend/                  Spring Boot, migrations, test suites
+.agents/harness/README.md  Canonical verification commands and gaps
+docs/                     Product contracts, workflow and delivery records
+setup.md                  Canonical environment and startup instructions
+compose.yml               PostgreSQL service
+.env.example              Configuration template without real credentials
 ```
 
-## Trạng thái triển khai
-
-- **Backend Auth (ASP-12 - Dev 1):** Hoàn thành bộ API JSON xác thực (`/api/auth/csrf`, `/register`, `/login`, `/me`, `/logout`), BCrypt băm mật khẩu, session cookie `HttpOnly`, phòng vệ CSRF và nhận diện user từ máy chủ. Đạt 100% qua bộ test 32 ca kiểm thử tự động.
-- **Frontend Auth (shadcn/ui - Dev 3):** Hoàn thành màn hình Đăng nhập / Tạo tài khoản (`AuthPage.jsx`) sử dụng bộ component shadcn/ui composable (`Card`, `Button`, `Input`, `Label`, `Alert`, `Tabs`). Đồng bộ trạng thái đăng nhập, xử lý 401 và hiển thị email người dùng.
-- **Goal API Foundation (ASP-9/ASP-23/24 - Dev 2):** Đã có `GoalPolicy`, `GoalJdbcRepository`, `GoalService` và test suite. Sẵn sàng kết nối `GoalController` với Auth Principal.
+Trạng thái code local, test tự động, kết quả người dùng quan sát và trạng thái GitHub được ghi riêng trong bản bàn giao. Không suy ra đã push, CI đã chạy hoặc production đã sẵn sàng từ việc app chạy được trên máy local.

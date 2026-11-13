@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -11,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -55,6 +57,7 @@ class AuthServiceTest {
         assertNotNull(response);
         assertEquals(sampleId, response.id());
         assertEquals("student@example.com", response.email());
+        assertNotNull(response.createdAt());
         verify(repository).insertUser("student@example.com", "$2a$12$hashedSecret");
     }
 
@@ -72,7 +75,6 @@ class AuthServiceTest {
     @DisplayName("authenticate delegates to AuthenticationManager with normalized email")
     void authenticateDelegates() {
         var expectedAuth = mock(Authentication.class);
-        when(repository.existsByEmail("user@test.com")).thenReturn(true);
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(expectedAuth);
 
@@ -85,18 +87,8 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("authenticate throws UserNotFoundException when account does not exist")
-    void authenticateThrowsUserNotFoundWhenAccountDoesNotExist() {
-        when(repository.existsByEmail("nonexistent@test.com")).thenReturn(false);
-
-        var ex = assertThrows(UserNotFoundException.class, () -> service.authenticate("nonexistent@test.com", "any"));
-        assertEquals("Tài khoản không tồn tại.", ex.getMessage());
-    }
-
-    @Test
     @DisplayName("authenticate throws BadCredentialsException on invalid credentials")
     void authenticateThrowsOnBadCredentials() {
-        when(repository.existsByEmail("user@test.com")).thenReturn(true);
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenThrow(new BadCredentialsException("Bad credentials"));
 
@@ -104,26 +96,23 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("getCurrentUser returns UserResponse for AppUserPrincipal")
-    void getCurrentUserReturnsUserResponse() {
-        var principal = new AppUserPrincipal(sampleId, "user@test.com", "hash");
-        var auth = mock(Authentication.class);
-        when(auth.getPrincipal()).thenReturn(principal);
+    @DisplayName("getUser returns the public account view including createdAt")
+    void getUserReturnsUserResponse() {
+        Instant created = Instant.parse("2026-11-07T03:00:00Z");
+        when(repository.findById(sampleId))
+                .thenReturn(Optional.of(new AppUser(sampleId, "user@test.com", "hash", created)));
 
-        UserResponse user = service.getCurrentUser(auth);
+        UserResponse user = service.getUser(sampleId).orElseThrow();
 
-        assertNotNull(user);
         assertEquals(sampleId, user.id());
         assertEquals("user@test.com", user.email());
+        assertEquals(created, user.createdAt());
     }
 
     @Test
-    @DisplayName("getCurrentUser returns null when unauthenticated or unknown principal")
-    void getCurrentUserReturnsNullForInvalidAuth() {
-        assertNull(service.getCurrentUser(null));
-
-        var auth = mock(Authentication.class);
-        when(auth.getPrincipal()).thenReturn("anonymousUser");
-        assertNull(service.getCurrentUser(auth));
+    @DisplayName("getUser is empty when the account no longer exists")
+    void getUserIsEmptyForUnknownAccount() {
+        when(repository.findById(sampleId)).thenReturn(Optional.empty());
+        assertTrue(service.getUser(sampleId).isEmpty());
     }
 }

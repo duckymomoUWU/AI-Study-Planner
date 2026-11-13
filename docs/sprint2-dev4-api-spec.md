@@ -1,7 +1,9 @@
 # Đặc tả API cho Sprint 2 — US-01 (Mục tiêu) & US-03 (Công việc theo ngày)
 
-> **Tài liệu hướng dẫn dành riêng cho Developer phụ trách branch `dev4-sprint2`**  
-> Tham chiếu Jira: **ASP-9 (US-01)**, **ASP-11 (US-03)**, **ASP-25**, **ASP-26**  
+> **Đã lỗi thời một phần (2026-11-07):** backend đã chuyển sang hợp đồng chung `/api/v1` với response bọc `{data, meta}` và lỗi `{error:{code,message,details}}` (mã lỗi dạng `UPPER_SNAKE_CASE`, sửa mục tiêu bằng `PATCH` + `expectedVersion`). Đường dẫn, dạng body và mã lỗi trong tài liệu này là của phiên bản cũ. Nguồn đúng: [Backend API rules](backend-api-rules.md) và [ASP-9 Goal API contract](product/ASP-9-goals-api.md).
+
+> **Tài liệu hướng dẫn dành riêng cho Developer phụ trách branch `dev4-sprint2`**
+> Tham chiếu Jira: **ASP-9 (US-01)**, **ASP-11 (US-03)**, **ASP-25**, **ASP-26**
 > Cơ sở xác thực: Dựa trên module bảo mật session cookie và CSRF của Dev 1 (ASP-12).
 
 ---

@@ -1,4 +1,6 @@
 spring:
+  config:
+    import: "optional:file:./.env[.properties],optional:file:../.env[.properties]"
   application:
     name: ai-study-planner
   datasource:
@@ -7,6 +9,9 @@ spring:
     password: ${DB_PASSWORD}
   flyway:
     enabled: true
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+  model: ${GEMINI_MODEL:}
 server:
   port: ${PORT:8080}
   servlet:
@@ -14,10 +19,11 @@ server:
       timeout: 7d
       cookie:
         name: JSESSIONID
-        http-only: true
-        same-site: lax
         path: /
         max-age: 7d
+        http-only: true
+        same-site: lax
+        secure: ${SESSION_COOKIE_SECURE:false}
 management:
   endpoints:
     web:
@@ -26,7 +32,3 @@ management:
   endpoint:
     health:
       show-details: never
-
-gemini:
-  api-key: ${GEMINI_API_KEY:}
-  model: ${GEMINI_MODEL:gemini-3.8-flash}

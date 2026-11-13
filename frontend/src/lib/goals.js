@@ -1,66 +1,20 @@
 import { getCsrfToken } from './auth.js'
 
+const BASE = '/api/v1/goals'
+const PAGE_LIMIT = 100
+
 export class GoalApiError extends Error {
   constructor(message, { status, code, fieldErrors = [] } = {}) {
     super(message)
     this.name = 'GoalApiError'
     this.status = status
     this.code = code
+    // Items look like { field, issue, message } (the API's error.details).
     this.fieldErrors = Array.isArray(fieldErrors) ? fieldErrors : []
   }
 }
 
-const STORAGE_KEY = 'ai_study_planner_placeholder_goals'
-
-// Initial seed goals: Clean empty state for registered users (no mockup data)
-function getInitialPlaceholderGoals() {
-  if (typeof window !== 'undefined') {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed)) {
-          // Exclude any legacy placeholder/mock goals
-          return parsed.filter(g => !g.id.startsWith('placeholder-goal-'))
-        }
-      }
-    } catch {
-      // fallback
-    }
-  }
-  return []
-}
-
-let placeholderGoals = getInitialPlaceholderGoals()
-
-export function clearPlaceholderGoals() {
-  placeholderGoals = []
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.removeItem(STORAGE_KEY)
-    } catch {
-      // ignore
-    }
-  }
-}
-
-function savePlaceholderGoals() {
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(placeholderGoals))
-    } catch {
-      // ignore
-    }
-  }
-}
-
-const isBackendPending = (error) =>
-  typeof window !== 'undefined' &&
-  (
-    (error instanceof GoalApiError && [404, 502, 503, 504].includes(error.status)) ||
-    error instanceof TypeError
-  )
-
+/** Returns the parsed `{ data, meta }` envelope (data is null for 204). Throws GoalApiError on failure. */
 async function request(path, { method = 'GET', body, signal, csrfToken } = {}) {
   const headers = { Accept: 'application/json' }
   const options = {
@@ -90,142 +44,62 @@ async function request(path, { method = 'GET', body, signal, csrfToken } = {}) {
       try {
         payload = JSON.parse(text)
       } catch {
-        payload = { message: text }
+        payload = null
       }
     }
   }
 
   if (!response.ok) {
-    throw new GoalApiError(payload?.message || `Không thể thực hiện yêu cầu (HTTP ${response.status}).`, {
+    const error = payload?.error
+    throw new GoalApiError(error?.message || `Không thể thực hiện yêu cầu (HTTP ${response.status}).`, {
       status: response.status,
-      code: payload?.code,
-      fieldErrors: payload?.fieldErrors,
+      code: error?.code,
+      fieldErrors: error?.details,
     })
   }
-  return payload
+  return payload ?? { data: null }
 }
 
+/** All goals of the current user (follows the pagination of GET /api/v1/goals). */
 export async function listGoals({ signal } = {}) {
-  try {
-    const payload = await request('/api/goals', { signal })
-    if (Array.isArray(payload?.items)) {
-      return payload.items
+  const items = []
+  for (let page = 1; ; page += 1) {
+    const { data, meta } = await request(`${BASE}?page=${page}&limit=${PAGE_LIMIT}`, { signal })
+    if (!Array.isArray(data) || typeof meta?.totalPages !== 'number') {
+      throw new GoalApiError('Phản hồi danh sách mục tiêu không đúng định dạng.', { status: 502 })
     }
-    throw new GoalApiError('Phản hồi danh sách mục tiêu không đúng định dạng.', { status: 502 })
-  } catch (error) {
-    if (error instanceof GoalApiError && error.status === 401) {
-      throw error
+    items.push(...data)
+    if (page >= meta.totalPages) {
+      return items
     }
-    // Fallback to placeholder goals when backend is not yet available (404 / 502 proxy ECONNREFUSED)
-    if (isBackendPending(error)) {
-      return [...placeholderGoals]
-    }
-    throw error
   }
 }
 
+export async function getGoal(goalId, { signal } = {}) {
+  const { data } = await request(`${BASE}/${encodeURIComponent(goalId)}`, { signal })
+  if (!data || typeof data.id !== 'string') {
+    throw new GoalApiError('Phản hồi chi tiết mục tiêu không đúng định dạng.', { status: 502 })
+  }
+  return data
+}
+
+/** input: { subject, topics, startDate, examDate, minutesPerDay, timezone? } */
 export async function createGoal(input, { signal } = {}) {
-  try {
-    return await request('/api/goals', { method: 'POST', body: input, signal })
-  } catch (error) {
-    if (error instanceof GoalApiError && error.status === 401) {
-      throw error
-    }
-    if (isBackendPending(error)) {
-      const newGoal = {
-        id: `goal-local-${Date.now()}`,
-        ...input,
-        version: 0,
-        timezone: 'Asia/Ho_Chi_Minh',
-        createdAt: new Date().toISOString(),
-      }
-      placeholderGoals.push(newGoal)
-      savePlaceholderGoals()
-      return newGoal
-    }
-    throw error
-  }
+  const { data } = await request(BASE, { method: 'POST', body: input, signal })
+  return data
 }
 
-export async function updateGoal(goalId, input, { signal } = {}) {
-  try {
-    return await request(`/api/goals/${encodeURIComponent(goalId)}`, {
-      method: 'PUT',
-      body: input,
-      signal,
-    })
-  } catch (error) {
-    if (error instanceof GoalApiError && error.status === 401) {
-      throw error
-    }
-    if (isBackendPending(error)) {
-      const index = placeholderGoals.findIndex(g => g.id === goalId)
-      if (index !== -1) {
-        placeholderGoals[index] = {
-          ...placeholderGoals[index],
-          ...input,
-          version: (placeholderGoals[index].version || 0) + 1,
-        }
-        savePlaceholderGoals()
-        return placeholderGoals[index]
-      }
-    }
-    throw error
-  }
+/** changes: any of the editable fields; expectedVersion is required by the server. */
+export async function updateGoal(goalId, changes, expectedVersion, { signal } = {}) {
+  const { data } = await request(`${BASE}/${encodeURIComponent(goalId)}`, {
+    method: 'PATCH',
+    body: { ...changes, expectedVersion },
+    signal,
+  })
+  return data
 }
 
 export async function deleteGoal(goalId, { signal } = {}) {
-  try {
-    return await request(`/api/goals/${encodeURIComponent(goalId)}`, {
-      method: 'DELETE',
-      signal,
-    })
-  } catch (error) {
-    if (error instanceof GoalApiError && error.status === 401) {
-      throw error
-    }
-    if (isBackendPending(error)) {
-      placeholderGoals = placeholderGoals.filter(g => g.id !== goalId)
-      savePlaceholderGoals()
-      return null
-    }
-    throw error
-  }
-}
-
-export async function parseSyllabusDocument({ content, base64, mimeType, fileName } = {}) {
-  try {
-    const payload = await request('/api/goals/parse-syllabus', {
-      method: 'POST',
-      body: { content, base64, mimeType, fileName },
-    })
-    return payload?.data || payload
-  } catch (error) {
-    if (isBackendPending(error)) {
-      // Local heuristic fallback if backend is offline
-      const text = content || ''
-      let subject = 'Môn học ôn tập'
-      const sm = text.match(/(?:môn(?:\s*học)?|học\s*phần|subject|đề\s*cương(?:\s*môn)?|giáo\s*trình)\s*[:：-]\s*([^\r\n]+)/i)
-      if (sm) {
-        subject = sm[1].trim()
-      } else if (fileName) {
-        const nameOnly = fileName.replace(/\.[^.]+$/, '').replace(/(?:de_?cuong|syllabus|tai_?lieu)[_\-\s]*/gi, '').replace(/[_-]/g, ' ').trim()
-        if (nameOnly) subject = nameOnly
-      }
-
-      const today = new Date()
-      const startStr = today.toISOString().split('T')[0]
-      const examDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)
-      const examStr = examDate.toISOString().split('T')[0]
-
-      return {
-        subject: subject.slice(0, 100),
-        topics: 'Tổng quan kiến thức cốt lõi, Các dạng bài tập trọng tâm, Luyện giải đề thi thực tế',
-        startDate: startStr,
-        examDate: examStr,
-        minutesPerDay: 90,
-      }
-    }
-    throw error
-  }
+  await request(`${BASE}/${encodeURIComponent(goalId)}`, { method: 'DELETE', signal })
+  return null
 }

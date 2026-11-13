@@ -1,6 +1,8 @@
 package com.studyplanner.goals;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -12,14 +14,14 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * ASP-23 persistence primitives. All reads/writes are restricted to a trusted server-side owner ID.
- * This class exposes no HTTP endpoint; ASP-12 must provide authenticated identity before wiring a controller.
+ * Goal persistence. All reads and writes are restricted to a trusted server-side owner ID taken from the
+ * authenticated principal; it never touches HTTP.
  */
 @Repository
 public class GoalJdbcRepository {
     private static final String GOAL_COLUMNS = """
             id, user_id, subject, topics, start_date, exam_date,
-            minutes_per_day, timezone, version
+            minutes_per_day, timezone, version, created_at, planning_scope::text AS planning_scope
             """;
 
     private static final RowMapper<StoredGoal> GOAL_MAPPER = (rs, rowNum) -> new StoredGoal(
@@ -31,7 +33,8 @@ public class GoalJdbcRepository {
             rs.getObject("exam_date", LocalDate.class),
             rs.getInt("minutes_per_day"),
             rs.getString("timezone"),
-            rs.getInt("version")
+            rs.getInt("version"),
+            rs.getObject("created_at", OffsetDateTime.class).toInstant(), GoalPlanning.read(rs.getString("planning_scope"))
     );
 
     private final NamedParameterJdbcTemplate jdbc;
@@ -43,15 +46,30 @@ public class GoalJdbcRepository {
     /** Includes owner ID only inside backend domain code, never in the public API response. */
     public record StoredGoal(UUID id, UUID ownerId, String subject, String topics,
                              LocalDate startDate, LocalDate examDate, int minutesPerDay,
-                             String timezone, int version) {}
+                             String timezone, int version, Instant createdAt, com.fasterxml.jackson.databind.JsonNode planningScope) {
+        public StoredGoal(UUID id,UUID ownerId,String subject,String topics,LocalDate startDate,LocalDate examDate,int minutesPerDay,String timezone,int version,Instant createdAt) {
+            this(id,ownerId,subject,topics,startDate,examDate,minutesPerDay,timezone,version,createdAt,null);
+        }
+    }
 
-    public List<StoredGoal> listOwned(UUID trustedOwnerId) {
+    /** One page of the owner's goals, sorted createdAt DESC, id ASC (docs/backend-api-rules.md). */
+    public List<StoredGoal> listOwnedPage(UUID trustedOwnerId, int limit, long offset) {
         requireOwner(trustedOwnerId);
+        var params = owner(trustedOwnerId).addValue("limit", limit).addValue("offset", offset);
         return jdbc.query(
-                "SELECT " + GOAL_COLUMNS + " FROM study_goals WHERE user_id = :ownerId ORDER BY created_at DESC, id DESC",
-                owner(trustedOwnerId),
+                "SELECT " + GOAL_COLUMNS + " FROM study_goals WHERE user_id = :ownerId "
+                        + "ORDER BY created_at DESC, id ASC LIMIT :limit OFFSET :offset",
+                params,
                 GOAL_MAPPER
         );
+    }
+
+    public long countOwned(UUID trustedOwnerId) {
+        requireOwner(trustedOwnerId);
+        Long total = jdbc.queryForObject(
+                "SELECT count(*) FROM study_goals WHERE user_id = :ownerId",
+                owner(trustedOwnerId), Long.class);
+        return total == null ? 0 : total;
     }
 
     public Optional<StoredGoal> findOwned(UUID trustedOwnerId, UUID goalId) {
@@ -83,8 +101,8 @@ public class GoalJdbcRepository {
         var params = goalParams(trustedOwnerId, input)
                 .addValue("timezone", serverTimezone);
         var rows = jdbc.query(
-                "INSERT INTO study_goals (user_id, subject, topics, start_date, exam_date, minutes_per_day, timezone) "
-                + "VALUES (:ownerId, :subject, :topics, :startDate, :examDate, :minutesPerDay, :timezone) "
+                "INSERT INTO study_goals (user_id, subject, topics, start_date, exam_date, minutes_per_day, timezone, planning_scope) "
+                + "VALUES (:ownerId, :subject, :topics, :startDate, :examDate, :minutesPerDay, :timezone, CAST(:planningScope AS jsonb)) "
                 + "RETURNING " + GOAL_COLUMNS,
                 params, GOAL_MAPPER
         );
@@ -99,25 +117,40 @@ public class GoalJdbcRepository {
      * Call within the same transaction as lockOwned and task policy validation.
      */
     public boolean updateOwnedIfVersion(UUID trustedOwnerId, UUID goalId,
-                                         GoalPolicy.GoalInput input, int expectedVersion) {
+                                         GoalPolicy.GoalInput input, String timezone, int expectedVersion) {
         requireOwner(trustedOwnerId);
         Objects.requireNonNull(goalId, "goalId");
         Objects.requireNonNull(input, "input");
         if (expectedVersion < 0) {
             throw new IllegalArgumentException("expectedVersion must be >= 0");
         }
+        Objects.requireNonNull(timezone, "timezone");
         var params = goalParams(trustedOwnerId, input)
                 .addValue("goalId", goalId)
+                .addValue("timezone", timezone)
                 .addValue("expectedVersion", expectedVersion);
         return jdbc.update(
                 """
                 UPDATE study_goals
                    SET subject = :subject, topics = :topics, start_date = :startDate,
                        exam_date = :examDate, minutes_per_day = :minutesPerDay,
-                       version = version + 1
+                       timezone = :timezone, version = version + 1
                  WHERE user_id = :ownerId AND id = :goalId AND version = :expectedVersion
                 """,
                 params
+        ) == 1;
+    }
+
+    /**
+     * Increments the goal version once. Call it in the same transaction, after the goal row is locked, whenever
+     * a task of the goal really changes (docs/backend-api-rules.md section 9).
+     */
+    public boolean bumpVersion(UUID trustedOwnerId, UUID goalId) {
+        requireOwner(trustedOwnerId);
+        Objects.requireNonNull(goalId, "goalId");
+        return jdbc.update(
+                "UPDATE study_goals SET version = version + 1 WHERE user_id = :ownerId AND id = :goalId",
+                owner(trustedOwnerId).addValue("goalId", goalId)
         ) == 1;
     }
 
@@ -137,21 +170,29 @@ public class GoalJdbcRepository {
         Objects.requireNonNull(goalId, "goalId");
         return jdbc.query(
                 """
-                SELECT t.scheduled_date, t.estimated_minutes
+                SELECT t.id, t.title, t.scheduled_date, t.estimated_minutes
                   FROM study_tasks t
                   JOIN study_goals g ON g.id = t.goal_id
                  WHERE g.user_id = :ownerId AND g.id = :goalId
+                 ORDER BY t.scheduled_date, t.id
                 """,
                 owner(trustedOwnerId).addValue("goalId", goalId),
                 (rs, rowNum) -> new GoalPolicy.ScheduledTask(
+                        rs.getObject("id", UUID.class),
+                        rs.getString("title"),
                         rs.getObject("scheduled_date", LocalDate.class),
                         rs.getInt("estimated_minutes")
                 )
         );
     }
 
+    public void updatePlanningScopeOwned(UUID ownerId,UUID goalId,com.fasterxml.jackson.databind.JsonNode scope,boolean bumpVersion) {
+        jdbc.update("UPDATE study_goals SET planning_scope=CAST(:scope AS jsonb),version=version+:bump WHERE user_id=:ownerId AND id=:goalId",
+            owner(ownerId).addValue("goalId",goalId).addValue("scope",scope==null?"{}":scope.toString()).addValue("bump",bumpVersion?1:0));
+    }
     private static MapSqlParameterSource goalParams(UUID ownerId, GoalPolicy.GoalInput input) {
         return owner(ownerId)
+                .addValue("planningScope",input.planningScope()==null?"{}":input.planningScope().toString())
                 .addValue("subject", input.subject())
                 .addValue("topics", input.topics())
                 .addValue("startDate", input.startDate())
