@@ -12,6 +12,7 @@ export function createRecallMock({ delayMs = 120, faults = [] } = {}) {
   const pendingFaults = new Set(faults)
   let sequence = 0
   const materials = new Map()
+  const texts = new Map() // what the 'server' read from each source
   const decks = new Map()
   const cards = new Map()
   const receipts = new Map()
@@ -54,12 +55,20 @@ export function createRecallMock({ delayMs = 120, faults = [] } = {}) {
       pageCount: kind === 'PDF' ? 1 : null, characterCount: kind === 'TEXT' ? body.content.length : 1200, createdAt: now(),
     }
     materials.set(material.id, material)
+    texts.set(material.id, kind === 'TEXT' ? body.content : '(Dữ liệu mẫu) Chữ giả lập của tệp PDF.')
     return { ...material }
   }
 
   return {
     createTextMaterial: body => createMaterial(body, 'TEXT'),
     createPdfMaterial: body => createMaterial(body, 'PDF'),
+    async getMaterial(materialId) {
+      await wait()
+      const material = materials.get(materialId)
+      if (!material) throw notFound()
+      const text = texts.get(materialId) ?? ''
+      return { ...material, preview: text.slice(0, 1200), previewTruncated: text.length > 1200 }
+    },
     async listMaterials({ goalId } = {}) {
       await wait()
       return [...materials.values()].filter(m => !goalId || m.goalId === goalId).map(m => ({ ...m }))

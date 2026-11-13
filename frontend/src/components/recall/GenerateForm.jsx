@@ -43,7 +43,7 @@ export default function GenerateForm({ api, material, onGenerated, onUnauthentic
     try {
       const deck = await api.generateDeck({ materialId: material.id, title: cleanTitle, count: cards }, attempt.current.key)
       attempt.current = { signature: '', key: '' }
-      onGenerated(deck)
+      onGenerated(deck, cards)
     } catch (err) {
       const info = describeRecallError(err)
       if (info.kind === 'unauthenticated') onUnauthenticated()
