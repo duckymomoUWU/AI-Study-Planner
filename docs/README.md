@@ -1,45 +1,29 @@
-# AI Study Planner documentation map
+# Tài liệu AI Study Planner
 
-## Project authority
+Bắt đầu theo nhu cầu của bạn:
 
-- [Study-time preferences](product/study-time-preferences.md): shared daily hard limit, per-subject preferences and explicit consent for AI proposals above those preferences.
+| Cần làm gì? | Đọc tài liệu nào? |
+| --- | --- |
+| Hiểu sản phẩm và giới hạn MVP | [Yêu cầu](../requirements.md) |
+| Cài đặt và chạy trên máy | [Hướng dẫn khởi động](../setup.md) |
+| Biết chức năng nào đã có, kiểm chứng đến đâu | [Trạng thái hiện tại](status.md) |
+| Làm frontend hoặc nối API | [Frontend](../frontend/README.md), [hợp đồng chức năng](product/README.md) |
+| Làm backend | [Quy tắc API](backend-api-rules.md), [hợp đồng chức năng](product/README.md) |
+| Chạy test và kiểm tra trước bàn giao | [Verification harness](../.agents/harness/README.md) |
+| Nhận việc, review và bàn giao | [Quy trình nhóm](WORKFLOW.md), [phân công và mẫu](team-handoff/README.md) |
 
-- [Project conventions](../AGENTS.md): repository layout, scope and agent rules.
-- [Requirements](../requirements.md): accepted product scope and business rules; these describe planned features, not proof of implementation.
-- [Setup](../setup.md): Windows/PowerShell prerequisites, PostgreSQL lifecycle and application startup.
-- [Verification harness](../.agents/harness/README.md): maintained build/test commands, live checks and known verification gaps.
-- [Frontend guide](../frontend/README.md): frontend operation and proxy behavior.
-- [Database migrations](../backend/src/main/resources/db/migration/): schema history; V3 adds topic provenance and V4 adds Google Calendar connection/preferences/preview/export receipts.
-- [Backend API rules](backend-api-rules.md): mandatory rules for backend code (`/api/v1`, response envelope, error codes, ownership, concurrency).
-- [ASP-9 Goal API contract](product/ASP-9-goals-api.md): Goal CRUD contract, errors, timezone rule and AC mapping; the endpoints are implemented on the development branch.
-- [Task completion](product/task-completion.md): mark a task done or re-open it (API, UI, version effect, open decisions).
-- [Goal progress](product/goal-progress.md): view completed and remaining tasks of a goal (API, UI, 0/0 rule).
-- [Weekly progress (US-17)](product/weekly-progress.md): completed and total tasks per Monday-to-Sunday week (API `GET /api/v1/progress/weekly`, UI, 0/0 rule, open PO points); evidence in [weekly-progress-2026-11-12.md](plans/completed/weekly-progress-2026-11-12.md).
-- [ASP-9 verification evidence](product/ASP-9-verification.md): AC-to-test traceability with the results that were actually run and the limits not verified.
-- [Syllabus and scoped planning](product/syllabus-revision-plan.md): extracted topics, source review, per-day minutes, AI draft and confirmation.
-- [Study sessions (Pomodoro)](product/study-sessions.md): durable focus sessions with server-computed time, idempotent actions and ownership (backend only; the Timer UI is separate).
-- [Active Recall](product/active-recall.md): flashcard page, API client and development mock; the recall API is not implemented yet.
-- [Google Calendar](product/google-calendar.md): OAuth, busy calendars, living hours, preview/confirm and retry behavior.
-- [Current handoff and verification](plans/completed/core-study-calendar-2026-11-11.md): consolidated work through 2026-11-11; historical test runs, user observations and remaining limits.
-- [Study sessions and Active Recall plan](plans/active/study-sessions-recall-2026-11-12.md): active work for the Timer backend and Recall UI, with progress, open integration items and evidence.
-- [Core verification history](reviews/syllabus-core-2026-11-10.md): earlier evidence; current commands remain in the verification harness.
+## Cấu trúc và trách nhiệm
 
-## Repository Harness
+- `product/`: hợp đồng hiện hành của từng chức năng; không dùng để ghi nhật ký kiểm thử.
+- `plans/`: kế hoạch và bằng chứng bàn giao có ngày; không thay thế trạng thái hiện tại.
+- `decisions/`: các quyết định thiết kế cần giữ lâu dài.
+- `team-handoff/`: phân công, tiêu chí nghiệm thu, design system và mẫu dùng chung.
+- `reviews/`, `archive/`: lịch sử rà soát và tài liệu đã thay thế.
+- `templates/`, `patterns/`: tài liệu tham khảo cho người cần lập kế hoạch hoặc bổ sung kiểm tra.
 
-- [Workflow](WORKFLOW.md): work shape, authority and evidence guidance.
-- [Invariant encoding](patterns/encoding-invariants.md): optional native validation guidance.
-- [Decisions](decisions/README.md) and [plans](plans/README.md): optional durable records for accepted decisions and complex work.
-- `templates/`: optional decision, execution-plan, application-runbook and Harness-improvement templates.
-- [Product document guidance](product/README.md): generic guidance; requirements remain authoritative at the existing root document. Do not duplicate requirements or verification commands here.
+## Cập nhật tài liệu
 
-Harness status and doctor validate the Harness installation, not application behavior.
-
-- [Task và bản nháp trên nhánh tích hợp](product/integrated-tasks-and-plans.md)
-
-- [Dev 3 Recall integration and test evidence](plans/completed/dev3-recall-integration-2026-11-13.md)
-
-- [Landing and Timer frontend delivery](plans/completed/dev1-landing-timer-ui-2026-11-13.md)
-
-- [Landing visual refresh](plans/completed/landing-visual-refresh-2026-11-13.md)
-
-- [Updated dev2 Recall and Timer integration](plans/completed/dev2-recall-timer-integration-2026-11-13.md)
+Quy tắc sản phẩm nằm ở `requirements.md`; chi tiết giao tiếp nằm trong hợp đồng của
+chức năng; lệnh chạy nằm ở `setup.md`; lệnh test nằm ở harness. Khi thay đổi, sửa đúng
+nơi thay vì thêm một đoạn đính chính vào nhiều file. Kết quả một lần chạy phải có ngày,
+nhánh/commit và giới hạn; không biến số test hoặc môi trường của một người thành mặc định chung.

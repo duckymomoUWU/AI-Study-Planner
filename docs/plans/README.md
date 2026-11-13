@@ -1,33 +1,10 @@
-# Execution Plans
+# Kế hoạch và bằng chứng bàn giao
 
-Execution plans are Git-native working memory for complex tasks. They preserve
-enough context for another agent or human to resume work without reconstructing
-intent from chat history or a partial diff.
+- [Đang triển khai](active/README.md): chỉ giữ công việc đang thực hiện.
+- [Đã bàn giao](completed/README.md): kết quả và giới hạn kiểm chứng theo từng mốc.
+- [Trạng thái sản phẩm](../status.md): nơi đọc nhanh tình trạng hiện tại.
 
-## When To Create A Plan
-
-Use an ephemeral plan for bounded, single-session work.
-
-Create one durable plan when work spans sessions, coordinates contributors, has
-meaningful dependencies or ordering, requires recovery steps, or would be unsafe
-to resume from the diff alone.
-
-Use `docs/templates/exec-plan.md` and place the file under `active/`.
-For an explicitly authorized baseline-to-rerun Harness experiment, use
-`docs/templates/harness-improvement.md` instead.
-
-## Lifecycle
-
-```text
-docs/plans/active/<slug>.md
-  -> update progress and decisions during implementation
-  -> record final validation and result
-  -> move to docs/plans/completed/<slug>.md
-```
-
-The plan is the primary task artifact. Promote a lasting product or architecture
-decision into `docs/decisions/`; keep task-local choices in the plan.
-
-## Active Plans
-
-- [Study sessions backend and Active Recall UI (2026-11-12)](active/study-sessions-recall-2026-11-12.md): V8 sessions API, recall page and client; Timer UI and recall API integration pending.
+Công việc nhỏ dùng mô tả PR và lịch sử Git. Chỉ tạo một kế hoạch khi cần phối hợp nhiều
+người/buổi làm việc, có phụ thuộc hoặc cần lưu cách tiếp tục. Mẫu tại
+[exec-plan](../templates/exec-plan.md). Khi bàn giao, ghi kết quả/giới hạn rồi chuyển file
+sang completed; không nhân bản nhật ký ở nhiều nơi.

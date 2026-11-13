@@ -6,12 +6,12 @@
 
 Đọc các file thật trước khi làm:
 
-- [theme.css](https://github.com/duckymomoUWU/AI-Study-Planner/blob/29dbf6d1c7e4f0cacdf9524aa905f1789bfb2b62/frontend/src/theme.css): nguồn chuẩn token, font và hiệu ứng.
-- [App.jsx](https://github.com/duckymomoUWU/AI-Study-Planner/blob/29dbf6d1c7e4f0cacdf9524aa905f1789bfb2b62/frontend/src/App.jsx): shell/route hash, auth state và callback điều hướng.
-- [OverviewPage.jsx](https://github.com/duckymomoUWU/AI-Study-Planner/blob/29dbf6d1c7e4f0cacdf9524aa905f1789bfb2b62/frontend/src/pages/OverviewPage.jsx): bố cục dashboard, empty/error và copy tiếng Việt.
-- [StudyPlanPage.jsx](https://github.com/duckymomoUWU/AI-Study-Planner/blob/29dbf6d1c7e4f0cacdf9524aa905f1789bfb2b62/frontend/src/pages/StudyPlanPage.jsx): gọi API, màn hình đăng nhập, refresh trạng thái.
-- [Button](https://github.com/duckymomoUWU/AI-Study-Planner/blob/29dbf6d1c7e4f0cacdf9524aa905f1789bfb2b62/frontend/src/components/ui/button.jsx), [card](https://github.com/duckymomoUWU/AI-Study-Planner/blob/29dbf6d1c7e4f0cacdf9524aa905f1789bfb2b62/frontend/src/components/ui/card.jsx), [input](https://github.com/duckymomoUWU/AI-Study-Planner/blob/29dbf6d1c7e4f0cacdf9524aa905f1789bfb2b62/frontend/src/components/ui/input.jsx): tái sử dụng khi phù hợp.
-- [googleCalendar.js](https://github.com/duckymomoUWU/AI-Study-Planner/blob/29dbf6d1c7e4f0cacdf9524aa905f1789bfb2b62/frontend/src/lib/googleCalendar.js), [tasks.js](https://github.com/duckymomoUWU/AI-Study-Planner/blob/29dbf6d1c7e4f0cacdf9524aa905f1789bfb2b62/frontend/src/lib/tasks.js), [auth.js](https://github.com/duckymomoUWU/AI-Study-Planner/blob/29dbf6d1c7e4f0cacdf9524aa905f1789bfb2b62/frontend/src/lib/auth.js): mẫu client thật có cookie, CSRF và lỗi.
+- [theme.css](../../frontend/src/theme.css): nguồn chuẩn token, font và hiệu ứng.
+- [App.jsx](../../frontend/src/App.jsx): shell/route hash, auth state và callback điều hướng.
+- [OverviewPage.jsx](../../frontend/src/pages/OverviewPage.jsx): bố cục dashboard, empty/error và copy tiếng Việt.
+- [StudyPlanPage.jsx](../../frontend/src/pages/StudyPlanPage.jsx): gọi API, màn hình đăng nhập, refresh trạng thái.
+- [Button](../../frontend/src/components/ui/button.jsx), [card](../../frontend/src/components/ui/card.jsx), [input](../../frontend/src/components/ui/input.jsx): tái sử dụng khi phù hợp.
+- [googleCalendar.js](../../frontend/src/lib/googleCalendar.js), [tasks.js](../../frontend/src/lib/tasks.js), [auth.js](../../frontend/src/lib/auth.js): mẫu client thật có cookie, CSRF và lỗi.
 
 ## 2. Token bắt buộc dùng lại
 
@@ -27,7 +27,7 @@
 | Nền nhẹ/selected | `--soft` | `#e9ede2` |
 | Font | `--font-ui` | Be Vietnam Pro → Segoe UI → sans-serif |
 
-Font đã lưu local ở `frontend/src/assets/fonts/`, đủ 400/500/600/700, có OFL. Không đổi sang font serif, không load Google Fonts qua CDN chỉ cho feature mới. `index.css` có khai báo cũ, nhưng **theme.css của app là lớp theme cuối**, không lấy màu/font cũ làm baseline.
+Font đã lưu local ở `frontend/src/assets/fonts/`, đủ 400/500/600/700, có OFL. Giữ Be Vietnam Pro cho giao diện làm việc; Landing dùng thêm Lora có chân đã lưu local, kèm giấy phép. Không load font qua CDN cho feature mới. `index.css` có khai báo cũ, nhưng **theme.css của app là lớp theme cuối**, không lấy màu/font cũ làm baseline.
 
 Kích thước đề xuất cho feature mới: body 14–16px, chữ phụ tối thiểu 12px, H1 32–38px, H2 22–26px. Spacing 8/12/16/24/32px, card radius 16px, input/button 10–14px, vùng chạm nút khoảng 44px. Đây là quy ước thiết kế mới để thống nhất, không phải tất cả màn hình cũ đã đạt từng con số.
 

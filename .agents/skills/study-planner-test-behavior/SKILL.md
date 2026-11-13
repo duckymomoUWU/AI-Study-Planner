@@ -13,8 +13,8 @@ description: Thiết kế test, tái hiện lỗi hoặc xác minh hành vi AI S
 - Khi liên quan, kiểm tra quyền sở hữu giữa hai tài khoản, ngày/giờ và múi giờ, bản nháp chưa được lưu trước xác nhận, gửi lại không tạo trùng, AI lỗi vẫn tạo việc thủ công, tiến độ rỗng 0/0. Lấy kỳ vọng từ requirements, không suy diễn từ schema.
 - Chọn lớp nhỏ nhất đủ chứng minh hành vi: logic thuần cho tính toán; test API/service/DB khi cần chứng minh validate, ownership, giao dịch hoặc ràng buộc; trình duyệt khi tiêu chí nằm ở tương tác hiển thị. Mock fetch không chứng minh backend hay DB hoạt động.
 - Với AI lập lịch, dùng phản hồi mẫu cố định (hợp lệ, sai cấu trúc, vượt ngân sách hoặc lỗi phù hợp tiêu chí) để test logic xử lý và kiểm tra quy tắc. Tách lần thử model thật thành kiểm tra riêng, ghi model/cấu hình và kết quả quan sát; không dùng tính bất định của model làm kỳ vọng chính xác cho test logic. Không log bí mật hay nội dung học thật.
-- Hiện `frontend/src/lib/api.test.js` dùng `node:test` và mock fetch cho `/actuator/health`; chưa có test backend, browser/E2E hoặc API nghiệp vụ. Kiểm tra hiện trạng trước khi chọn công cụ; không giả định có sẵn test runner/backend fixtures. Script npm test hiện chỉ chạy file API test này; nếu thêm file test phải bảo đảm nó thực sự được chạy.
-- Dùng lệnh và điều kiện môi trường trong harness. Phân biệt build, test dùng mock, test tích hợp với dịch vụ thật và demo thủ công. Maven verify hiện không có test backend nên không chứng minh nghiệp vụ hay kết nối DB; health UP cũng không chứng minh API nghiệp vụ.
+- Frontend npm test chạy src/lib/*.test.js; backend có unit/MockMvc và PostgreSQL opt-in. Kiểm tra fixture/flag/datasource trước khi chạy; không mặc định browser E2E đã được cấu hình.
+- Dùng lệnh và môi trường trong harness; phân biệt unit/mock, DB/HTTP thật, browser và provider thật. Báo cả ca skip; health UP không chứng minh nghiệp vụ.
 
 ## Đầu ra
 
