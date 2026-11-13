@@ -7,6 +7,8 @@ import { Checkbox } from '../components/ui/checkbox.jsx'
 import './DailyTasksPage.css'
 import TaskTimeDetails from '../components/TaskTimeDetails.jsx'
 import useTaskStudyTimes from '../hooks/useTaskStudyTimes.js'
+import TaskDetailModal from '../components/TaskDetailModal.jsx'
+import { getTaskRecallLink, removeTaskRecallLink, listenTaskRecallLinks } from '../lib/taskRecallLinks.js'
 
 function getLocalDateString(d = new Date()) {
   const year = d.getFullYear()
@@ -32,7 +34,7 @@ function offsetDate(dateStr, days) {
   return getLocalDateString(date)
 }
 
-export default function DailyTasksPage({ onBack, onNavigateGoals, initialDate, onNavigateTimer }) {
+export default function DailyTasksPage({ onBack, onNavigateGoals, initialDate, onNavigateTimer, onNavigateRecall, currentUser }) {
   const [selectedDate, setSelectedDate] = useState(() => initialDate || getLocalDateString())
   const [tasksData, setTasksData] = useState({ items: [], totalEstimatedMinutes: 0, completedCount: 0, totalCount: 0, remainingCount: 0 })
   const studyTimes = useTaskStudyTimes(tasksData.items)
@@ -43,10 +45,19 @@ export default function DailyTasksPage({ onBack, onNavigateGoals, initialDate, o
   const [showOverdue, setShowOverdue] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
+  const [selectedTaskForDetail, setSelectedTaskForDetail] = useState(null)
   const [taskDate, setTaskDate] = useState(selectedDate)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [taskFeedback, setTaskFeedback] = useState('')
   const [pendingIds, setPendingIds] = useState(() => new Set())
+  const [recallRevision, setRecallRevision] = useState(0)
+
+  useEffect(() => {
+    const unsubscribe = listenTaskRecallLinks(() => {
+      setRecallRevision(r => r + 1)
+    })
+    return unsubscribe
+  }, [])
 
   // New task form state
   const [newTaskForm, setNewTaskForm] = useState({
@@ -155,6 +166,7 @@ export default function DailyTasksPage({ onBack, onNavigateGoals, initialDate, o
     if (!window.confirm(`Bạn có chắc muốn xóa công việc "${task.title}"? Sự kiện đã xuất lên Google Calendar cũng sẽ được xóa khi đồng bộ.`)) return
     try {
       await deleteTask(task.goalId, task.id)
+      removeTaskRecallLink(task.id, currentUser?.id)
       setTaskFeedback('Đã xóa công việc. Nếu đã xuất lên Google Calendar, yêu cầu xóa sự kiện được giữ để đồng bộ.')
       setTimeout(() => setTaskFeedback(''), 3000)
       refreshData(selectedDate)
@@ -176,8 +188,14 @@ export default function DailyTasksPage({ onBack, onNavigateGoals, initialDate, o
         scheduledDate: taskDate,
         estimatedMinutes: Number(newTaskForm.estimatedMinutes),
       }
-      if (editingTask) await updateTask(editingTask.id, input)
-      else await createTask(targetGoalId, input)
+      if (editingTask) {
+        if (targetGoalId !== editingTask.goalId) {
+          removeTaskRecallLink(editingTask.id, currentUser?.id)
+        }
+        await updateTask(editingTask.id, { ...input, goalId: targetGoalId })
+      } else {
+        await createTask(targetGoalId, input)
+      }
       setShowAddModal(false)
       setNewTaskForm({ goalId: goals[0]?.id || '', title: '', estimatedMinutes: 60 })
       setEditingTask(null)
@@ -401,51 +419,136 @@ export default function DailyTasksPage({ onBack, onNavigateGoals, initialDate, o
           </div>
         ) : (
           <div className="tasks-list">
-            {tasksData.items.map(task => (
-              <div
-                key={task.id}
-                className={`task-row ${task.completed ? 'task-row--completed' : ''}`}
-              >
-                <Checkbox
-                  checked={Boolean(task.completed)}
-                  disabled={pendingIds.has(task.id)}
-                  onCheckedChange={next => handleToggle(task, next)}
-                  aria-label={`${task.completed ? 'Mở lại' : 'Đánh dấu hoàn thành'}: ${task.title}`}
-                />
+            {tasksData.items.map(task => {
+              const recallLink = getTaskRecallLink(task.id, currentUser?.id)
+              return (
+                <div
+                  key={task.id}
+                  className={`task-row ${task.completed ? 'task-row--completed' : ''}`}
+                >
+                  <div className="task-row-main">
+                    <div className="task-checkbox-wrap">
+                      <Checkbox
+                        checked={Boolean(task.completed)}
+                        disabled={pendingIds.has(task.id)}
+                        onCheckedChange={next => handleToggle(task, next)}
+                        aria-label={`${task.completed ? 'Mở lại' : 'Đánh dấu hoàn thành'}: ${task.title}`}
+                      />
+                    </div>
 
-                <div className="task-body">
-                  <div className="task-title-row">
-                    <span className="task-title">{task.title}</span>
-                    <span className={`task-source-badge ${task.source === 'ai' ? 'badge--ai' : 'badge--manual'}`}>
-                      {task.source === 'ai' ? '✦ AI đề xuất' : 'Thủ công'}
-                    </span>
-                  </div>
-                  <div className="task-meta">
-                    <span className="task-subject-tag">{subjectByGoal[task.goalId] || 'Mục tiêu ôn tập'}</span>
-                    {task.topicTitle && <span>Chủ đề: {task.topicTitle}</span>}
-                  </div>
-                  <TaskTimeDetails task={task} total={studyTimes.totals[task.id]} error={studyTimes.error}
-                    onSaved={() => refreshData(selectedDate)} onReload={() => refreshData(selectedDate)} />
-                </div>
+                    <div className="task-body">
+                      <div className="task-title-row">
+                        <span
+                          className="task-title"
+                          onClick={() => setSelectedTaskForDetail(task)}
+                          title="Bấm để xem chi tiết và bộ flashcard ôn tập"
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedTaskForDetail(task) } }}
+                        >
+                          {task.title}
+                        </span>
+                        <div className="task-badges-row">
+                          <span className={`task-source-badge ${task.source === 'ai' ? 'badge--ai' : 'badge--manual'}`}>
+                            {task.source === 'ai' ? '✦ AI đề xuất' : 'Thủ công'}
+                          </span>
+                          {task.completed && <span className="task-status-done-pill">✓ Đã xong</span>}
+                        </div>
+                      </div>
 
-                <div className="task-actions">
-                  {onNavigateTimer && <button type="button" className="button-link" onClick={() => onNavigateTimer(task)} aria-label={`Tập trung học: ${task.title}`}>◷ Tập trung</button>}
-                  <button type="button" className="button-link" disabled={pendingIds.has(task.id)} onClick={() => {
-                    setEditingTask(task); setTaskDate(task.scheduledDate)
-                    setNewTaskForm({ goalId: task.goalId, title: task.title, estimatedMinutes: task.estimatedMinutes })
-                    setShowAddModal(true)
-                  }}>Sửa</button>
-                  <button
-                    type="button"
-                    className="task-delete-btn"
-                    title="Xóa công việc"
-                    onClick={() => handleDelete(task)}
-                  >
-                    ✕
-                  </button>
+                      <div className="task-meta">
+                        <span className="task-subject-tag" title={subjectByGoal[task.goalId] || 'Mục tiêu ôn tập'}>
+                          📚 {subjectByGoal[task.goalId] || 'Mục tiêu ôn tập'}
+                        </span>
+                        <span className="task-duration-badge" title="Thời lượng dự kiến">
+                          ⏱ {task.estimatedMinutes} phút
+                        </span>
+                        {task.topicTitle && <span className="task-topic-tag" title={task.topicTitle}>🏷 {task.topicTitle}</span>}
+                      </div>
+
+                      <TaskTimeDetails task={task} total={studyTimes.totals[task.id]} error={studyTimes.error}
+                        onSaved={() => refreshData(selectedDate)} onReload={() => refreshData(selectedDate)} />
+                    </div>
+
+                    <div className="task-actions">
+                      {onNavigateTimer && (
+                        <button
+                          type="button"
+                          className="task-action-btn task-action-btn--timer"
+                          onClick={() => onNavigateTimer(task)}
+                          aria-label={`Tập trung học: ${task.title}`}
+                          title="Bắt đầu phiên học tập trung"
+                        >
+                          ◷ Tập trung
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="task-action-btn task-action-btn--edit"
+                        disabled={pendingIds.has(task.id)}
+                        onClick={() => {
+                          setEditingTask(task); setTaskDate(task.scheduledDate)
+                          setNewTaskForm({ goalId: task.goalId, title: task.title, estimatedMinutes: task.estimatedMinutes })
+                          setShowAddModal(true)
+                        }}
+                        title="Chỉnh sửa công việc"
+                      >
+                        Sửa
+                      </button>
+                      <button
+                        type="button"
+                        className="task-delete-btn"
+                        title="Xóa công việc"
+                        onClick={() => handleDelete(task)}
+                        aria-label="Xóa công việc"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Hàng cuối cùng của card: Nút Flashcard / Ôn tập ở góc dưới bên phải */}
+                  <div className="task-card-footer">
+                    <div className="task-recall-area">
+                      {recallLink ? (
+                        <div className="task-recall-link-group">
+                          <button
+                            type="button"
+                            className="task-recall-pill task-recall-pill--linked"
+                            onClick={() => onNavigateRecall ? onNavigateRecall(task.goalId, recallLink.deckId) : setSelectedTaskForDetail(task)}
+                            title={`Đã liên kết với bộ thẻ "${recallLink.deckTitle}". Bấm để ôn tập ngay.`}
+                          >
+                            <span className="task-recall-icon" aria-hidden="true">🎴</span>
+                            <span className="task-recall-label">Flashcard:</span>
+                            <strong className="task-recall-title">{recallLink.deckTitle}</strong>
+                            <span className="task-recall-arrow" aria-hidden="true">↗</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="task-recall-config-btn"
+                            onClick={() => setSelectedTaskForDetail(task)}
+                            title="Đổi bộ flashcard hoặc xem chi tiết liên kết"
+                            aria-label="Cài đặt liên kết flashcard"
+                          >
+                            ⚙
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="task-recall-pill task-recall-pill--unlinked"
+                          onClick={() => setSelectedTaskForDetail(task)}
+                          title={`Bấm để chọn và liên kết bộ flashcard môn ${subjectByGoal[task.goalId] || ''}`}
+                        >
+                          <span className="task-recall-icon" aria-hidden="true">✦</span>
+                          <span>Flashcard / Ôn tập</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
@@ -473,7 +576,7 @@ export default function DailyTasksPage({ onBack, onNavigateGoals, initialDate, o
               <div className="modal-field">
                 <label htmlFor="task-goal-select">Thuộc môn học / mục tiêu</label>
                 <select
-                  id="task-goal-select" disabled={Boolean(editingTask)}
+                  id="task-goal-select"
                   className="modal-input"
                   value={newTaskForm.goalId}
                   onChange={e => setNewTaskForm(f => ({ ...f, goalId: e.target.value }))}
@@ -534,6 +637,20 @@ export default function DailyTasksPage({ onBack, onNavigateGoals, initialDate, o
             </form>
           </div>
         </div>
+      )}
+
+      {/* Task Detail and Recall Integration Modal */}
+      {selectedTaskForDetail && (
+        <TaskDetailModal
+          task={tasksData.items.find(t => t.id === selectedTaskForDetail.id) || selectedTaskForDetail}
+          subject={subjectByGoal[selectedTaskForDetail.goalId]}
+          userId={currentUser?.id}
+          onClose={() => setSelectedTaskForDetail(null)}
+          onToggleCompleted={(t, next) => handleToggle(t, next)}
+          onNavigateRecall={onNavigateRecall}
+          onNavigateTimer={onNavigateTimer}
+          onLinkUpdated={() => setRecallRevision(r => r + 1)}
+        />
       )}
     </div>
   )

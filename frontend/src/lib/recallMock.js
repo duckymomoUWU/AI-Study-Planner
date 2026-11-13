@@ -51,6 +51,7 @@ export function createRecallMock({ delayMs = 120, faults = [] } = {}) {
     }
     const material = {
       id: nextId('66666666'), goalId: body.goalId, title, fileName: kind === 'PDF' ? body.fileName : null, kind,
+      content: kind === 'TEXT' ? body.content : '',
       pageCount: kind === 'PDF' ? 1 : null, characterCount: kind === 'TEXT' ? body.content.length : 1200, createdAt: now(),
     }
     materials.set(material.id, material)
@@ -66,9 +67,25 @@ export function createRecallMock({ delayMs = 120, faults = [] } = {}) {
     },
     async generateDeck({ materialId, title, count }, key) {
       await wait()
-      if (pendingFaults.delete('generate')) throw fail(503, 'AI_UNAVAILABLE', 'Dịch vụ AI tạm thời không dùng được.')
+      if (pendingFaults.delete('generate')) throw fail(503, 'AI_UNAVAILABLE', 'Không thể kết nối đến dịch vụ tạo flashcard. Vui lòng thử lại sau.')
+      if (pendingFaults.delete('timeout')) throw fail(504, 'AI_TIMEOUT', 'AI hiện phản hồi quá lâu. Vui lòng thử lại sau.')
+      if (pendingFaults.delete('malformed')) throw fail(502, 'AI_MALFORMED_RESPONSE', 'Không thể xử lý kết quả tạo thẻ. Vui lòng thử lại.')
+      if (pendingFaults.delete('gateway')) throw fail(502, 'GATEWAY_ERROR', 'Không thể kết nối đến dịch vụ tạo flashcard. Vui lòng thử lại sau.')
+
       const material = materials.get(materialId)
       if (!material) throw notFound()
+
+      const content = material.content || ''
+      if (content.toLowerCase().includes('hôm nay trời đẹp') || content === 'ngắn') {
+        throw fail(422, 'INSUFFICIENT_MATERIAL', 'Tài liệu chưa đủ nội dung để tạo câu hỏi. Vui lòng bổ sung thêm thông tin.')
+      }
+      if (content.toLowerCase().includes('không phù hợp') || content.toLowerCase().includes('chào hỏi')) {
+        throw fail(422, 'NO_SUITABLE_CONTENT', 'Không tìm thấy nội dung phù hợp để tạo flashcard.')
+      }
+      if (content.toLowerCase().includes('kém chất lượng')) {
+        throw fail(422, 'ALL_CARDS_FAILED_QUALITY', 'Các thẻ được tạo chưa đáp ứng tiêu chí chất lượng. Vui lòng bổ sung hoặc chỉnh sửa tài liệu.')
+      }
+
       if (!Number.isInteger(count) || count < COUNT_MIN || count > COUNT_MAX) {
         throw fail(400, 'VALIDATION_ERROR', 'Số thẻ không hợp lệ.', [{ field: 'count', issue: 'out_of_range' }])
       }
@@ -81,7 +98,10 @@ export function createRecallMock({ delayMs = 120, faults = [] } = {}) {
       }
       decks.set(deck.id, deck)
       deckFixture.cards.slice(0, Math.min(count, deckFixture.cards.length)).forEach((sample, order) => {
-        const card = { ...sample, id: nextId('44444444'), deckId: deck.id, source: { ...sample.source, materialId }, order }
+        const qualityWarning = (order === 1 && content.toLowerCase().includes('cảnh báo một thẻ'))
+          ? 'Đoạn trích dẫn cần đối chiếu lại ngữ nghĩa.'
+          : null
+        const card = { ...sample, id: nextId('44444444'), deckId: deck.id, source: { ...sample.source, materialId }, order, qualityWarning }
         cards.set(card.id, card)
       })
       receipts.set(key, { fingerprint, deckId: deck.id })
@@ -108,6 +128,11 @@ export function createRecallMock({ delayMs = 120, faults = [] } = {}) {
       if (question !== undefined) card.question = question
       if (answer !== undefined) card.answer = answer
       card.editedByUser = true
+      if (question && (question.toLowerCase().includes('ronaldo') || question.toLowerCase().includes('ngoài lề'))) {
+        card.qualityWarning = 'Nội dung câu hỏi và đáp án không có căn cứ trong tài liệu nguồn.'
+      } else {
+        card.qualityWarning = null
+      }
       card.version += 1
       deck.version += 1
       return publicCard(card)
@@ -117,7 +142,12 @@ export function createRecallMock({ delayMs = 120, faults = [] } = {}) {
       const deck = decks.get(deckId)
       if (!deck) throw notFound()
       if (deck.version !== expectedVersion) throw fail(409, 'DECK_VERSION_CONFLICT', 'Bộ thẻ đã thay đổi.')
-      if (deckCards(deckId).length === 0) throw fail(409, 'DECK_STATE_CONFLICT', 'Bộ thẻ rỗng.')
+      const currentCards = deckCards(deckId)
+      if (currentCards.length === 0) throw fail(409, 'DECK_STATE_CONFLICT', 'Bộ thẻ rỗng.')
+      const warned = currentCards.filter(c => c.qualityWarning)
+      if (warned.length > 0) {
+        throw fail(400, 'VALIDATION_ERROR', `Không thể xác nhận bộ thẻ khi còn ${warned.length} flashcard chưa đạt chất lượng. Vui lòng kiểm tra và chỉnh sửa các thẻ có cảnh báo trước khi xác nhận.`, [{ field: 'deck', issue: 'quality_issues' }])
+      }
       deck.status = 'ACTIVE'
       deck.version += 1
       return deckView(deck)

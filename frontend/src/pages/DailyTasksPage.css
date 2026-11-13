@@ -385,23 +385,32 @@
 
 .task-row {
   display: flex;
-  align-items: center;
-  gap: 0.875rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.625rem;
   padding: 0.875rem 1rem;
-  background: #eeeee4;
+  background: var(--surface, #ffffff);
   border: 1px solid #dddcd0;
-  border-radius: 8px;
+  border-radius: 10px;
   transition: all 0.15s ease;
 }
 
+.task-row-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+  width: 100%;
+}
+
 .task-row:hover {
-  background: #eeeee4;
-  border-color: #dddcd0;
+  background: #fbfbf7;
+  border-color: #c9c8b8;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
 }
 
 .task-row--completed {
-  background: #eeeee4;
-  opacity: 0.65;
+  background: #f5f5ee;
+  opacity: 0.75;
 }
 
 .task-row--completed .task-title {
@@ -409,16 +418,24 @@
   color: #86988b;
 }
 
+.task-checkbox-wrap {
+  padding-top: 0.2rem;
+  display: flex;
+  align-items: center;
+}
+
 .task-body {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.35rem;
 }
 
 .task-title-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
   flex-wrap: wrap;
 }
@@ -427,6 +444,21 @@
   font-size: 0.9375rem;
   font-weight: 600;
   color: #253b35;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+.task-title:hover {
+  color: #1e664e;
+}
+
+.task-badges-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-shrink: 0;
 }
 
 .task-source-badge {
@@ -437,21 +469,32 @@
 }
 
 .badge--ai {
-  background: #eeeee4;
+  background: #eef4f1;
   color: #285b53;
-  border: 1px solid #dddcd0;
+  border: 1px solid #cce3d8;
 }
 
 .badge--manual {
-  background: #eeeee4;
+  background: #f0f0ea;
   color: #34594e;
   border: 1px solid #dddcd0;
+}
+
+.task-status-done-pill {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  background: #e6f6ee;
+  color: #1e664e;
+  border: 1px solid #c2e5d2;
 }
 
 .task-meta {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  flex-wrap: wrap;
   font-size: 0.8125rem;
   color: #66746b;
 }
@@ -459,31 +502,204 @@
 .task-subject-tag {
   background: #eeeee4;
   color: #285b53;
-  padding: 0.1rem 0.4rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-duration-badge {
+  font-size: 0.75rem;
+  color: #49635b;
+  background: #f0f0ea;
+  padding: 0.15rem 0.45rem;
   border-radius: 4px;
   font-weight: 500;
+}
+
+.task-topic-tag {
   font-size: 0.75rem;
+  color: #66746b;
+  background: #f5f5f0;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Dedicated Recall Flashcard Area (Góc dưới bên phải card) */
+.task-card-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  width: 100%;
+  padding-top: 0.35rem;
+  border-top: 1px solid #f0f0ea;
+}
+
+.task-recall-area {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin: 0;
+  max-width: 100%;
+}
+
+.task-recall-link-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+}
+
+.task-recall-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.78125rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid;
+  text-align: left;
+  max-width: 100%;
+}
+
+.task-recall-pill--unlinked {
+  background: #f6f6f0;
+  color: #285b53;
+  border-color: #d6d5c6;
+  font-weight: 500;
+}
+
+.task-recall-pill--unlinked:hover {
+  background: #ecece2;
+  border-color: #285b53;
+}
+
+.task-recall-pill--linked {
+  background: #eaf6ef;
+  color: #1e664e;
+  border-color: #a8dfc1;
+  font-weight: 500;
+}
+
+.task-recall-pill--linked:hover {
+  background: #dbf1e3;
+  border-color: #1e664e;
+}
+
+.task-recall-icon {
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+.task-recall-label {
+  color: #49635b;
+}
+
+.task-recall-title {
+  color: #1e664e;
+  font-weight: 600;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-recall-arrow {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.task-recall-config-btn {
+  background: #eeeee4;
+  border: 1px solid #dddcd0;
+  border-radius: 6px;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.8125rem;
+  color: #49635b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.task-recall-config-btn:hover {
+  background: #e2e2d5;
+  color: #253b35;
+  border-color: #c4c3b7;
 }
 
 .task-actions {
   display: flex;
   align-items: center;
+  gap: 0.375rem;
+  flex-shrink: 0;
+  padding-top: 0.2rem;
+}
+
+.task-action-btn {
+  border: 1px solid #dddcd0;
+  border-radius: 6px;
+  background: #eeeee4;
+  color: #253b35;
+  padding: 0.3rem 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-top: 0;
+  text-align: center;
+}
+
+.task-action-btn:hover {
+  background: #e2e2d5;
+  border-color: #c4c3b7;
+}
+
+.task-action-btn--timer {
+  color: #285b53;
+  font-weight: 600;
 }
 
 .task-delete-btn {
-  background: none;
-  border: none;
+  background: transparent;
+  border: 1px solid transparent;
   color: #86988b;
   font-size: 1rem;
   cursor: pointer;
-  padding: 0.35rem 0.5rem;
-  border-radius: 4px;
+  padding: 0.25rem 0.45rem;
+  border-radius: 6px;
   transition: all 0.15s ease;
+  line-height: 1;
 }
 
 .task-delete-btn:hover {
   color: #ef4444;
   background: #fee2e2;
+  border-color: #fca5a5;
+}
+
+@media (max-width: 768px) {
+  .task-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .task-actions {
+    justify-content: flex-end;
+    padding-top: 0.5rem;
+    border-top: 1px dashed #dddcd0;
+    width: 100%;
+  }
 }
 
 /* Modal Overlay & Card */

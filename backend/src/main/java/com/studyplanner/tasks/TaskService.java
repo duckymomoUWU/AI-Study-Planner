@@ -88,20 +88,33 @@ public class TaskService {
         budgets.lock(owner);
         var goal = goals.lockOwned(owner, goalId).orElseThrow(GoalService.GoalNotFoundException::new);
         var current = tasks.findOwned(owner, goalId, taskId).orElseThrow(TaskNotFoundException::new);
+
+        UUID targetGoalId = (patch.goalId() != null) ? patch.goalId() : goalId;
+        var targetGoal = goal;
+        if (!targetGoalId.equals(goalId)) {
+            targetGoal = goals.lockOwned(owner, targetGoalId).orElseThrow(GoalService.GoalNotFoundException::new);
+        }
+
         var input = new TaskPolicy.TaskInput(patch.title() == null ? current.title() : patch.title().trim(),
                 patch.scheduledDate() == null ? current.scheduledDate() : patch.scheduledDate(),
                 patch.estimatedMinutes() == null ? current.estimatedMinutes() : patch.estimatedMinutes());
         boolean completed = patch.completed() == null ? current.completed() : patch.completed();
-        validateForGoal(owner, goal, input, taskId);
+        validateForGoal(owner, targetGoal, input, taskId);
         if (!input.scheduledDate().equals(current.scheduledDate()) || input.estimatedMinutes()!=current.estimatedMinutes())
             budgets.check(owner,input.scheduledDate(),input.estimatedMinutes(),taskId);
         if (input.title().equals(current.title()) && input.scheduledDate().equals(current.scheduledDate())
-                && input.estimatedMinutes() == current.estimatedMinutes() && completed == current.completed()) {
+                && input.estimatedMinutes() == current.estimatedMinutes() && completed == current.completed()
+                && targetGoalId.equals(goalId)) {
             return current;
         }
-        if (!tasks.updateOwned(owner, goalId, taskId, input, completed)) throw new TaskNotFoundException();
+        if (!targetGoalId.equals(goalId)) {
+            if (!tasks.updateGoalAndOwned(owner, goalId, taskId, targetGoalId, input, completed)) throw new TaskNotFoundException();
+            goals.bumpVersion(owner, targetGoalId);
+        } else {
+            if (!tasks.updateOwned(owner, goalId, taskId, input, completed)) throw new TaskNotFoundException();
+        }
         goals.bumpVersion(owner, goalId);
-        return tasks.findOwned(owner, goalId, taskId).orElseThrow(TaskNotFoundException::new);
+        return tasks.findOwned(owner, targetGoalId, taskId).orElseThrow(TaskNotFoundException::new);
     }
 
     @Transactional
@@ -130,7 +143,11 @@ public class TaskService {
         if (!errors.isEmpty()) throw new TaskValidationException(errors);
     }
 
-    public record TaskPatch(String title, LocalDate scheduledDate, Integer estimatedMinutes, Boolean completed) {}
+    public record TaskPatch(String title, LocalDate scheduledDate, Integer estimatedMinutes, Boolean completed, UUID goalId) {
+        public TaskPatch(String title, LocalDate scheduledDate, Integer estimatedMinutes, Boolean completed) {
+            this(title, scheduledDate, estimatedMinutes, completed, null);
+        }
+    }
 
     private static long offset(int page, int limit) {
         if (page < 1 || limit < 1) {

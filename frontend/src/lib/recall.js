@@ -272,19 +272,29 @@ export function describeRecallError(error) {
   if (code === 'SOURCE_TOO_LONG') {
     return { kind: 'input', message: 'Nội dung quá dài. Hãy chọn đoạn ngắn hơn hoặc dán phần cần ôn.' }
   }
-  if (code === 'AI_INVALID_RESPONSE') {
-    return { kind: 'retry', message: 'AI trả kết quả chưa dùng được. Nguồn của bạn vẫn được giữ, hãy thử tạo lại.' }
+  // Flashcard Generation Specific Errors
+  if (code === 'INSUFFICIENT_MATERIAL') {
+    return { kind: 'input', message: 'Tài liệu chưa đủ nội dung để tạo câu hỏi. Vui lòng bổ sung thêm thông tin.' }
   }
-  if (code === 'AI_UNAVAILABLE') {
-    return { kind: 'retry', message: 'Dịch vụ AI tạm thời không dùng được. Nguồn của bạn vẫn được giữ, hãy thử lại sau.' }
+  if (code === 'NO_SUITABLE_CONTENT') {
+    return { kind: 'input', message: 'Không tìm thấy nội dung phù hợp để tạo flashcard.' }
+  }
+  if (code === 'AI_MALFORMED_RESPONSE' || code === 'AI_INVALID_RESPONSE') {
+    return { kind: 'retry', message: 'Không thể xử lý kết quả tạo thẻ. Vui lòng thử lại.' }
+  }
+  if (code === 'ALL_CARDS_FAILED_QUALITY') {
+    return { kind: 'input', message: 'Các thẻ được tạo chưa đáp ứng tiêu chí chất lượng. Vui lòng bổ sung hoặc chỉnh sửa tài liệu.' }
   }
   if (code === 'AI_TIMEOUT' || status === 504) {
-    return { kind: 'retry', message: 'AI phản hồi quá lâu. Nguồn của bạn vẫn được giữ, hãy thử lại.' }
+    return { kind: 'retry', message: 'AI hiện phản hồi quá lâu. Vui lòng thử lại sau.' }
+  }
+  if (code === 'AI_UNAVAILABLE' || code === 'GATEWAY_ERROR' || status === 502 || status === 503) {
+    return { kind: 'retry', message: 'Không thể kết nối đến dịch vụ tạo flashcard. Vui lòng thử lại sau.' }
+  }
+  if (status === 500) {
+    return { kind: 'retry', message: 'Không thể kết nối đến dịch vụ tạo flashcard. Vui lòng thử lại sau.' }
   }
   if (status === 422) return { kind: 'input', message: error.message || 'Nội dung chưa dùng được.' }
-  if (status === 502 && code === 'INVALID_RESPONSE') {
-    return { kind: 'retry', message: 'Máy chủ trả dữ liệu chưa đúng định dạng. Hãy thử lại.' }
-  }
   if (status === 405 || status === 404) {
     return { kind: 'retry', message: 'Chức năng này chưa khả dụng trên máy chủ.' }
   }

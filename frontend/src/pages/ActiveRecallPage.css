@@ -78,6 +78,17 @@
 /* The shared success badge is 2.9:1; the deck status needs 4.5:1, so darken the text on this page only. */
 .recall-page .shadcn-badge--success { color: #166534; }
 
+.recall-draft-card--warning { border-color: #f6ad55; background: #fffaf0; }
+.recall-draft-badges { display: flex; gap: 6px; align-items: center; }
+.recall-badge--warning { color: #9c4221; border-color: #f6ad55; background: #feebc8; font-weight: 600; }
+.recall-quality-warning { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; background: #fffaf0; border: 1px solid #fbd38d; border-radius: 8px; width: 100%; box-sizing: border-box; }
+.recall-warning-icon { font-size: 16px; line-height: 1.2; }
+.recall-warning-text { font-size: 13px; line-height: 1.5; color: #7b341e; }
+.recall-warning-hint { margin: 4px 0 0; font-size: 12px; color: #9c4221; }
+.recall-quality-warning--compact { padding: 6px 10px; font-size: 13px; margin-bottom: 8px; }
+.recall-warning-summary { border-color: #f6ad55; background: #fffaf0; color: #7b341e; }
+
+
 /* Long unbroken text (a pasted URL, a 300-letter question) must wrap instead of widening the page,
    and line breaks the student typed or pasted must stay visible. */
 .recall-page { overflow-wrap: anywhere; }

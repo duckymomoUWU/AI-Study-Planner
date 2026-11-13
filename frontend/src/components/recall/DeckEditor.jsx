@@ -58,26 +58,52 @@ function CardEditor({ card, api, disabled, focusEditOnMount, onSaved, onError, o
 
   if (!editing) {
     return (
-      <li className="recall-draft-card">
+      <li className={`recall-draft-card${card.qualityWarning ? ' recall-draft-card--warning' : ''}`}>
         <div className="recall-draft-head">
           <h3>{card.question}</h3>
-          {card.editedByUser && <Badge variant="outline">Bạn đã sửa</Badge>}
+          <div className="recall-draft-badges">
+            {card.qualityWarning && (
+              <Badge variant="outline" className="recall-badge--warning">⚠️ Cần xem lại</Badge>
+            )}
+            {card.editedByUser && !card.qualityWarning && (
+              <Badge variant="outline" className="recall-badge--success">Bạn đã sửa (Đạt)</Badge>
+            )}
+            {card.editedByUser && card.qualityWarning && (
+              <Badge variant="outline">Bạn đã sửa</Badge>
+            )}
+          </div>
         </div>
         <p className="recall-draft-answer">{card.answer}</p>
         <SourceQuote source={card.source} />
-        {card.editedByUser && (
-          <p className="recall-help">Nội dung bạn đã sửa chưa được đối chiếu lại với nguồn. Hãy tự kiểm tra trước khi dùng.</p>
+        {card.qualityWarning && (
+          <div className="recall-quality-warning" role="alert">
+            <span className="recall-warning-icon">⚠️</span>
+            <div className="recall-warning-text">
+              <strong>Đánh giá chất lượng:</strong> {card.qualityWarning}
+              <p className="recall-warning-hint">Hãy đọc kỹ và bấm "Sửa thẻ" để hoàn thiện câu hỏi hoặc đáp án bám sát tài liệu nguồn trước khi xác nhận.</p>
+            </div>
+          </div>
         )}
-        <Button variant="outline" size="sm" ref={editRef} disabled={disabled} onClick={() => {
-          setQuestion(card.question); setAnswer(card.answer); setErrors({}); setEditing(true)
-        }}>Sửa thẻ</Button>
+        {card.editedByUser && !card.qualityWarning && (
+          <p className="recall-help" style={{ color: 'var(--success-color, #15803d)' }}>✓ Thẻ đã được kiểm tra chất lượng và đạt yêu cầu.</p>
+        )}
+        <div className="recall-actions recall-card-actions">
+          <Button variant="outline" size="sm" ref={editRef} disabled={disabled} onClick={() => {
+            setQuestion(card.question); setAnswer(card.answer); setErrors({}); setEditing(true)
+          }}>Sửa thẻ</Button>
+        </div>
       </li>
     )
   }
 
   return (
-    <li className="recall-draft-card">
+    <li className={`recall-draft-card${card.qualityWarning ? ' recall-draft-card--warning' : ''}`}>
       <form className="recall-form" onSubmit={save} noValidate aria-busy={saving}>
+        {card.qualityWarning && (
+          <div className="recall-quality-warning recall-quality-warning--compact" role="status">
+            <span>⚠️</span> <span>Cảnh báo chất lượng hiện tại: {card.qualityWarning}</span>
+          </div>
+        )}
         <div className="recall-field">
           <Label htmlFor={`q-${card.id}`}>Câu hỏi</Label>
           <textarea id={`q-${card.id}`} ref={questionRef} className={`shadcn-input recall-textarea${errors.question ? ' shadcn-input--error' : ''}`}
@@ -118,6 +144,11 @@ export default function DeckEditor({ api, deck, cards, onReload, onActivated, on
 
   async function activate() {
     if (activating) return
+    if (warnedCardsCount > 0) {
+      setError(`Không thể xác nhận bộ thẻ khi còn ${warnedCardsCount} flashcard chưa đạt chất lượng. Vui lòng kiểm tra và sửa các thẻ có cảnh báo trước khi xác nhận.`)
+      activateFailed.current = true
+      return
+    }
     setActivating(true); setError('')
     try {
       onActivated(await api.activateDeck(deck.id, deck.version))
@@ -132,11 +163,18 @@ export default function DeckEditor({ api, deck, cards, onReload, onActivated, on
     }
   }
 
+  const warnedCardsCount = cards.filter(c => Boolean(c.qualityWarning)).length
+
   return (
     <div className="recall-draft">
       <Alert role="status"><AlertDescription>
         Đây là bản nháp do AI tạo từ nguồn của bạn. Hãy đọc, sửa nếu cần, rồi xác nhận để bắt đầu ôn. Bộ thẻ chưa được dùng cho đến khi bạn xác nhận.
       </AlertDescription></Alert>
+      {warnedCardsCount > 0 && (
+        <Alert role="status" className="recall-warning-summary"><AlertDescription>
+          ⚠️ Còn <strong>{warnedCardsCount} thẻ</strong> chưa đạt tiêu chuẩn chất lượng (không có căn cứ trong tài liệu nguồn, sai ngữ nghĩa, mơ hồ hoặc trùng lặp). Bạn cần bấm "Sửa thẻ" để hoàn thiện tất cả các thẻ có cảnh báo trước khi xác nhận bộ thẻ.
+        </AlertDescription></Alert>
+      )}
       {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
       <ol className="recall-draft-list">
         {cards.map(card => (
@@ -146,7 +184,13 @@ export default function DeckEditor({ api, deck, cards, onReload, onActivated, on
         ))}
       </ol>
       <div className="recall-actions">
-        <Button ref={activateRef} isLoading={activating} disabled={cards.length === 0} onClick={activate}>
+        <Button
+          ref={activateRef}
+          isLoading={activating}
+          disabled={cards.length === 0 || warnedCardsCount > 0}
+          title={warnedCardsCount > 0 ? 'Vui lòng sửa các thẻ có cảnh báo trước khi xác nhận bộ thẻ' : undefined}
+          onClick={activate}
+        >
           {activating ? 'Đang xác nhận…' : 'Xác nhận dùng bộ thẻ này'}
         </Button>
         <DeleteDeck api={api} deck={deck} disabled={activating} onDeleted={onDeleted} onUnauthenticated={onUnauthenticated} />

@@ -32,11 +32,12 @@ function useRecallApi() {
   return api
 }
 
-export default function ActiveRecallPage({ currentUser, initialGoalId, onNavigateAuth }) {
+export default function ActiveRecallPage({ currentUser, initialGoalId, initialDeckId, onNavigateAuth }) {
   const api = useRecallApi()
   const [goals, setGoals] = useState([])
   const [goalsLoaded, setGoalsLoaded] = useState(false)
   const [goalId, setGoalId] = useState(initialGoalId || '')
+  const [pendingDeckId, setPendingDeckId] = useState(initialDeckId || null)
   const [materials, setMaterials] = useState([])
   const [decks, setDecks] = useState([])
   const [loaded, setLoaded] = useState(false)
@@ -50,6 +51,14 @@ export default function ActiveRecallPage({ currentUser, initialGoalId, onNavigat
   const deckTitleRef = useRef(null)
   const pageTitleRef = useRef(null)
   const hadDeck = useRef(false)
+
+  useEffect(() => {
+    if (initialGoalId) setGoalId(initialGoalId)
+  }, [initialGoalId])
+
+  useEffect(() => {
+    if (initialDeckId) setPendingDeckId(initialDeckId)
+  }, [initialDeckId])
 
   // Opening, confirming or leaving a deck swaps the whole view; move focus to the new heading instead of losing it.
   const openDeckId = open?.deck.id
@@ -101,6 +110,29 @@ export default function ActiveRecallPage({ currentUser, initialGoalId, onNavigat
     }).finally(() => { if (current) setLoaded(true) })
     return () => { current = false; controller.abort() }
   }, [api, goalId, revision, unauthenticated])
+
+  useEffect(() => {
+    if (!api || !pendingDeckId || open || opening || unauthenticated) return undefined
+    let current = true
+    setOpening(true)
+    api.getDeck(pendingDeckId)
+      .then(detail => {
+        if (!current) return
+        setOpen(detail)
+        if (detail?.deck?.goalId) setGoalId(detail.deck.goalId)
+        setPendingDeckId(null)
+      })
+      .catch(err => {
+        if (!current) return
+        const info = describeRecallError(err)
+        setError(info.message)
+        setPendingDeckId(null)
+      })
+      .finally(() => {
+        if (current) setOpening(false)
+      })
+    return () => { current = false }
+  }, [api, pendingDeckId, open, opening, unauthenticated])
 
   async function openDeck(deckId) {
     if (opening) return

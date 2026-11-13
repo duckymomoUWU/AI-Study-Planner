@@ -6,7 +6,7 @@ import AuthPage from './pages/AuthPage.jsx'
 import WeeklyProgressPage from './pages/WeeklyProgressPage.jsx'
 import LandingPage from './pages/LandingPage.jsx'
 import TimerPage from './pages/TimerPage.jsx'
-import { pageFromHash, taskFromHash } from './lib/navigation.js'
+import { pageFromHash, taskFromHash, recallParamsFromHash } from './lib/navigation.js'
 import ActiveRecallPage from './pages/ActiveRecallPage.jsx'
 import { getCurrentUser, logout } from './lib/auth.js'
 import './App.css'
@@ -21,6 +21,7 @@ export default function App() {
   const [activePage, setActivePageState] = useState(getPageFromHash) // 'overview' | 'goals' | 'daily' | 'auth'
   const [currentUser, setCurrentUser] = useState(null)
   const [timerTaskId, setTimerTaskId] = useState(() => taskFromHash(window.location.hash))
+  const [recallParams, setRecallParams] = useState(() => recallParamsFromHash(window.location.hash))
   const [dailyDate, setDailyDate] = useState(null)
   const [goalEditRequest, setGoalEditRequest] = useState(null)
   const handleGoalEditRequest = useCallback(() => setGoalEditRequest(null), [])
@@ -29,9 +30,19 @@ export default function App() {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const userMenuRef = useRef(null)
 
+  const handleNavigateRecall = useCallback((goalId, deckId) => {
+    setRecallParams({ goalId: goalId || null, deckId: deckId || null })
+    const query = []
+    if (goalId) query.push(`goal=${encodeURIComponent(goalId)}`)
+    if (deckId) query.push(`deck=${encodeURIComponent(deckId)}`)
+    window.location.hash = `#recall${query.length ? `?${query.join('&')}` : ''}`
+    setActivePageState('recall')
+  }, [])
+
   function setActivePage(page, taskId) {
     setActivePageState(['login', 'register'].includes(page) ? 'auth' : page)
     if (page === 'timer') setTimerTaskId(taskId || null)
+    if (page === 'recall') setRecallParams({ goalId: null, deckId: null })
     setShowUserMenu(false)
     if (page === 'home') {
       window.location.hash = ''
@@ -44,6 +55,7 @@ export default function App() {
     function onHashChange() {
       setActivePageState(getPageFromHash())
       setTimerTaskId(taskFromHash(window.location.hash))
+      setRecallParams(recallParamsFromHash(window.location.hash))
     }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
@@ -354,6 +366,7 @@ export default function App() {
             ) : activePage === 'daily' ? (
               <StudyPlanPage
                 onNavigateTimer={task => setActivePage('timer', task.id)}
+                onNavigateRecall={handleNavigateRecall}
                 initialDate={dailyDate}
                 onEditGoal={(id, section) => { setGoalEditRequest({ id, section }); setActivePage('goals') }}
                 currentUser={currentUser}
@@ -376,6 +389,8 @@ export default function App() {
               <ActiveRecallPage
                 key={currentUser?.id || currentUser?.email || 'guest'}
                 currentUser={currentUser}
+                initialGoalId={recallParams.goalId}
+                initialDeckId={recallParams.deckId}
                 onNavigateAuth={() => setActivePage('auth')}
               />
             ) : (

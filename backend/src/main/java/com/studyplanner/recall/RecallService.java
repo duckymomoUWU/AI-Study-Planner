@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -197,6 +198,16 @@ public class RecallService {
         }
         var material = materialOpt.get();
 
+        String extractedText = material.extractedText() != null ? material.extractedText().trim() : "";
+        if (extractedText.isEmpty()) {
+            throw RecallException.insufficientMaterial("Tài liệu chưa đủ nội dung để tạo câu hỏi. Vui lòng bổ sung thêm thông tin.");
+        }
+
+        Set<String> contentTokens = RecallQualityValidator.extractContentTokens(extractedText);
+        if (extractedText.length() < 60 || contentTokens.size() < 8) {
+            throw RecallException.insufficientMaterial("Tài liệu chưa đủ nội dung để tạo câu hỏi. Vui lòng bổ sung thêm thông tin.");
+        }
+
         List<RecallTextExtractor.PageText> pages = Collections.emptyList();
         if (material.pagesJson() != null && !material.pagesJson().isBlank()) {
             try {
@@ -251,7 +262,7 @@ public class RecallService {
             UUID cardId = UUID.randomUUID();
             cardEntities.add(new RecallRepository.CardEntity(
                     cardId, deckId, gc.question(), gc.answer(), material.id(),
-                    gc.page(), gc.quote(), false, 0, order++, null, null, 0, Instant.now()
+                    gc.page(), gc.quote(), false, 0, order++, null, null, 0, gc.qualityWarning(), Instant.now()
             ));
         }
 
@@ -346,7 +357,31 @@ public class RecallService {
             throw RecallException.validation("answer", "length_range", "Câu trả lời phải từ 1 đến 2000 ký tự.");
         }
 
-        boolean updated = repository.updateCardQuestionAnswer(cardId, request.expectedVersion(), question, answer);
+        String materialText = "";
+        UUID matId = card.sourceMaterialId() != null ? card.sourceMaterialId() : deck.materialId();
+        if (matId != null) {
+            var matOpt = repository.findMaterialByIdAndUserId(matId, userId);
+            if (matOpt.isPresent() && matOpt.get().extractedText() != null) {
+                materialText = matOpt.get().extractedText();
+            }
+        }
+
+        List<RecallDTOs.CardResponse> otherCards = Collections.emptyList();
+        try {
+            List<RecallDTOs.CardResponse> allCards = repository.findCardsByDeckId(deck.id());
+            if (allCards != null) {
+                otherCards = allCards.stream()
+                        .filter(c -> !c.id().equals(cardId))
+                        .toList();
+            }
+        } catch (Exception ignored) {}
+
+        var qualityResult = RecallQualityValidator.validateCardQuality(
+                question, answer, card.sourceQuote(), materialText, otherCards
+        );
+        String qualityWarning = qualityResult.passed() ? null : qualityResult.warning();
+
+        boolean updated = repository.updateCardQuestionAnswer(cardId, request.expectedVersion(), question, answer, qualityWarning);
         if (!updated) {
             throw RecallException.cardVersionConflict(card.version());
         }
@@ -354,10 +389,40 @@ public class RecallService {
         // Updating a card also increments the parent deck version
         repository.incrementDeckVersion(deck.id(), userId);
 
+        // Re-evaluate other cards that had duplicate warnings to clear them if no longer duplicating
+        if (!otherCards.isEmpty()) {
+            final String finalMaterialText = materialText;
+            var updatedCurrentCard = new RecallDTOs.CardResponse(
+                    card.id(), card.deckId(), question, answer,
+                    new RecallDTOs.CardSource(card.sourceMaterialId(), card.sourcePage(), card.sourceQuote()),
+                    true, card.version() + 1, card.lastRating(), card.lastReviewedAt(), card.reviewCount(),
+                    qualityWarning
+            );
+            List<RecallDTOs.CardResponse> currentDeckSnapshot = new ArrayList<>(otherCards);
+            currentDeckSnapshot.add(updatedCurrentCard);
+
+            for (RecallDTOs.CardResponse other : otherCards) {
+                if (other.qualityWarning() != null && other.qualityWarning().contains("trùng lặp")) {
+                    List<RecallDTOs.CardResponse> remainingForOther = currentDeckSnapshot.stream()
+                            .filter(c -> !c.id().equals(other.id()))
+                            .toList();
+                    String otherQuote = other.source() != null ? other.source().quote() : null;
+                    var otherResult = RecallQualityValidator.validateCardQuality(
+                            other.question(), other.answer(), otherQuote, finalMaterialText, remainingForOther
+                    );
+                    String newOtherWarning = otherResult.passed() ? null : otherResult.warning();
+                    if (!Objects.equals(newOtherWarning, other.qualityWarning())) {
+                        repository.updateCardQualityWarning(other.id(), newOtherWarning);
+                    }
+                }
+            }
+        }
+
         return new RecallDTOs.CardResponse(
                 card.id(), card.deckId(), question, answer,
                 new RecallDTOs.CardSource(card.sourceMaterialId(), card.sourcePage(), card.sourceQuote()),
-                true, card.version() + 1, card.lastRating(), card.lastReviewedAt(), card.reviewCount()
+                true, card.version() + 1, card.lastRating(), card.lastReviewedAt(), card.reviewCount(),
+                qualityWarning
         );
     }
 
@@ -390,6 +455,21 @@ public class RecallService {
 
         if (deck.cardCount() == 0) {
             throw RecallException.deckStateConflict("Không thể kích hoạt bộ thẻ rỗng.");
+        }
+
+        // Quality check before deck activation:
+        // Do not allow activating if any card has unresolved quality issues
+        List<RecallDTOs.CardResponse> cards = repository.findCardsByDeckId(deckId);
+        long invalidCardsCount = (cards != null)
+                ? cards.stream().filter(c -> c.qualityWarning() != null && !c.qualityWarning().isBlank()).count()
+                : 0;
+
+        if (invalidCardsCount > 0) {
+            throw RecallException.validation(
+                    "deck",
+                    "quality_issues",
+                    "Không thể xác nhận bộ thẻ khi còn " + invalidCardsCount + " flashcard chưa đạt chất lượng. Vui lòng kiểm tra và chỉnh sửa các thẻ có cảnh báo trước khi xác nhận."
+            );
         }
 
         boolean updated = repository.updateDeckStatus(deckId, userId, "ACTIVE", request.expectedVersion());

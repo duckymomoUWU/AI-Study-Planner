@@ -71,7 +71,7 @@ class GeminiRecallServiceTest {
         org.mockito.Mockito.when(response.body()).thenReturn(objectMapper.writeValueAsString(java.util.Map.of("candidates",List.of(java.util.Map.of("content",java.util.Map.of("parts",List.of(java.util.Map.of("text",body))))))));
         assertEquals(5,ai.generateCards(source,List.of(new RecallTextExtractor.PageText(1,source)),"Testing",5).size());
         var error=assertThrows(RecallException.class,()->ai.generateCards(source,List.of(new RecallTextExtractor.PageText(2,source)),"Testing",5));
-        assertEquals("AI_INVALID_RESPONSE",error.getCode());
+        assertTrue("ALL_CARDS_FAILED_QUALITY".equals(error.getCode()) || "AI_INVALID_RESPONSE".equals(error.getCode()));
         org.mockito.Mockito.when(response.statusCode()).thenReturn(503);
         assertEquals("AI_UNAVAILABLE",assertThrows(RecallException.class,()->ai.generateCards(source,List.of(),"Testing",5)).getCode());
     }

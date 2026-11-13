@@ -11,11 +11,13 @@ import DailyTasksPage from './DailyTasksPage.jsx'
 import './StudyPlanPage.css'
 import TaskTimeDetails from '../components/TaskTimeDetails.jsx'
 import useTaskStudyTimes from '../hooks/useTaskStudyTimes.js'
+import TaskDetailModal from '../components/TaskDetailModal.jsx'
+import { getTaskRecallLink, listenTaskRecallLinks } from '../lib/taskRecallLinks.js'
 
 const dateLabel = day => new Intl.DateTimeFormat('vi-VN', { day: 'numeric', month: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${day}T12:00:00Z`))
 const weekdayLabel = day => new Intl.DateTimeFormat('vi-VN', { weekday: 'long', timeZone: 'UTC' }).format(new Date(`${day}T12:00:00Z`))
 
-export default function StudyPlanPage({ initialDate, onNavigateGoals, onNavigateAuth, onEditGoal, onNavigateTimer, ...dailyProps }) {
+export default function StudyPlanPage({ initialDate, onNavigateGoals, onNavigateAuth, onEditGoal, onNavigateTimer, onNavigateRecall, ...dailyProps }) {
   const [anchor, setAnchor] = useState(() => initialDate || vietnamToday())
   const [days, setDays] = useState([])
   const [goals, setGoals] = useState([])
@@ -31,11 +33,19 @@ export default function StudyPlanPage({ initialDate, onNavigateGoals, onNavigate
   const [pending, setPending] = useState(null)
   const [notice, setNotice] = useState('')
   const [sharedBudgetFocus, setSharedBudgetFocus] = useState(0)
+  const [selectedTaskForDetail, setSelectedTaskForDetail] = useState(null)
   const today = vietnamToday()
   const dates = weekDays(anchor)
   const start = dates[0]
   const requestKey = `${start}:${revision}`
   const loading = loadedRequest !== requestKey
+
+  useEffect(() => {
+    const unsubscribe = listenTaskRecallLinks(() => {
+      setRevision(r => r + 1)
+    })
+    return unsubscribe
+  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -70,7 +80,7 @@ export default function StudyPlanPage({ initialDate, onNavigateGoals, onNavigate
   if (dailyDate) return <>
     {dailyProps.currentUser && <CalendarSyncPanel onOpenCalendar={() => { setDailyDate(null); setShowCalendar(true); refresh() }} />}
     <button className="study-back" type="button" onClick={() => { setDailyDate(null); refresh() }}>← Lịch học theo tuần</button>
-    <DailyTasksPage key={dailyDate} {...dailyProps} initialDate={dailyDate} onNavigateGoals={onNavigateGoals} onNavigateAuth={onNavigateAuth} onNavigateTimer={onNavigateTimer} />
+    <DailyTasksPage key={dailyDate} {...dailyProps} initialDate={dailyDate} onNavigateGoals={onNavigateGoals} onNavigateAuth={onNavigateAuth} onNavigateTimer={onNavigateTimer} onNavigateRecall={onNavigateRecall} />
   </>
 
   return <section className="study-plan" aria-labelledby="study-plan-title">
@@ -136,20 +146,94 @@ export default function StudyPlanPage({ initialDate, onNavigateGoals, onNavigate
             <button type="button" onClick={() => setDailyDate(day.date)}>Xem ngày ↗</button></div>
           <div className="study-sessions">{day.items.length === 0 ? <p className="study-rest">Chưa có buổi học · Bạn có thể nghỉ hoặc thêm công việc.</p> : day.items.map(task => {
             const goal = goals.find(item => item.id === task.goalId)
+            const recallLink = getTaskRecallLink(task.id, dailyProps.currentUser?.id)
             return <article className={`study-session${task.completed ? ' study-session--done' : ''}`} key={task.id}>
-              <span className="study-session-icon" aria-hidden="true">▦</span>
-              <div className="study-session-copy"><h3>{task.title}</h3>
-                <p>{goal?.subject || 'Mục tiêu học tập'}{task.topicTitle ? ` · ${task.topicTitle}` : ''}</p>
-                {task.completed && <span>Đã hoàn thành</span>}
-                <TaskTimeDetails task={task} total={studyTimes.totals[task.id]} error={studyTimes.error} onSaved={refresh} onReload={refresh} /></div>
-              <button className={task.completed ? 'study-done' : 'study-primary'} type="button" disabled={Boolean(pending)}
-                aria-label={`${task.completed ? 'Đánh dấu chưa xong' : 'Hoàn thành'}: ${task.title}`} onClick={() => complete(task)}>
-                {pending === task.id ? 'Đang lưu…' : task.completed ? '✓ Đã xong' : 'Hoàn thành'}</button>
-              {onNavigateTimer && <button type="button" onClick={() => onNavigateTimer(task)} aria-label={`Tập trung học: ${task.title}`}>◷ Tập trung</button>}
+              <div className="study-session-main">
+                <span className="study-session-icon" aria-hidden="true">▦</span>
+                <div className="study-session-copy">
+                  <div className="study-session-title-row">
+                    <h3
+                      className="study-session-title"
+                      onClick={() => setSelectedTaskForDetail(task)}
+                      title="Bấm để xem chi tiết và bộ flashcard ôn tập"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedTaskForDetail(task) } }}
+                    >
+                      {task.title}
+                    </h3>
+                    {task.completed && <span className="study-session-done-badge">✓ Đã xong</span>}
+                  </div>
+                  <p className="study-session-meta">
+                    <span className="study-session-subject">📚 {goal?.subject || 'Mục tiêu học tập'}</span>
+                    <span className="study-session-duration">⏱ {task.estimatedMinutes} phút</span>
+                    {task.topicTitle ? <span>· {task.topicTitle}</span> : null}
+                  </p>
+
+                  <TaskTimeDetails task={task} total={studyTimes.totals[task.id]} error={studyTimes.error} onSaved={refresh} onReload={refresh} />
+                </div>
+                <div className="study-session-actions">
+                  <button className={task.completed ? 'study-done' : 'study-primary'} type="button" disabled={Boolean(pending)}
+                    aria-label={`${task.completed ? 'Đánh dấu chưa xong' : 'Hoành thành'}: ${task.title}`} onClick={() => complete(task)}>
+                    {pending === task.id ? 'Đang lưu…' : task.completed ? '✓ Đã xong' : 'Hoàn thành'}</button>
+                  {onNavigateTimer && <button type="button" className="study-timer-btn" onClick={() => onNavigateTimer(task)} aria-label={`Tập trung học: ${task.title}`} title="Bắt đầu phiên học tập trung">◷ Tập trung</button>}
+                </div>
+              </div>
+
+              {/* Recall Flashcard Linking Footer - Bottom Right */}
+              <div className="study-session-footer">
+                <div className="study-session-recall">
+                  {recallLink ? (
+                    <div className="study-recall-group">
+                      <button
+                        type="button"
+                        className="study-recall-btn study-recall-btn--linked"
+                        onClick={() => onNavigateRecall ? onNavigateRecall(task.goalId, recallLink.deckId) : setSelectedTaskForDetail(task)}
+                        title={`Đã liên kết với bộ thẻ "${recallLink.deckTitle}". Bấm để ôn tập ngay.`}
+                      >
+                        <span className="study-recall-icon" aria-hidden="true">🎴</span>
+                        <span className="study-recall-text">Flashcard: <strong>{recallLink.deckTitle}</strong> ↗</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="study-recall-manage-btn"
+                        onClick={() => setSelectedTaskForDetail(task)}
+                        title="Thay đổi bộ flashcard liên kết"
+                        aria-label="Cài đặt liên kết flashcard"
+                      >
+                        ⚙
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="study-recall-btn study-recall-btn--unlinked"
+                      onClick={() => setSelectedTaskForDetail(task)}
+                      title={`Liên kết bộ flashcard môn ${goal?.subject || ''}`}
+                    >
+                      <span className="study-recall-icon" aria-hidden="true">✦</span>
+                      <span>Flashcard / Ôn tập</span>
+                    </button>
+                  )}
+                </div>
+              </div>
             </article>
           })}</div>
         </section>)}
       </div>
     </>}
+
+    {selectedTaskForDetail && (
+      <TaskDetailModal
+        task={selectedTaskForDetail}
+        subject={goals.find(g => g.id === selectedTaskForDetail.goalId)?.subject}
+        userId={dailyProps.currentUser?.id}
+        onClose={() => setSelectedTaskForDetail(null)}
+        onToggleCompleted={complete}
+        onNavigateRecall={onNavigateRecall}
+        onNavigateTimer={onNavigateTimer}
+        onLinkUpdated={() => refresh()}
+      />
+    )}
   </section>
 }

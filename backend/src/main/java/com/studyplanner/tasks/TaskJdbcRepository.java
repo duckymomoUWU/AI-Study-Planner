@@ -159,6 +159,19 @@ public class TaskJdbcRepository {
                 .addValue("completed", completed)) == 1;
     }
 
+    public boolean updateGoalAndOwned(UUID owner, UUID oldGoalId, UUID taskId, UUID newGoalId,
+                                      TaskPolicy.TaskInput input, boolean completed) {
+        return jdbc.update("""
+                UPDATE study_tasks t SET title = :title, scheduled_date = :date,
+                    estimated_minutes = :minutes, completed = :completed, goal_id = :newGoalId
+                FROM study_goals g WHERE g.id = t.goal_id AND g.user_id = :ownerId
+                    AND g.id = :oldGoalId AND t.id = :taskId
+                """, new MapSqlParameterSource("ownerId", owner).addValue("oldGoalId", oldGoalId)
+                .addValue("newGoalId", newGoalId).addValue("taskId", taskId)
+                .addValue("title", input.title().trim()).addValue("date", input.scheduledDate())
+                .addValue("minutes", input.estimatedMinutes()).addValue("completed", completed)) == 1;
+    }
+
     public boolean deleteOwned(UUID owner, UUID goalId, UUID taskId) {
         return jdbc.update("""
                 DELETE FROM study_tasks t USING study_goals g

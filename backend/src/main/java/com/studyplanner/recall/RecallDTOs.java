@@ -61,8 +61,15 @@ public class RecallDTOs {
             int version,
             String lastRating,
             Instant lastReviewedAt,
-            int reviewCount
-    ) {}
+            int reviewCount,
+            String qualityWarning
+    ) {
+        public CardResponse(UUID id, UUID deckId, String question, String answer,
+                CardSource source, boolean editedByUser, int version,
+                String lastRating, Instant lastReviewedAt, int reviewCount) {
+            this(id, deckId, question, answer, source, editedByUser, version, lastRating, lastReviewedAt, reviewCount, null);
+        }
+    }
 
     public record DeckDetail(
             DeckResponse deck,

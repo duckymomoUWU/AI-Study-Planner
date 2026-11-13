@@ -62,8 +62,20 @@ public class RecallRepository {
             String lastRating,
             Instant lastReviewedAt,
             int reviewCount,
+            String qualityWarning,
             Instant createdAt
-    ) {}
+    ) {
+        public CardEntity(
+                UUID id, UUID deckId, String question, String answer,
+                UUID sourceMaterialId, Integer sourcePage, String sourceQuote,
+                boolean editedByUser, int version, int sortOrder,
+                String lastRating, Instant lastReviewedAt, int reviewCount,
+                Instant createdAt
+        ) {
+            this(id, deckId, question, answer, sourceMaterialId, sourcePage, sourceQuote,
+                    editedByUser, version, sortOrder, lastRating, lastReviewedAt, reviewCount, null, createdAt);
+        }
+    }
 
     public record ReceiptRecord(
             UUID id,
@@ -312,8 +324,8 @@ public class RecallRepository {
         String sql = """
                 INSERT INTO recall_cards (
                     id, deck_id, question, answer, source_material_id, source_page, source_quote,
-                    edited_by_user, version, sort_order, last_rating, last_reviewed_at, review_count, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
+                    edited_by_user, version, sort_order, last_rating, last_reviewed_at, review_count, quality_warning, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
                 """;
         List<Object[]> batchParams = new ArrayList<>();
         for (CardEntity c : cards) {
@@ -322,7 +334,8 @@ public class RecallRepository {
                     c.sourcePage(), c.sourceQuote(), c.editedByUser(), c.version(), c.sortOrder(),
                     c.lastRating(),
                     c.lastReviewedAt() != null ? Timestamp.from(c.lastReviewedAt()) : null,
-                    c.reviewCount()
+                    c.reviewCount(),
+                    c.qualityWarning()
             });
         }
         jdbcTemplate.batchUpdate(sql, batchParams);
@@ -331,7 +344,7 @@ public class RecallRepository {
     public List<RecallDTOs.CardResponse> findCardsByDeckId(UUID deckId) {
         String sql = """
                 SELECT id, deck_id, question, answer, source_material_id, source_page, source_quote,
-                       edited_by_user, version, last_rating, last_reviewed_at, review_count
+                       edited_by_user, version, last_rating, last_reviewed_at, review_count, quality_warning
                 FROM recall_cards
                 WHERE deck_id = ?
                 ORDER BY sort_order ASC, created_at ASC
@@ -350,14 +363,16 @@ public class RecallRepository {
                 rs.getInt("version"),
                 rs.getString("last_rating"),
                 rs.getTimestamp("last_reviewed_at") != null ? rs.getTimestamp("last_reviewed_at").toInstant() : null,
-                rs.getInt("review_count")
+                rs.getInt("review_count"),
+                rs.getString("quality_warning")
         ), deckId);
     }
 
     public Optional<CardEntity> findCardByIdAndUserId(UUID cardId, UUID userId) {
         String sql = """
                 SELECT c.id, c.deck_id, c.question, c.answer, c.source_material_id, c.source_page, c.source_quote,
-                       c.edited_by_user, c.version, c.sort_order, c.last_rating, c.last_reviewed_at, c.review_count, c.created_at
+                       c.edited_by_user, c.version, c.sort_order, c.last_rating, c.last_reviewed_at, c.review_count,
+                       c.quality_warning, c.created_at
                 FROM recall_cards c
                 JOIN recall_decks d ON c.deck_id = d.id
                 WHERE c.id = ? AND d.user_id = ?
@@ -377,6 +392,7 @@ public class RecallRepository {
                     rs.getString("last_rating"),
                     rs.getTimestamp("last_reviewed_at") != null ? rs.getTimestamp("last_reviewed_at").toInstant() : null,
                     rs.getInt("review_count"),
+                    rs.getString("quality_warning"),
                     rs.getTimestamp("created_at").toInstant()
             ), cardId, userId);
             return Optional.ofNullable(entity);
@@ -385,14 +401,27 @@ public class RecallRepository {
         }
     }
 
-    public boolean updateCardQuestionAnswer(UUID cardId, int expectedVersion, String question, String answer) {
+    public boolean updateCardQuestionAnswer(UUID cardId, int expectedVersion, String question, String answer, String qualityWarning) {
         String sql = """
                 UPDATE recall_cards
-                SET question = ?, answer = ?, edited_by_user = true, version = version + 1
+                SET question = ?, answer = ?, edited_by_user = true, quality_warning = ?, version = version + 1
                 WHERE id = ? AND version = ?
                 """;
-        int updated = jdbcTemplate.update(sql, question, answer, cardId, expectedVersion);
+        int updated = jdbcTemplate.update(sql, question, answer, qualityWarning, cardId, expectedVersion);
         return updated > 0;
+    }
+
+    public boolean updateCardQuestionAnswer(UUID cardId, int expectedVersion, String question, String answer) {
+        return updateCardQuestionAnswer(cardId, expectedVersion, question, answer, null);
+    }
+
+    public void updateCardQualityWarning(UUID cardId, String qualityWarning) {
+        String sql = """
+                UPDATE recall_cards
+                SET quality_warning = ?
+                WHERE id = ?
+                """;
+        jdbcTemplate.update(sql, qualityWarning, cardId);
     }
 
     public void updateCardReviewState(UUID cardId, String rating, Instant reviewedAt) {

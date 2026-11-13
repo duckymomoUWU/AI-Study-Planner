@@ -88,8 +88,24 @@ public class RecallException extends RuntimeException {
         return new RecallException(HttpStatus.UNPROCESSABLE_ENTITY, "SOURCE_NO_TEXT", message);
     }
 
+    public static RecallException insufficientMaterial(String message) {
+        return new RecallException(HttpStatus.UNPROCESSABLE_ENTITY, "INSUFFICIENT_MATERIAL", message);
+    }
+
+    public static RecallException noSuitableContent(String message) {
+        return new RecallException(HttpStatus.UNPROCESSABLE_ENTITY, "NO_SUITABLE_CONTENT", message);
+    }
+
+    public static RecallException allCardsFailedQuality(String message) {
+        return new RecallException(HttpStatus.UNPROCESSABLE_ENTITY, "ALL_CARDS_FAILED_QUALITY", message);
+    }
+
+    public static RecallException aiMalformedResponse(String message) {
+        return new RecallException(HttpStatus.BAD_GATEWAY, "AI_MALFORMED_RESPONSE", message);
+    }
+
     public static RecallException aiInvalidResponse(String message) {
-        return new RecallException(HttpStatus.BAD_GATEWAY, "AI_INVALID_RESPONSE", message);
+        return new RecallException(HttpStatus.BAD_GATEWAY, "AI_MALFORMED_RESPONSE", message);
     }
 
     public static RecallException aiUnavailable(String message) {
