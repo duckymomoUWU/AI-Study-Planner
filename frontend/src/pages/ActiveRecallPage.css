@@ -77,3 +77,17 @@
 
 /* The shared success badge is 2.9:1; the deck status needs 4.5:1, so darken the text on this page only. */
 .recall-page .shadcn-badge--success { color: #166534; }
+
+/* Long unbroken text (a pasted URL, a 300-letter question) must wrap instead of widening the page,
+   and line breaks the student typed or pasted must stay visible. */
+.recall-page { overflow-wrap: anywhere; }
+.recall-draft-head h3, .recall-draft-answer, .recall-flashcard h3, .recall-answer-text, .recall-quote { white-space: pre-line; }
+.recall-quote footer { white-space: normal; }
+.recall-draft-head > h3 { min-width: 0; flex: 1; }
+.recall-material-head > div { min-width: 0; flex: 1 1 200px; }
+.recall-deck-title h2 { min-width: 0; }
+
+/* "Show more" for long lists of sources and decks */
+.recall-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-top: 12px; }
+.recall-pager .recall-help { margin: 0; }
+.recall-material-list > li:focus-visible, .recall-deck-list > li:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }

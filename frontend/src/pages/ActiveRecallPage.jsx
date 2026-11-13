@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Label } from '../components/ui/label.jsx'
 import DeckEditor from '../components/recall/DeckEditor.jsx'
 import GenerateForm from '../components/recall/GenerateForm.jsx'
+import PagedList from '../components/recall/PagedList.jsx'
 import SourceForm from '../components/recall/SourceForm.jsx'
 import StudyDeck from '../components/recall/StudyDeck.jsx'
 import { listGoals } from '../lib/goals.js'
@@ -224,8 +225,8 @@ export default function ActiveRecallPage({ currentUser, initialGoalId, onNavigat
                   {materials.length === 0 ? (
                     <p className="recall-help">Chưa có nguồn nào cho mục tiêu này. Hãy thêm nguồn ở bước 1.</p>
                   ) : (
-                    <ul className="recall-material-list">
-                      {materials.map(material => (
+                    <PagedList key={goalId} items={materials} noun="nguồn" className="recall-material-list"
+                      renderItem={material => (
                         <li key={material.id} className="recall-material">
                           <div className="recall-material-head">
                             <div>
@@ -245,8 +246,7 @@ export default function ActiveRecallPage({ currentUser, initialGoalId, onNavigat
                               onGenerated={deck => { setExpanded(''); refresh(); openDeck(deck.id) }} />
                           )}
                         </li>
-                      ))}
-                    </ul>
+                      )} />
                   )}
                 </CardContent>
               </Card>
@@ -260,8 +260,8 @@ export default function ActiveRecallPage({ currentUser, initialGoalId, onNavigat
                   {decks.length === 0 ? (
                     <p className="recall-help">Bạn chưa có bộ thẻ nào cho mục tiêu này.</p>
                   ) : (
-                    <ul className="recall-deck-list">
-                      {decks.map(deck => (
+                    <PagedList key={goalId} items={decks} noun="bộ thẻ" className="recall-deck-list"
+                      renderItem={deck => (
                         <li key={deck.id} className="recall-deck-item">
                           <div>
                             <strong>{deck.title}</strong>
@@ -274,8 +274,7 @@ export default function ActiveRecallPage({ currentUser, initialGoalId, onNavigat
                             {deck.status === 'ACTIVE' ? 'Ôn tập' : 'Xem bản nháp'}
                           </Button>
                         </li>
-                      ))}
-                    </ul>
+                      )} />
                   )}
                 </CardContent>
               </Card>

@@ -54,6 +54,28 @@ test('listMaterials and listDecks send paging and the optional goalId', async t 
   assert.equal(calls[0].options.headers['X-CSRF-TOKEN'], undefined)
 })
 
+test('listMaterials and listDecks follow every page so items past the first 100 are not dropped', async t => {
+  const item = id => ({ id, title: id })
+  const calls = mockApi(t, url => {
+    const page = Number(new URL(url, 'http://x').searchParams.get('page'))
+    const data = page === 1 ? Array.from({ length: 100 }, (_, i) => item(`a${i}`)) : page === 2 ? Array.from({ length: 30 }, (_, i) => item(`b${i}`)) : []
+    return Response.json({ data, meta: { page, limit: 100, totalItems: 130, totalPages: 2 } })
+  })
+  const materials = await listMaterials({ goalId: 'g1' })
+  assert.equal(materials.length, 130)
+  assert.equal(new Set(materials.map(m => m.id)).size, 130)
+  assert.deepEqual(calls.map(c => c.url), [
+    '/api/v1/recall/materials?page=1&limit=100&goalId=g1',
+    '/api/v1/recall/materials?page=2&limit=100&goalId=g1',
+  ])
+  assert.equal((await listDecks({ goalId: 'g1' })).length, 130)
+})
+
+test('a list response without a data array is a malformed response, not an empty list', async t => {
+  mockApi(t, () => Response.json({ items: [], meta: { totalPages: 1 } }))
+  await assert.rejects(listMaterials({}), error => error.status === 502 && error.code === 'INVALID_RESPONSE')
+})
+
 test('generateDeck sends the Idempotency-Key and the count, and keeps it identical on a retry', async t => {
   const calls = mockApi(t, () => Response.json({ data: { id: 'd1', status: 'DRAFT' } }, { status: 201 }))
   await generateDeck({ materialId: 'm1', title: 'Bộ thẻ', count: 8 }, KEY)

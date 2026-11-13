@@ -4,6 +4,8 @@ import { getCsrfToken } from './auth.js'
 // Every call goes to the real API; the only substitute is the explicit development mock in recallMock.js.
 
 const BASE = '/api/v1/recall'
+const PAGE_LIMIT = 100 // the API's maximum page size
+const MAX_PAGES = 100 // a safety stop: 10,000 items per list is far beyond the product's scope
 
 export const TEXT_LIMIT = 30000
 export const TITLE_LIMIT = 120
@@ -82,12 +84,22 @@ export async function createPdfMaterial({ goalId, title, fileName, base64 }, { s
   return data
 }
 
-export async function listMaterials({ goalId, page = 1, limit = 100 } = {}, { signal } = {}) {
-  const query = new URLSearchParams({ page: String(page), limit: String(limit) })
-  if (goalId) query.set('goalId', goalId)
-  const { data } = await request(`/materials?${query}`, { signal })
-  if (!Array.isArray(data)) throw malformed()
-  return data
+/** Every item of a paged list: follows meta.totalPages so nothing past the first 100 is silently dropped. */
+async function listAll(path, { goalId } = {}, { signal } = {}) {
+  const items = []
+  for (let page = 1; page <= MAX_PAGES; page += 1) {
+    const query = new URLSearchParams({ page: String(page), limit: String(PAGE_LIMIT) })
+    if (goalId) query.set('goalId', goalId)
+    const { data, meta } = await request(`${path}?${query}`, { signal })
+    if (!Array.isArray(data)) throw malformed()
+    items.push(...data)
+    if (page >= (typeof meta?.totalPages === 'number' ? meta.totalPages : 1)) break
+  }
+  return items
+}
+
+export function listMaterials(filter = {}, callOptions = {}) {
+  return listAll('/materials', filter, callOptions)
 }
 
 /** POST /recall/decks. The key makes a retry of the same attempt return the same deck. */
@@ -97,12 +109,8 @@ export async function generateDeck({ materialId, title, count = COUNT_DEFAULT },
   return data
 }
 
-export async function listDecks({ goalId, page = 1, limit = 100 } = {}, { signal } = {}) {
-  const query = new URLSearchParams({ page: String(page), limit: String(limit) })
-  if (goalId) query.set('goalId', goalId)
-  const { data } = await request(`/decks?${query}`, { signal })
-  if (!Array.isArray(data)) throw malformed()
-  return data
+export function listDecks(filter = {}, callOptions = {}) {
+  return listAll('/decks', filter, callOptions)
 }
 
 /** GET /recall/decks/{id}: the deck with all of its cards. */
