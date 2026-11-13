@@ -15,7 +15,7 @@ public final class TaskRequest {
         if (body == null || !body.isObject()) throw new RequestValidationException(
                 List.of(new ErrorDetail("body", "invalid_type")));
         Set<String> allowed = create ? Set.of("title", "scheduledDate", "estimatedMinutes")
-                : Set.of("title", "scheduledDate", "estimatedMinutes", "completed", "goalId");
+                : Set.of("title", "scheduledDate", "estimatedMinutes", "completed");
         body.fieldNames().forEachRemaining(name -> {
             if (!allowed.contains(name)) errors.add(new ErrorDetail(name, "unknown_field"));
         });
@@ -24,7 +24,6 @@ public final class TaskRequest {
         LocalDate date = null;
         Integer minutes = null;
         Boolean completed = null;
-        java.util.UUID goalId = null;
         for (String field : List.of("title", "scheduledDate", "estimatedMinutes")) {
             if ((create && !body.has(field)) || (body.has(field) && body.get(field).isNull()))
                 errors.add(new ErrorDetail(field, "required"));
@@ -48,18 +47,7 @@ public final class TaskRequest {
             else if (!body.get("completed").isBoolean()) errors.add(new ErrorDetail("completed", "invalid_type"));
             else completed = body.get("completed").booleanValue();
         }
-        if (body.has("goalId")) {
-            if (body.get("goalId").isNull()) errors.add(new ErrorDetail("goalId", "required"));
-            else if (!body.get("goalId").isTextual()) errors.add(new ErrorDetail("goalId", "invalid_type"));
-            else {
-                try {
-                    goalId = java.util.UUID.fromString(body.get("goalId").textValue());
-                } catch (IllegalArgumentException e) {
-                    errors.add(new ErrorDetail("goalId", "invalid_uuid"));
-                }
-            }
-        }
         if (!errors.isEmpty()) throw new RequestValidationException(errors);
-        return new TaskService.TaskPatch(title, date, minutes, completed, goalId);
+        return new TaskService.TaskPatch(title, date, minutes, completed);
     }
 }

@@ -50,18 +50,4 @@ public class RecallExceptionHandler {
         );
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
-
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<RecallDTOs.ErrorResponse> handleGenericException(Exception ex) {
-        log.error("Unhandled exception in recall module: {}", ex.getMessage(), ex);
-        RecallDTOs.ErrorResponse body = new RecallDTOs.ErrorResponse(
-                new RecallDTOs.ErrorResponse.ErrorDetail(
-                        "GATEWAY_ERROR",
-                        "Không thể kết nối đến dịch vụ tạo flashcard. Vui lòng thử lại sau.",
-                        null,
-                        null
-                )
-        );
-        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(body);
-    }
 }

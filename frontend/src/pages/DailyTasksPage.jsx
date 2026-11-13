@@ -192,7 +192,7 @@ export default function DailyTasksPage({ onBack, onNavigateGoals, initialDate, o
         if (targetGoalId !== editingTask.goalId) {
           removeTaskRecallLink(editingTask.id, currentUser?.id)
         }
-        await updateTask(editingTask.id, { ...input, goalId: targetGoalId })
+        await updateTask(editingTask.id, input)
       } else {
         await createTask(targetGoalId, input)
       }

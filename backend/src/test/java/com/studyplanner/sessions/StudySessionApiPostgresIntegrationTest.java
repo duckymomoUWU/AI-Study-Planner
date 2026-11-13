@@ -113,7 +113,7 @@ class StudySessionApiPostgresIntegrationTest {
 
     private String task(String goalId, String title) {
         return jdbc.queryForObject("INSERT INTO study_tasks (goal_id, title, scheduled_date, estimated_minutes) "
-                + "VALUES (?::uuid, ?, current_date, 45) RETURNING id::text", String.class, goalId, title);
+                + "VALUES (?::uuid, ?, (SELECT start_date FROM study_goals WHERE id = ?::uuid), 45) RETURNING id::text", String.class, goalId, title, goalId);
     }
 
     private ResultActions start(MockHttpSession s, String taskId, String key) throws Exception {
