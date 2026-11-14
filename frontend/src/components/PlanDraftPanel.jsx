@@ -17,6 +17,7 @@ export default function PlanDraftPanel({ goal, onSaved, onAdjust, onAdjustShared
   const [extras, setExtras] = useState([])
   const [dirty, setDirty] = useState(false)
   const [budgetNotice, setBudgetNotice] = useState(false)
+  const pendingFocus = useRef('')
   const revision = useRef(requestRevision())
   useEffect(() => {
     const gate = revision.current
@@ -82,20 +83,23 @@ export default function PlanDraftPanel({ goal, onSaved, onAdjust, onAdjustShared
   }
   // Leaving a scoped draft's work out of this save is never a delete: the server keeps it in the "remaining" draft.
   function holdBack(index) {
+    pendingFocus.current = `put-${index}`
     setItems(previous => previous.map((task, i) => i === index ? { ...task, previousDate: task.scheduledDate, scheduledDate: '', heldBack: true } : task))
     setDirty(true); resetDecision()
   }
   function putBack(index) {
+    pendingFocus.current = `hold-${index}`
     setItems(previous => previous.map((task, i) => i === index ? { ...task, scheduledDate: task.previousDate || '', heldBack: false } : task))
     setDirty(true); resetDecision()
   }
   function addExtra() {
+    pendingFocus.current = `extra-${extras.length + 1}`
     const topicId = draft.proposal.scope.selectedTopics[0]?.id || ''
     setExtras(previous => [...previous, { key: crypto.randomUUID(), topicId, title: '', scheduledDate: '', estimatedMinutes: 30 }])
     setDirty(true); resetDecision()
   }
   function editExtra(key, field, value) { setExtras(previous => previous.map(extra => extra.key === key ? { ...extra, [field]: value } : extra)); resetDecision() }
-  function removeExtra(key) { setExtras(previous => previous.filter(extra => extra.key !== key)); resetDecision() }
+  function removeExtra(key) { pendingFocus.current = 'add-extra'; setExtras(previous => previous.filter(extra => extra.key !== key)); resetDecision() }
 
   // The shared budget lives outside this panel. When it changes, the numbers of an open draft describe the old budget:
   // re-plan it at once (no AI, nothing is saved) unless the user has already edited it, in which case say so.
@@ -105,6 +109,12 @@ export default function PlanDraftPanel({ goal, onSaved, onAdjust, onAdjustShared
     if (dirty || pending) { setBudgetNotice(true); return }
     reschedule(undefined, 'Quỹ thời gian chung vừa thay đổi nên bản nháp đã được xếp lại theo quỹ mới. Chưa có gì được lưu vào lịch.')
   }
+  // The button that was pressed is replaced by another one; keep keyboard focus on the new control.
+  useEffect(() => {
+    if (!pendingFocus.current) return
+    document.querySelector(`[data-focus-id="${pendingFocus.current}"]`)?.focus()
+    pendingFocus.current = ''
+  }, [items, extras])
   useEffect(() => {
     const listener = () => budgetHandler.current()
     window.addEventListener('study-budget-saved', listener)
@@ -203,8 +213,8 @@ export default function PlanDraftPanel({ goal, onSaved, onAdjust, onAdjustShared
         <label>Ngày học<input type="date" aria-label={`Ngày học công việc ${index + 1}`} min={goal.startDate} value={task.scheduledDate || ''} onChange={e => edit(index, 'scheduledDate', e.target.value)} /></label>
         <label>Số phút<input type="number" aria-label={`Số phút công việc ${index + 1}`} required min={1} max={480} step={1} value={task.estimatedMinutes} onChange={e => edit(index, 'estimatedMinutes', e.target.value)} /></label>
         {!draft.proposal.scope && <button type="button" onClick={() => { setItems(previous => previous.filter((_, i) => i !== index)); setAttempt(null) }}>Bỏ công việc này</button>}
-        {draft.proposal.scope && task.scheduledDate && <button type="button" onClick={() => holdBack(index)}>Bỏ khỏi lần lưu này</button>}
-        {draft.proposal.scope && task.heldBack && task.previousDate && <button type="button" onClick={() => putBack(index)}>Đưa lại vào lịch</button>}
+        {draft.proposal.scope && task.scheduledDate && <button type="button" data-focus-id={`hold-${index}`} onClick={() => holdBack(index)}>Bỏ khỏi lần lưu này</button>}
+        {draft.proposal.scope && task.heldBack && task.previousDate && <button type="button" data-focus-id={`put-${index}`} onClick={() => putBack(index)}>Đưa lại vào lịch</button>}
       </fieldset>)}
       {draft.proposal.scope && <section aria-label="Việc bạn thêm" className="goal-field">
         <h4>Việc bạn thêm</h4>
@@ -213,12 +223,12 @@ export default function PlanDraftPanel({ goal, onSaved, onAdjust, onAdjustShared
           <legend>Việc bạn thêm {index + 1}</legend>
           <label>Chủ đề<select aria-label={`Chủ đề việc bạn thêm ${index + 1}`} value={extra.topicId} onChange={e => editExtra(extra.key, 'topicId', e.target.value)}>
             {draft.proposal.scope.selectedTopics.map(topic => <option key={topic.id} value={topic.id}>{topic.title}</option>)}</select></label>
-          <label>Tiêu đề<input aria-label={`Tiêu đề việc bạn thêm ${index + 1}`} value={extra.title} required maxLength={200} onChange={e => editExtra(extra.key, 'title', e.target.value)} /></label>
+          <label>Tiêu đề<input data-focus-id={`extra-${index + 1}`} aria-label={`Tiêu đề việc bạn thêm ${index + 1}`} value={extra.title} required maxLength={200} onChange={e => editExtra(extra.key, 'title', e.target.value)} /></label>
           <label>Ngày học<input type="date" aria-label={`Ngày học việc bạn thêm ${index + 1}`} min={goal.startDate} required value={extra.scheduledDate} onChange={e => editExtra(extra.key, 'scheduledDate', e.target.value)} /></label>
           <label>Số phút<input type="number" aria-label={`Số phút việc bạn thêm ${index + 1}`} required min={1} max={480} step={1} value={extra.estimatedMinutes} onChange={e => editExtra(extra.key, 'estimatedMinutes', e.target.value)} /></label>
           <button type="button" onClick={() => removeExtra(extra.key)}>Xóa việc đã thêm</button>
         </fieldset>)}
-        <button type="button" disabled={pending || extras.length >= 50} onClick={addExtra}>Thêm việc</button>
+        <button type="button" data-focus-id="add-extra" disabled={pending || extras.length >= 50} onClick={addExtra}>Thêm việc</button>
       </section>}
       <div className="goal-item-actions">
         <button type="submit" disabled={pending || review.scheduled.length === 0 || needsPreferenceConsent}>{review.remaining.length ? 'Lưu phần đã xếp' : 'Xác nhận và lưu kế hoạch'}</button>

@@ -7,7 +7,7 @@ Bảng này phân biệt phần đã hiện thực với mức kiểm chứng; k
 | --- | --- | --- |
 | Landing/auth | Landing riêng, đăng ký/đăng nhập, session/CSRF/ownership | Test client và API; giao diện cần kiểm tra đầy đủ ở các kích thước |
 | Mục tiêu/đề cương | CRUD, đọc tài liệu, rà chủ đề/nguồn/ngày thi, nhập tay | Test parser/HTTP/PostgreSQL; không bảo đảm mọi định dạng đề cương đều trích đúng |
-| Lập kế hoạch AI | Draft, chỉnh/xác nhận, lưu một phần, phần chưa xếp và xếp lại | Test AI mock + DB; provider thật là lần thử riêng, cần key/model của môi trường |
+| Lập kế hoạch AI | Draft, chỉnh/bỏ/thêm việc, xác nhận, lưu một phần, phần chưa xếp và xếp lại; lưu quỹ chung làm mới draft đang mở | Test AI mock + DB; provider thật là lần thử riêng, cần key/model của môi trường |
 | Quỹ chung | Giới hạn cứng liên môn, mức mong muốn theo môn và đồng ý phần vượt | Test biên/ngân sách/đồng thời; không phải bộ xếp giờ thực tế |
 | Lịch/tiến độ | Tuần/ngày, thao tác task, quá hạn, tiến độ theo mục tiêu/tuần | API/PostgreSQL/client; không đo mức hiểu bài |
 | Timer | Start/pause/resume/finish/cancel, lịch sử, chọn hoàn thành sau lưu | HTTP thật và Clock/test concurrency; browser hai tab/offline chưa được xác minh đầy đủ |
@@ -17,8 +17,9 @@ Bảng này phân biệt phần đã hiện thực với mức kiểm chứng; k
 
 ## Kết quả kiểm tra gần nhất
 
-- Backend local: 440 lượt chạy, 437 đạt, 3 ca PDF cá nhân tùy chọn bỏ qua; không lỗi.
-- Frontend local: lint/build đạt, 150/150 test đạt.
+- Backend local: 443 lượt chạy, 440 đạt, 3 ca PDF cá nhân tùy chọn bỏ qua; không lỗi.
+- Frontend local: lint/build đạt, 152/152 test đạt.
+- [Kiểm thử](testing/ASP-57-plan-review-confirm-test-report.md) và [nghiệm thu](testing/ASP-123-plan-review-acceptance.md) duyệt/chỉnh/xác nhận kế hoạch AI: 49 ca API/DB/Gemini thật đạt; chưa có PR, review hay CI.
 - [Cập nhật Recall](plans/completed/dev2-recall-update-2026-11-13.md): preview nguồn và quyền sở hữu
   qua proxy đạt; Gemini thật tạo 5 thẻ có trích dẫn, retry cùng key trả đúng bộ thẻ đã lưu.
 - Các suite backend trên dùng database `study_planner_test` riêng, không dùng preview/user DB.
