@@ -150,3 +150,24 @@ button:disabled{cursor:not-allowed;opacity:.55;transform:none;box-shadow:none}
   button,.button,a.nav-link{transition:none!important}
   button:active:not(:disabled),.button:active:not(:disabled){transform:none}
 }
+
+/* Layout hardening: long text with no spaces, or many characters, must wrap inside its card instead of widening the page. */
+.study-sessions{grid-template-columns:minmax(0,1fr)}
+.study-session p,.study-session-copy>span,.overview-panel li p,.overview-panel li h3,.timer-focus p,.timer-focus h2,.timer-side p,.timer-side small,.goal-item p,.goal-item h3,.goal-item li{overflow-wrap:anywhere}
+.timer-layout>*,.overview-columns>*,.goals-layout>*{min-width:0}
+.overview-task-list li>*,.overview-exam-list li>*{min-width:0}
+.overview-task-list li>.overview-minutes,.overview-exam-list li>.overview-countdown{flex:none}
+.goal-field label:has(input[type="checkbox"]){display:flex;align-items:flex-start;gap:8px;line-height:1.5}
+.goal-field label input[type="checkbox"]{width:auto;min-width:0;flex:none;margin-top:3px}
+.recall-deck-item{flex-wrap:wrap}
+.recall-deck-item>div{flex:1 1 180px}
+.sidebar-top{gap:6px}
+.sidebar-top .brand{min-width:0;gap:8px}
+.sidebar-top .brand small{letter-spacing:1.3px}
+.study-session{flex-wrap:wrap}
+.study-session-copy{flex:1 1 160px;min-width:min(160px,100%)}
+.study-session>button{margin-left:auto}
+@media(max-width:1100px){.study-day{grid-template-columns:minmax(0,1fr);gap:10px}.study-date{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.study-date p{margin:0}}
+.study-toolbar{flex-wrap:wrap}
+.study-filter{flex-wrap:wrap;min-width:0;max-width:100%}
+.study-plan select{min-width:0;max-width:min(300px,100%)}
