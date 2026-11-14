@@ -110,3 +110,27 @@ test('draft review sorts by priority without changing dates, minutes, equal-prio
   assert.deepEqual(items, original)
   for (const task of sorted) assert.deepEqual(task, original.find(item => item.title === task.title))
 })
+
+test('work the user adds to a scoped draft travels as addedTasks with numeric minutes and no extra fields; none are sent when there are none', async t => {
+  clearCsrfTokenCache()
+  const bodies = []
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    if (url.endsWith('/csrf')) return Response.json({ data: { token: 'csrf' } })
+    bodies.push(JSON.parse(options.body))
+    return Response.json({ data: { createdCount: 2 } })
+  })
+  const scheduled = [{ id: 'a', topicId: 't', title: 'Practice basics', scheduledDate: '2026-11-12', estimatedMinutes: '40', heldBack: false, previousDate: '2026-11-12' }]
+  const addedTasks = [{ key: 'client-only', topicId: 't', title: 'My own exercise', scheduledDate: '2026-11-13', estimatedMinutes: '25', extra: 'x' }]
+  await confirmPlanDraft('g', 'd', scheduled, 3, 'k1', { addedTasks })
+  await confirmPlanDraft('g', 'd', scheduled, 3, 'k2')
+  assert.deepEqual(bodies[0].addedTasks, [{ topicId: 't', title: 'My own exercise', scheduledDate: '2026-11-13', estimatedMinutes: 25 }])
+  assert.equal('addedTasks' in bodies[1], false)
+  assert.deepEqual(bodies[0].tasks, [{ id: 'a', topicId: 't', title: 'Practice basics', scheduledDate: '2026-11-12', estimatedMinutes: 40 }])
+})
+
+test('leaving a task out of a save by clearing its date moves it to the remaining list that is kept', () => {
+  const items = [{ id: 'a', scheduledDate: '2026-11-12', estimatedMinutes: 30 }, { id: 'b', scheduledDate: '', heldBack: true, estimatedMinutes: 20 }]
+  const review = draftReview(items, 100)
+  assert.deepEqual(review.scheduled.map(task => task.id), ['a'])
+  assert.deepEqual(review.remaining.map(task => task.id), ['b'])
+})

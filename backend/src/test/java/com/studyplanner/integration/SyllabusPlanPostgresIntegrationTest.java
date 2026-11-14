@@ -77,6 +77,54 @@ class SyllabusPlanPostgresIntegrationTest {
         call(owner,get("/api/v1/goals/"+goal+"/tasks"),Map.of()).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].topicId").value("collision"));
     }
+    ObjectNode added(String topic,String title,LocalDate day,int minutes) {
+        return mapper.createObjectNode().put("topicId",topic).put("title",title).put("scheduledDate",day.toString()).put("estimatedMinutes",minutes);
+    }
+    @Test void workAddedToAScopedDraftIsSavedWithItsTopicOnlyOnConfirm() throws Exception {
+        var draft=data(call(owner,post(base()),scope()).andExpect(status().isCreated()));
+        assertEquals(0,count("study_tasks"));
+        var body=confirmBody(draft); body.putArray("addedTasks").add(added("collision","Tự thêm: làm thêm bài tập va chạm",today.plusDays(2),15));
+        String key=UUID.randomUUID().toString();
+        confirm(owner,draft,key,body).andExpect(status().isCreated()).andExpect(jsonPath("$.data.createdCount").value(3));
+        assertEquals(3,count("study_tasks"));
+        assertEquals("manual",jdbc.queryForObject("SELECT source FROM study_tasks WHERE title LIKE 'Tự thêm%'",String.class));
+        assertEquals("collision",jdbc.queryForObject("SELECT topic_id FROM study_tasks WHERE title LIKE 'Tự thêm%'",String.class));
+        confirm(owner,draft,key,body).andExpect(status().isOk());
+        assertEquals(3,count("study_tasks"));
+        var changed=body.deepCopy(); ((ObjectNode)changed.path("addedTasks").get(0)).put("estimatedMinutes",20);
+        confirm(owner,draft,key,changed).andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("IDEMPOTENCY_CONFLICT"));
+        assertEquals(3,count("study_tasks"));
+    }
+    @Test void invalidAddedWorkIsRefusedAndSavesNothing() throws Exception {
+        var draft=data(call(owner,post(base()),scope()).andExpect(status().isCreated()));
+        var good=added("path","Việc tự thêm hợp lệ",today.plusDays(2),15);
+        for (var bad : List.of(
+                added("unselected","Chủ đề lạ",today.plusDays(2),15),
+                added("path","   ",today.plusDays(2),15),
+                added("path","x".repeat(201),today.plusDays(2),15),
+                added("path","Phút 0",today.plusDays(2),0),
+                added("path","Phút 481",today.plusDays(2),481),
+                added("path","Sau ngày thi",today.plusDays(9),15),
+                added("path","Trước ngày bắt đầu",today.minusDays(1),15),
+                good.deepCopy().put("priority","HIGH"))) {
+            var body=confirmBody(draft); body.putArray("addedTasks").add(bad);
+            confirm(owner,draft,UUID.randomUUID().toString(),body).andExpect(status().isBadRequest());
+        }
+        var notArray=confirmBody(draft); notArray.put("addedTasks","x");
+        confirm(owner,draft,UUID.randomUUID().toString(),notArray).andExpect(status().isBadRequest());
+        var tooMany=confirmBody(draft); var list=tooMany.putArray("addedTasks"); for(int i=0;i<51;i++) list.add(good);
+        confirm(owner,draft,UUID.randomUUID().toString(),tooMany).andExpect(status().isBadRequest());
+        assertEquals(0,count("study_tasks")); assertEquals(0,count("plan_confirmations"));
+    }
+    @Test void addedWorkIsCheckedAgainstTheSharedDailyBudgetAtConfirm() throws Exception {
+        var draft=data(call(owner,post(base()),scope()).andExpect(status().isCreated()));
+        jdbc.update("UPDATE app_users SET study_daily_minutes=60 WHERE id=?",owner);
+        var first=draft.at("/proposal/tasks/0/scheduledDate").asText();
+        var body=confirmBody(draft); body.putArray("addedTasks").add(added("collision","Việc làm đầy quỹ ngày",LocalDate.parse(first),30));
+        confirm(owner,draft,UUID.randomUUID().toString(),body).andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error.code").value("SHARED_DAILY_BUDGET_EXCEEDED"));
+        assertEquals(0,count("study_tasks")); assertEquals(0,count("plan_confirmations"));
+    }
     @Test void invalidEditsRollbackAndKeepSavedScheduleAndDraft() throws Exception {
         jdbc.update("INSERT INTO study_tasks(goal_id,title,scheduled_date,estimated_minutes) VALUES (?,?,?,?)",goal,"Saved work",today.plusDays(2),15);
         var draft=data(call(owner,post(base()),scope()).andExpect(status().isCreated()));

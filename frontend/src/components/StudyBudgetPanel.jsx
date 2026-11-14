@@ -40,6 +40,7 @@ export default function StudyBudgetPanel({ from, to, revision, onSaved, focusReq
       const value = await getStudyBudget(from, to)
       setSettings(value); setMinutes(value.defaultMinutes); setOverrides(value.dailyMinutes)
       onSaved?.()
+      window.dispatchEvent(new CustomEvent('study-budget-saved'))
     } catch (err) { setError(err.message) } finally { setBusy(false) }
   }
   return <section ref={panelRef} className="study-budget" aria-label="Quỹ thời gian chung">

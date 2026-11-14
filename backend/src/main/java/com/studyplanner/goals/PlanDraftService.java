@@ -182,7 +182,7 @@ public class PlanDraftService {
     public Confirmation confirm(UUID owner, UUID goalId, UUID draftId, UUID key, JsonNode body) {
         if (body == null || !body.isObject()) throw invalid("body", "invalid_type");
         body.fieldNames().forEachRemaining(name -> {
-            if (!name.equals("expectedGoalVersion") && !name.equals("tasks") && !name.equals("allowPartial") && !name.equals("deferredTasks") && !name.equals("allowPreferenceExceedance")) throw invalid(name, "unknown_field");
+            if (!name.equals("expectedGoalVersion") && !name.equals("tasks") && !name.equals("allowPartial") && !name.equals("deferredTasks") && !name.equals("allowPreferenceExceedance") && !name.equals("addedTasks")) throw invalid(name, "unknown_field");
         });
         if (body.has("allowPartial") && !body.get("allowPartial").isBoolean()) throw invalid("allowPartial", "invalid_type");
         boolean allowPartial = body.path("allowPartial").asBoolean(false);
@@ -206,6 +206,9 @@ public class PlanDraftService {
             ((com.fasterxml.jackson.databind.node.ObjectNode) task).remove(List.of("id", "topicId"));
         }
         var input = parseTasks(plainTasks);
+        var added = parseAdded(body.get("addedTasks"), scoped, proposal);
+        var inputWithAdded = new ArrayList<TaskPolicy.TaskInput>(input);
+        added.forEach(a -> inputWithAdded.add(a.input()));
         if (allowPartial && !scoped) throw invalid("allowPartial", "scoped_draft_required");
         JsonNode fingerprintMetadata = scoped ? taskBody : null;
         if (allowPartial) {
@@ -213,6 +216,12 @@ public class PlanDraftService {
             decision.set("tasks", taskBody);
             if (body.has("deferredTasks")) decision.set("deferredTasks", body.get("deferredTasks"));
             fingerprintMetadata = decision;
+        }
+        if(!added.isEmpty()) {
+            var wrap=mapper.createObjectNode();
+            wrap.set("added", body.get("addedTasks"));
+            if(fingerprintMetadata!=null)wrap.set("selection",fingerprintMetadata);
+            fingerprintMetadata=wrap;
         }
         if(body.path("allowPreferenceExceedance").asBoolean(false)) {
             var decision=mapper.createObjectNode().put("allowPreferenceExceedance",true);
@@ -230,18 +239,18 @@ public class PlanDraftService {
         requireUsable(owner, draft);
         if (version.intValue() != draft.goalVersion() || draft.goalVersion() != goal.version())
             throw new GoalService.GoalConflictException("stale_goal_version");
-        validate(goal,owner,input);
+        validate(goal,owner,inputWithAdded);
         var currentScope=preferenceScope(owner,goal);
         var existing=goals.listScheduledTasksOwned(owner,goalId);
         if (scoped) {
             var checked=(com.fasterxml.jackson.databind.node.ObjectNode)proposal.deepCopy();
             if(proposal.path("scope").path("respectPreferences").asBoolean(false))PlanScheduling.respectPreferences(currentScope);
             checked.set("scope",currentScope);
-            budgets.checkPlan(owner,input);
+            budgets.checkPlan(owner,inputWithAdded);
             PlanScheduling.validateConfirmation(taskBody, checked, existing,
                 LocalDate.now(clock.withZone(java.time.ZoneId.of(goal.timezone()))), allowPartial);
         }
-        var excess=PlanScheduling.preferenceExcess(mapper,taskBody,currentScope,existing);
+        var excess=PlanScheduling.preferenceExcess(mapper,withAdded(taskBody,body.get("addedTasks")),currentScope,existing);
         if(!excess.isEmpty() && !body.path("allowPreferenceExceedance").asBoolean(false))
             throw new PlanException(422,"PREFERENCE_EXCEEDANCE_REQUIRES_CONFIRMATION",
                 "Bản nháp vượt mức mong muốn của môn. Hãy đồng ý phần vượt hoặc xếp lại theo mức mong muốn.",
@@ -273,6 +282,10 @@ public class PlanDraftService {
                         .filter(t -> t.path("id").asText().equals(topicId)).findFirst().orElseThrow();
                 tasks.attachTopicOwned(owner, goalId, taskId, topicId, topic.path("title").asText());
             }
+        }
+        for (var extra : added) {
+            UUID taskId = tasks.insertOwned(owner, goalId, extra.input(), "manual").id(); ids.add(taskId);
+            tasks.attachTopicOwned(owner, goalId, taskId, extra.topicId(), extra.topicTitle());
         }
         goals.bumpVersion(owner, goalId);
         UUID remainingId = null;
@@ -310,6 +323,38 @@ public class PlanDraftService {
         try { drafts.saveReceipt(owner, key, draftId, fingerprint, mapper.writeValueAsString(result)); }
         catch (com.fasterxml.jackson.core.JsonProcessingException ex) { throw new IllegalStateException(ex); }
         return new Confirmation(result, false);
+    }
+
+    private record AddedTask(TaskPolicy.TaskInput input, String topicId, String topicTitle) {}
+
+    /** Work the user wrote into a scoped draft: a title, a topic already selected for the draft, a day and minutes. */
+    private List<AddedTask> parseAdded(JsonNode list, boolean scoped, JsonNode proposal) {
+        if (list == null) return List.of();
+        if (!scoped) throw invalid("addedTasks", "scoped_draft_required");
+        if (!list.isArray() || list.size() > 50) throw invalid("addedTasks", "invalid_type");
+        var result = new ArrayList<AddedTask>();
+        for (var item : list) {
+            if (!item.isObject()) throw invalid("addedTasks", "invalid_type");
+            PlanScheduling.strict(item, java.util.Set.of("topicId", "title", "scheduledDate", "estimatedMinutes"));
+            String topicId = PlanScheduling.text(item, "topicId", 100);
+            var topic = java.util.stream.StreamSupport.stream(proposal.path("scope").path("selectedTopics").spliterator(), false)
+                    .filter(t -> t.path("id").asText().equals(topicId)).findFirst()
+                    .orElseThrow(() -> invalid("addedTasks", "invalid_topic"));
+            var fields = ((com.fasterxml.jackson.databind.node.ObjectNode) item).deepCopy();
+            fields.remove("topicId");
+            var parsed = TaskRequest.parse(fields, true);
+            result.add(new AddedTask(new TaskPolicy.TaskInput(parsed.title() == null ? null : parsed.title().trim(),
+                    parsed.scheduledDate(), parsed.estimatedMinutes()), topicId, topic.path("title").asText()));
+        }
+        return List.copyOf(result);
+    }
+
+    private JsonNode withAdded(JsonNode taskBody, JsonNode addedBody) {
+        if (addedBody == null || !addedBody.isArray() || addedBody.isEmpty()) return taskBody;
+        var all = mapper.createArrayNode();
+        taskBody.forEach(all::add);
+        addedBody.forEach(all::add);
+        return all;
     }
 
     private void requireUsable(UUID owner, PlanDraftRepository.StoredDraft draft) {

@@ -35,10 +35,10 @@ export function getLatestPlanDraft(goalId, { signal } = {}) {
 }
 
 /** Retry with the same key and body after a lost response. */
-export function confirmPlanDraft(goalId, draftId, tasks, expectedGoalVersion, idempotencyKey, { signal, allowPartial = false, deferredTasks = [], allowPreferenceExceedance = false } = {}) {
+export function confirmPlanDraft(goalId, draftId, tasks, expectedGoalVersion, idempotencyKey, { signal, allowPartial = false, deferredTasks = [], addedTasks = [], allowPreferenceExceedance = false } = {}) {
   return request(`/api/v1/goals/${encodeURIComponent(goalId)}/plan-drafts/${encodeURIComponent(draftId)}/confirm`, {
     method: 'POST', signal, key: idempotencyKey,
-    body: { expectedGoalVersion, ...(allowPreferenceExceedance ? { allowPreferenceExceedance: true } : {}), ...(allowPartial ? { allowPartial: true, deferredTasks: deferredTasks.map(({ id, topicId, title, estimatedMinutes }) => ({ id, topicId, title, estimatedMinutes: Number(estimatedMinutes) })) } : {}), tasks: tasks.map(({ id, topicId, title, scheduledDate, estimatedMinutes }) => ({
+    body: { expectedGoalVersion, ...(addedTasks.length ? { addedTasks: addedTasks.map(({ topicId, title, scheduledDate, estimatedMinutes }) => ({ topicId, title, scheduledDate, estimatedMinutes: Number(estimatedMinutes) })) } : {}), ...(allowPreferenceExceedance ? { allowPreferenceExceedance: true } : {}), ...(allowPartial ? { allowPartial: true, deferredTasks: deferredTasks.map(({ id, topicId, title, estimatedMinutes }) => ({ id, topicId, title, estimatedMinutes: Number(estimatedMinutes) })) } : {}), tasks: tasks.map(({ id, topicId, title, scheduledDate, estimatedMinutes }) => ({
       ...(topicId ? { id, topicId } : {}),
       title, scheduledDate, estimatedMinutes: Number(estimatedMinutes),
     })) },
